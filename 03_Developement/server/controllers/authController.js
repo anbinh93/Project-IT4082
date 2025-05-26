@@ -80,8 +80,6 @@ exports.login = async (req, res) => {
 
 exports.logout = async (req, res) => {
   try {
-    // Server không cần làm gì đặc biệt vì token được lưu ở client
-    // Client sẽ xóa token khỏi localStorage hoặc cookie
     return res.status(200).json({ 
       message: 'Đăng xuất thành công',
       success: true 

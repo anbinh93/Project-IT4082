@@ -1,0 +1,12 @@
+export { default as Login } from "./Login";
+export { default as ForgetPassword } from "./ForgetPassword";
+export { default as HomepageKeToan } from "./HomepageKeToan";
+export { default as HomepageToTruong } from "./HomepageToTruong";
+export { default as QuanLyKhoanThu } from "./QuanLyKhoanThu";
+export { default as QuanLyDotThuPhi } from "./QuanLyDotThuPhi";
+export { default as ThongKeKhoanThu } from "./ThongKeKhoanThu";
+export { default as QuanLyHoKhau } from "./QuanLyHoKhau";
+export { default as QuanLyNhanKhau } from "./QuanLyNhanKhau";
+export { default as QuanLyTamTru } from "./QuanLyTamTru";
+export { default as LichSuThayDoiNhanKhau } from "./LichSuThayDoiNhanKhau";
+export { default as ThongKeNhanKhau } from "./ThongKeNhanKhau"; 

@@ -1,5 +1,5 @@
 import React, { type ReactNode } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import Logo from '../assets/logo.png';
 
 interface LayoutProps {
@@ -9,6 +9,8 @@ interface LayoutProps {
 
 const Layout: React.FC<LayoutProps> = ({ children, role }) => {
   const location = useLocation();
+  const navigate = useNavigate();
+  const [showDropdown, setShowDropdown] = React.useState(false);
 
   const menuItems = role === 'ketoan' ? [
     { path: '/homepage-ketoan', label: 'Trang chủ' },
@@ -34,9 +36,25 @@ const Layout: React.FC<LayoutProps> = ({ children, role }) => {
           <img src={Logo} alt="Bluemoon Logo" className="w-8 h-8" />
           <span className="text-sm font-bold text-gray-800 uppercase">HỆ THỐNG QUẢN LÝ THU PHÍ CHUNG CƯ BLUEMOON</span>
         </div>
-        {/* User/Role Display */}
-        <div className="bg-[#2196F3] text-white font-medium py-1 px-3 rounded-lg uppercase text-sm">
-          {role === 'ketoan' ? 'Kế toán viên' : 'Tổ trưởng/Tổ phó'}
+        {/* User/Role Display as Button with Dropdown */}
+        <div className="relative">
+          <button
+            className="bg-[#2196F3] text-white font-medium py-1 px-3 rounded-lg uppercase text-sm focus:outline-none"
+            style={{ minWidth: 120 }}
+            onClick={() => setShowDropdown(v => !v)}
+          >
+            {role === 'ketoan' ? 'Kế toán viên' : 'Tổ trưởng/Tổ phó'}
+          </button>
+          {showDropdown && (
+            <div className="absolute right-0 mt-2 w-32 bg-white border border-gray-200 rounded shadow-lg z-20">
+              <button
+                className="block w-full text-left px-4 py-2 text-sm text-[#1976D2] font-semibold hover:bg-blue-50"
+                onClick={() => { setShowDropdown(false); navigate('/login'); }}
+              >
+                Đăng xuất
+              </button>
+            </div>
+          )}
         </div>
       </header>
 

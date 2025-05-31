@@ -1,84 +1,102 @@
-import React from "react";
+import React, { useState } from "react";
 import Layout from '../components/Layout';
 
-const LichSuThayDoiNhanKhau: React.FC = () => (
-  <Layout role="totruong">
-    <div className="p-4 flex flex-col gap-6">
-      <div>
-        <h1 className="text-2xl font-bold text-gray-800">LỊCH SỬ THAY ĐỔI NHÂN KHẨU</h1>
-        <p className="text-gray-600 text-sm mt-1">Chào mừng đến với Hệ thống Quản lý Thu phí Chung cư</p>
-      </div>
+const CHANGE_TYPES = [
+  { label: 'Tất cả', value: '' },
+  { label: 'Thêm vào hộ', value: 'them' },
+  { label: 'Xóa khỏi hộ', value: 'xoa' },
+  { label: 'Cập nhật thông tin', value: 'capnhat' },
+  { label: 'Tạm vắng', value: 'tamvang' },
+];
 
-      <div className="flex items-center gap-4">
-        <div className="flex items-center border border-gray-300 rounded-md shadow-sm overflow-hidden flex-1">
-          <div className="p-2 text-gray-400">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-            </svg>
+const sampleData = [
+  { ten: 'Nguyễn Văn An', soHoKhau: 'HK123456', loai: 'Cập nhật thông tin', thoiGian: '2025-05-01 09:15', chiTiet: '[Nội dung chi tiết thay đổi]' },
+  { ten: 'Trần Thị Bình', soHoKhau: 'HK654321', loai: 'Tạm vắng', thoiGian: '2025-05-12 15:30', chiTiet: 'Xin tạm vắng để về quê chăm người thân' },
+  { ten: 'Lê Minh Công', soHoKhau: 'HK123456', loai: 'Thêm vào hộ', thoiGian: '2025-05-24 11:10', chiTiet: '[Nội dung chi tiết thay đổi]' },
+  { ten: 'Phạm Thị Hoa', soHoKhau: 'HK789012', loai: 'Xóa khỏi hộ', thoiGian: '2025-05-28 14:20', chiTiet: 'Chuyển hộ khẩu sang địa chỉ mới' },
+];
+
+const LichSuThayDoiNhanKhau: React.FC = () => {
+  const [dateFrom, setDateFrom] = useState('2025-05-01');
+  const [dateTo, setDateTo] = useState('2025-05-31');
+  const [changeType, setChangeType] = useState('');
+  const [sortBy, setSortBy] = useState<'ten'|'soHoKhau'|'loai'|'thoiGian'>('thoiGian');
+  const [sortAsc, setSortAsc] = useState(false);
+  const [selectedRow, setSelectedRow] = useState<any>(null);
+
+  // Lọc và sắp xếp dữ liệu
+  const filtered = sampleData.filter(row => {
+    const inDate = (!dateFrom || row.thoiGian >= dateFrom) && (!dateTo || row.thoiGian <= dateTo);
+    const inType = !changeType || row.loai.toLowerCase().includes(changeType);
+    return inDate && inType;
+  });
+  const sorted = [...filtered].sort((a, b) => {
+    if (a[sortBy] < b[sortBy]) return sortAsc ? -1 : 1;
+    if (a[sortBy] > b[sortBy]) return sortAsc ? 1 : -1;
+    return 0;
+  });
+
+  return (
+    <Layout role="totruong">
+      <div className="p-4 flex flex-col gap-6">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-800">LỊCH SỬ THAY ĐỔI HỘ KHẨU</h1>
+          <p className="text-gray-600 text-sm mt-1">Chào mừng đến với Hệ thống Quản lý Thu phí Chung cư</p>
+        </div>
+        {/* Bộ lọc */}
+        <div className="flex flex-wrap items-center gap-4">
+          <label className="font-semibold text-gray-700">Khoảng thời gian:</label>
+          <input type="date" className="border border-gray-300 rounded-md px-2 py-1 text-sm" value={dateFrom} onChange={e => setDateFrom(e.target.value)} />
+          <span>-</span>
+          <input type="date" className="border border-gray-300 rounded-md px-2 py-1 text-sm" value={dateTo} onChange={e => setDateTo(e.target.value)} />
+          <label className="font-semibold text-gray-700 ml-4">Loại thay đổi:</label>
+          <select className="border border-gray-300 rounded-md px-3 py-2 text-sm" value={changeType} onChange={e => setChangeType(e.target.value)}>
+            {CHANGE_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
+          </select>
+        </div>
+        {/* Bảng lịch sử */}
+        <div className="mt-6 bg-white rounded-md shadow-md overflow-hidden border border-gray-200">
+          <div className="p-4 bg-gray-100 border-b border-gray-200">
+            <h2 className="text-lg font-semibold text-gray-800">Danh sách lịch sử thay đổi hộ khẩu</h2>
           </div>
-          <input
-            type="text"
-            placeholder="Search"
-            className="flex-1 p-2 border-l border-gray-300 outline-none text-sm"
-          />
+          <table className="min-w-full divide-y divide-gray-200">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="px-6 py-3 text-left text-xs font-bold text-gray-800 uppercase tracking-wider cursor-pointer" onClick={() => {setSortBy('ten');setSortAsc(s => !s);}}>Tên nhân khẩu</th>
+                <th className="px-6 py-3 text-left text-xs font-bold text-gray-800 uppercase tracking-wider cursor-pointer" onClick={() => {setSortBy('soHoKhau');setSortAsc(s => !s);}}>Số hộ khẩu</th>
+                <th className="px-6 py-3 text-left text-xs font-bold text-gray-800 uppercase tracking-wider cursor-pointer" onClick={() => {setSortBy('loai');setSortAsc(s => !s);}}>Loại thay đổi</th>
+                <th className="px-6 py-3 text-left text-xs font-bold text-gray-800 uppercase tracking-wider cursor-pointer" onClick={() => {setSortBy('thoiGian');setSortAsc(s => !s);}}>Thời gian</th>
+              </tr>
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-200">
+              {sorted.map((row, idx) => (
+                <tr key={idx} className="hover:bg-blue-50 cursor-pointer" onClick={() => setSelectedRow(row)}>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-gray-900">{row.ten}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{row.soHoKhau}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{row.loai}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{row.thoiGian}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
-        <div className="flex items-center border border-gray-300 rounded-md shadow-sm overflow-hidden">
-          <input
-            type="text"
-            placeholder="Chọn kiểu"
-            className="flex-1 p-2 outline-none text-sm"
-          />
-          <button className="p-2 border-l border-gray-300 bg-gray-50 text-gray-600 hover:bg-gray-100">
-            ...
-          </button>
-        </div>
+        {/* Popup chi tiết */}
+        {selectedRow && (
+          <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg shadow-lg p-6 min-w-[320px] max-w-[90vw]">
+              <h3 className="text-lg font-bold mb-2">Chi tiết thay đổi</h3>
+              <div className="mb-2"><b>Tên nhân khẩu:</b> {selectedRow.ten}</div>
+              <div className="mb-2"><b>Số hộ khẩu:</b> {selectedRow.soHoKhau}</div>
+              <div className="mb-2"><b>Loại thay đổi:</b> {selectedRow.loai}</div>
+              <div className="mb-2"><b>Thời gian:</b> {selectedRow.thoiGian}</div>
+              <div className="mb-2"><b>Nội dung chi tiết:</b> {selectedRow.chiTiet}</div>
+              <button className="mt-4 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600" onClick={() => setSelectedRow(null)}>Đóng</button>
+            </div>
+          </div>
+        )}
       </div>
-
-      <div className="mt-6 bg-white rounded-md shadow-md overflow-hidden border border-gray-200">
-        <div className="p-4 bg-gray-100 border-b border-gray-200">
-          <h2 className="text-lg font-semibold text-gray-800">Danh sách lịch sử thay đổi nhân khẩu</h2>
-        </div>
-        <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50">
-            <tr>
-              <th className="px-6 py-3 text-left text-xs font-bold text-gray-800 uppercase tracking-wider">Tên nhân khẩu</th>
-              <th className="px-6 py-3 text-left text-xs font-bold text-gray-800 uppercase tracking-wider">Số hộ khẩu</th>
-              <th className="px-6 py-3 text-left text-xs font-bold text-gray-800 uppercase tracking-wider">Loại thay đổi</th>
-              <th className="px-6 py-3 text-left text-xs font-bold text-gray-800 uppercase tracking-wider">Thời gian</th>
-              <th className="px-6 py-3 text-left text-xs font-bold text-gray-800 uppercase tracking-wider">Nội dung chi tiết</th>
-              <th className="px-6 py-3 text-left text-xs font-bold text-gray-800 uppercase tracking-wider">Thao tác</th>
-            </tr>
-          </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
-            <tr>
-              <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-gray-900">Nguyễn Văn An</td>
-              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">HK123456</td>
-              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">Cập nhật thông tin</td>
-              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">2025-05-01 09:15</td>
-              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">[Nội dung chi tiết thay đổi]</td>
-              <td className="px-6 py-4 whitespace-nowrap text-sm text-blue-600 cursor-pointer">Xem chi tiết</td>
-            </tr>
-            <tr>
-              <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-gray-900">Trần Thị Bình</td>
-              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">HK654321</td>
-              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">Tạm vắng</td>
-              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">2025-05-12 15:30</td>
-              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">Xin tạm vắng để về quê chăm người thân</td>
-              <td className="px-6 py-4 whitespace-nowrap text-sm text-blue-600 cursor-pointer">Xem chi tiết</td>
-            </tr>
-            <tr>
-              <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-gray-900">Lê Minh Công</td>
-              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">HK123456</td>
-              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">Cập nhật thông tin</td>
-              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">2025-05-24 11:10</td>
-              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">[Nội dung chi tiết thay đổi]</td>
-              <td className="px-6 py-4 whitespace-nowrap text-sm text-blue-600 cursor-pointer">Xem chi tiết</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
-  </Layout>
-);
+    </Layout>
+  );
+};
 
 export default LichSuThayDoiNhanKhau;

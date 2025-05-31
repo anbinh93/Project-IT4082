@@ -20,59 +20,62 @@ const EditNhanKhauPopup: React.FC<EditNhanKhauPopupProps> = ({ isOpen, onClose }
             {/* Row 1: Họ tên & Ngày sinh */}
             <div className="text-left">
               <label className="block text-sm font-medium text-gray-700">Họ tên</label>
-              <input type="text" className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm" placeholder="Họ tên" />
+              <input type="text" className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm" placeholder="Họ tên" required />
             </div>
             <div className="text-left">
               <label className="block text-sm font-medium text-gray-700">Ngày sinh</label>
-              <input type="text" className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm" placeholder="Ngày sinh" />
+              <input type="date" className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm" placeholder="Ngày sinh" required />
             </div>
 
             {/* Row 2: Giới tính, Dân tộc, Tôn giáo */}
-            <div className="md:col-span-2 grid grid-cols-3 gap-4">
-               <div className="text-left">
-                <label className="block text-sm font-medium text-gray-700">Giới tính</label>
-                <input type="text" className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm" placeholder="Giới tính" />
-              </div>
-               <div className="text-left">
-                <label className="block text-sm font-medium text-gray-700">Dân tộc</label>
-                <input type="text" className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm" placeholder="Dân tộc" />
-              </div>
-                <div className="text-left">
-                <label className="block text-sm font-medium text-gray-700">Tôn giáo</label>
-                <input type="text" className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm" placeholder="Tôn giáo" />
-              </div>
+            <div className="text-left">
+              <label className="block text-sm font-medium text-gray-700">Giới tính</label>
+              <select className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm" required>
+                <option value="">Chọn giới tính</option>
+                <option value="Nam">Nam</option>
+                <option value="Nữ">Nữ</option>
+                <option value="Khác">Khác</option>
+              </select>
+            </div>
+            <div className="text-left">
+              <label className="block text-sm font-medium text-gray-700">Dân tộc</label>
+              <input type="text" className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm" placeholder="Dân tộc" />
+            </div>
+            <div className="text-left">
+              <label className="block text-sm font-medium text-gray-700">Tôn giáo</label>
+              <input type="text" className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm" placeholder="Tôn giáo" />
             </div>
 
             {/* Row 3: CCCD & Ngày cấp */}
-             <div className="text-left">
+            <div className="text-left">
               <label className="block text-sm font-medium text-gray-700">CCCD</label>
-              <input type="text" className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm" placeholder="CCCD" />
+              <input type="text" className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm" placeholder="CCCD" required />
             </div>
-             <div className="text-left">
+            <div className="text-left">
               <label className="block text-sm font-medium text-gray-700">Ngày cấp</label>
-              <input type="text" className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm" placeholder="Ngày cấp" />
+              <input type="date" className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm" placeholder="Ngày cấp" />
             </div>
 
             {/* Row 4: Nơi cấp (full width) */}
-             <div className="text-left md:col-span-2">
+            <div className="text-left md:col-span-2">
               <label className="block text-sm font-medium text-gray-700">Nơi cấp</label>
               <input type="text" className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm" placeholder="Nơi cấp" />
             </div>
 
             {/* Row 5: Nghề nghiệp (full width) */}
-             <div className="text-left md:col-span-2">
+            <div className="text-left md:col-span-2">
               <label className="block text-sm font-medium text-gray-700">Nghề nghiệp</label>
               <input type="text" className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm" placeholder="Nghề nghiệp" />
             </div>
 
-             {/* Row 6: Hộ khẩu hiện tại (full width) */}
-             <div className="mb-4 text-left md:col-span-2">
+            {/* Row 6: Hộ khẩu hiện tại (full width) */}
+            <div className="mb-4 text-left md:col-span-2">
               <label className="block text-sm font-medium text-gray-700">Hộ khẩu hiện tại</label>
               <input type="text" className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm" placeholder="Hộ khẩu hiện tại" />
             </div>
 
-             {/* Row 7: Quan hệ với chủ hộ (full width) */}
-             <div className="mb-4 text-left md:col-span-2">
+            {/* Row 7: Quan hệ với chủ hộ (full width) */}
+            <div className="mb-4 text-left md:col-span-2">
               <label className="block text-sm font-medium text-gray-700">Quan hệ với chủ hộ</label>
               <input type="text" className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm" placeholder="Quan hệ với chủ hộ" />
             </div>

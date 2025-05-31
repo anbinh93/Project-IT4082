@@ -49,7 +49,7 @@ const HomepageKeToan: React.FC = () => {
           return percentage; // Có thể trả về value hoặc percentage tùy ý
         },
         font: {
-          weight: 'bold',
+          weight: 'bold' as 'bold',
         },
       },
     },

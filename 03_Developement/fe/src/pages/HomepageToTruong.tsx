@@ -1,5 +1,101 @@
 import React from "react";
 import Layout from "../components/Layout";
+import {
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  BarElement,
+  ArcElement,
+  Tooltip,
+  Legend,
+} from 'chart.js';
+import { Bar, Pie } from 'react-chartjs-2';
+import ChartDataLabels from 'chartjs-plugin-datalabels';
+
+ChartJS.register(CategoryScale, LinearScale, BarElement, ArcElement, Tooltip, Legend, ChartDataLabels);
+
+const ageBarData = {
+  labels: ['0-10', '10-20', '20-30', '30-40', '40-50', '50-60', '> 60'],
+  datasets: [
+    {
+      label: 'Số lượng',
+      data: [180, 260, 600, 480, 390, 140, 210], // Số liệu mẫu như Figma
+      backgroundColor: '#77A1EA',
+      borderColor: '#1976D2',
+      borderWidth: 1,
+      borderRadius: 4,
+    },
+  ],
+};
+
+const maxY = Math.max(...ageBarData.datasets[0].data) + 100;
+
+const ageBarOptions = {
+  responsive: true,
+  plugins: {
+    legend: { display: false },
+    datalabels: {
+      anchor: 'end' as const,
+      align: 'top' as const,
+      clamp: true,
+      color: '#222',
+      font: { weight: 'bold' as const, size: 16 },
+      formatter: (value: number) => value,
+    },
+    title: {
+      display: false,
+    },
+  },
+  scales: {
+    y: {
+      beginAtZero: true,
+      max: maxY,
+      ticks: { stepSize: 100 },
+      title: { display: false },
+    },
+    x: {
+      title: { display: false },
+    },
+  },
+};
+
+const genderPieData = {
+  labels: ['Nam', 'Nữ'],
+  datasets: [
+    {
+      label: 'Tỷ lệ',
+      data: [70, 30], // Số liệu mẫu như Figma (70% Nam, 30% Nữ)
+      backgroundColor: [
+        '#2196F3', // Nam
+        '#ffffff', // Nữ
+      ],
+      borderColor: [
+        '#2196F3',
+        '#cccccc',
+      ],
+      borderWidth: 2,
+    },
+  ],
+};
+
+const genderPieOptions = {
+  responsive: true,
+  maintainAspectRatio: false,
+  plugins: {
+    legend: {
+      display: false,
+    },
+    datalabels: {
+      color: '#222',
+      font: { weight: 'bold' as const, size: 16 },
+      formatter: (value: number, context: any) => {
+        const total = context.chart.data.datasets[0].data.reduce((sum: number, current: number) => sum + current, 0);
+        const percentage = ((value / total) * 100).toFixed(0) + '%';
+        return percentage;
+      },
+    },
+  },
+};
 
 const HomepageToTruong: React.FC = () => (
   <Layout role="totruong">
@@ -34,57 +130,29 @@ const HomepageToTruong: React.FC = () => (
       {/* Chart Section */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Phân phối nhân khẩu theo độ tuổi */}
-        <div className="bg-white rounded-lg shadow-md border border-gray-200 p-6 flex flex-col gap-4">
+        <div className="bg-white rounded-lg shadow-md border border-gray-200 p-6 flex flex-col gap-10">
           <h2 className="text-xl font-semibold text-gray-700">Phân phối nhân khẩu theo độ tuổi</h2>
-          {/* Placeholder cho biểu đồ tuổi */}
-          <div className="w-full h-64 bg-gray-200 flex items-center justify-center text-gray-500">Placeholder Biểu đồ phân phối độ tuổi</div>
-           <div className="flex flex-wrap gap-4 justify-center">
-               <div className="flex items-center gap-1">
-                    <span className="w-4 h-4 bg-[#77A1EA]"></span>
-                    <span className="text-sm text-gray-700">0-10</span>
-               </div>
-                <div className="flex items-center gap-1">
-                    <span className="w-4 h-4 bg-[#77A1EA]"></span>
-                    <span className="text-sm text-gray-700">10-20</span>
-               </div>
-                <div className="flex items-center gap-1">
-                    <span className="w-4 h-4 bg-[#77A1EA]"></span>
-                    <span className="text-sm text-gray-700">20-30</span>
-               </div>
-                 <div className="flex items-center gap-1">
-                    <span className="w-4 h-4 bg-[#77A1EA]"></span>
-                    <span className="text-sm text-gray-700">30-40</span>
-               </div>
-                <div className="flex items-center gap-1">
-                    <span className="w-4 h-4 bg-[#77A1EA]"></span>
-                    <span className="text-sm text-gray-700">40-50</span>
-               </div>
-                 <div className="flex items-center gap-1">
-                    <span className="w-4 h-4 bg-[#77A1EA]"></span>
-                    <span className="text-sm text-gray-700">50-60</span>
-               </div>
-                 <div className="flex items-center gap-1">
-                    <span className="w-4 h-4 bg-[#77A1EA]"></span>
-                    <span className="text-sm text-gray-700">{'>'} 60</span>
-               </div>
-           </div>
+          <div className="w-full h-64">
+            <Bar data={ageBarData} options={ageBarOptions} plugins={[ChartDataLabels]} />
+          </div>
         </div>
 
         {/* Tỷ lệ nam/nữ */}
         <div className="bg-white rounded-lg shadow-md border border-gray-200 p-6 flex flex-col gap-4">
           <h2 className="text-xl font-semibold text-gray-700">Tỷ lệ (%) nam/nữ trong toàn khu chung cư</h2>
-          {/* Placeholder cho biểu đồ giới tính */}
-          <div className="w-full h-64 bg-gray-200 flex items-center justify-center text-gray-500">Placeholder Biểu đồ giới tính</div>
-           <div className="flex gap-4 justify-center">
-                <div className="flex items-center gap-1">
-                    <span className="w-4 h-4 bg-blue-500 rounded-full"></span>
-                    <span className="text-sm text-gray-700">Nam</span>
-               </div>
-                 <div className="flex items-center gap-1">
-                    <span className="w-4 h-4 bg-white border border-gray-400 rounded-full"></span>
-                    <span className="text-sm text-gray-700">Nữ</span>
-               </div>
-           </div>
+          <div className="w-full h-64 flex items-center justify-center">
+            <Pie data={genderPieData} options={genderPieOptions} plugins={[ChartDataLabels]} />
+          </div>
+          <div className="flex gap-4 justify-center mt-2">
+            <div className="flex items-center gap-1">
+              <span className="w-4 h-4 bg-blue-500 rounded-full inline-block"></span>
+              <span className="text-sm text-gray-700">Nam</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <span className="w-4 h-4 bg-white border border-gray-400 rounded-full inline-block"></span>
+              <span className="text-sm text-gray-700">Nữ</span>
+            </div>
+          </div>
         </div>
       </div>
     </div>

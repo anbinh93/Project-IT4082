@@ -1,66 +1,189 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
+
+interface TamTruData {
+  id: string;
+  hoTen: string;
+  trangThai: 'Tạm trú' | 'Tạm vắng';
+  diaChi: string;
+  tuNgay: string;
+  denNgay: string;
+  noiDungDeNghi: string;
+}
 
 interface AddEditTamTruPopupProps {
   isOpen: boolean;
   onClose: () => void;
-  // Add props for data if editing an existing entry
+  editData: TamTruData | null;
+  onSave: (data: Omit<TamTruData, 'id'>) => void;
 }
 
-const AddEditTamTruPopup: React.FC<AddEditTamTruPopupProps> = ({ isOpen, onClose }) => {
-  if (!isOpen) {
-    return null;
-  }
+const AddEditTamTruPopup: React.FC<AddEditTamTruPopupProps> = ({
+  isOpen, onClose, editData, onSave
+}) => {
+  const [selectedNhanKhau, setSelectedNhanKhau] = useState('');
+  const [selectedTrangThai, setSelectedTrangThai] = useState('');
+  const [diaChi, setDiaChi] = useState('');
+  const [tuNgay, setTuNgay] = useState('');
+  const [denNgay, setDenNgay] = useState('');
+  const [noiDungDeNghi, setNoiDungDeNghi] = useState('');
+
+  const nhanKhauList = [
+    'Nguyễn Văn An',
+    'Trần Thị Bình',
+    'Lê Minh Công',
+    'Phạm Thị Dung',
+    'Hoàng Văn Em'
+  ];
+
+  const trangThaiOptions = ['Tạm trú', 'Tạm vắng'];
+
+  useEffect(() => {
+    if (editData) {
+      setSelectedNhanKhau(editData.hoTen);
+      setSelectedTrangThai(editData.trangThai);
+      setDiaChi(editData.diaChi);
+      setTuNgay(editData.tuNgay);
+      setDenNgay(editData.denNgay);
+      setNoiDungDeNghi(editData.noiDungDeNghi);
+    } else {
+      handleReset();
+    }
+  }, [editData]);
+
+  const handleReset = () => {
+    setSelectedNhanKhau('');
+    setSelectedTrangThai('');
+    setDiaChi('');
+    setTuNgay('');
+    setDenNgay('');
+    setNoiDungDeNghi('');
+  };
+
+  const handleSave = () => {
+    if (!selectedNhanKhau || !selectedTrangThai || !diaChi || !tuNgay || !denNgay) {
+      alert("Vui lòng nhập đầy đủ thông tin bắt buộc!");
+      return;
+    }
+
+    onSave({
+      hoTen: selectedNhanKhau,
+      trangThai: selectedTrangThai as 'Tạm trú' | 'Tạm vắng',
+      diaChi,
+      tuNgay,
+      denNgay,
+      noiDungDeNghi
+    });
+    onClose();
+  };
+
+  if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-gray-600 bg-opacity-50 backdrop-blur-sm overflow-y-auto h-full w-full" id="add-edit-tam-tru-modal">
-      <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
-        <div className="mt-3 text-center">
-          <h3 className="text-lg leading-6 font-medium text-gray-900">Nhập Thông tin Tạm trú/Tạm vắng</h3>
-          <div className="mt-2 px-7 py-3">
-            {/* Form Fields */}
-            <div className="mb-4 text-left">
-              <label className="block text-sm font-medium text-gray-700">Nhân khẩu</label>
-              <input type="text" className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm" placeholder="Nhân khẩu" />
-            </div>
-            <div className="mb-4 text-left">
-              <label className="block text-sm font-medium text-gray-700">Trạng thái</label>
-              <input type="text" className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm" placeholder="Trạng thái" />
-            </div>
-             <div className="mb-4 text-left">
-              <label className="block text-sm font-medium text-gray-700">Địa chỉ tạm trú/tạm vắng</label>
-              <input type="text" className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm" placeholder="Địa chỉ tạm trú/tạm vắng" />
-            </div>
-             <div className="mb-4 text-left">
-              <label className="block text-sm font-medium text-gray-700">Thời gian</label>
-              <input type="text" className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm" placeholder="Thời gian" />
-            </div>
-              <div className="mb-4 text-left">
-              <label className="block text-sm font-medium text-gray-700">Nội dung đề nghị</label>
-              <input type="text" className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm" placeholder="Nội dung đề nghị" />
-            </div>
-
-            {/* Checkbox */}
-            <div className="flex items-center justify-start mb-4">
-              <input id="completed-checkbox" type="checkbox" className="form-checkbox h-4 w-4 text-blue-600" />
-              <label htmlFor="completed-checkbox" className="ml-2 block text-sm text-gray-900">Ghi nhận hoàn thành</label>
-            </div>
-             <p className="text-left text-sm text-gray-600 mb-4">Tích nếu muốn đợt thu này là hoàn toàn hoàn thành</p>
-
-
-          </div>
-          <div className="items-center px-4 py-3">
-            <button
-              id="save-button"
-              className="px-4 py-2 bg-blue-500 text-white text-base font-medium rounded-md w-full shadow-sm hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-            >
-              Lưu
+    <div className="fixed inset-0 z-50 overflow-y-auto backdrop-blur-md bg-white/30">
+      <div className="flex min-h-screen items-center justify-center p-4">
+        <div className="bg-white w-full max-w-2xl rounded-lg shadow-xl">
+          {/* Header */}
+          <div className="flex items-center justify-between p-5 border-b border-gray-200">
+            <h2 className="text-lg font-semibold text-gray-800">
+              {editData ? 'Cập nhật tạm trú/tạm vắng' : 'Thêm mới tạm trú/tạm vắng'}
+            </h2>
+            <button onClick={onClose} className="text-gray-500 hover:text-gray-700">
+              ✕
             </button>
-             <button
-              id="cancel-button"
-              className="mt-3 px-4 py-2 bg-gray-500 text-white text-base font-medium rounded-md w-full shadow-sm hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2"
-              onClick={onClose}
+          </div>
+
+          {/* Body */}
+          <div className="p-6 space-y-5">
+            {/* Nhân khẩu */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Nhân khẩu <span className="text-red-500">*</span></label>
+              <select
+                value={selectedNhanKhau}
+                onChange={(e) => setSelectedNhanKhau(e.target.value)}
+                className="w-full p-2 border border-gray-300 rounded-md"
+              >
+                <option value="">-- Chọn nhân khẩu --</option>
+                {nhanKhauList.map(nk => (
+                  <option key={nk} value={nk}>{nk}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Trạng thái */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Trạng thái <span className="text-red-500">*</span></label>
+              <select
+                value={selectedTrangThai}
+                onChange={(e) => setSelectedTrangThai(e.target.value)}
+                className="w-full p-2 border border-gray-300 rounded-md"
+              >
+                <option value="">-- Chọn trạng thái --</option>
+                {trangThaiOptions.map(tt => (
+                  <option key={tt} value={tt}>{tt}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Địa chỉ */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Địa chỉ <span className="text-red-500">*</span></label>
+              <input
+                value={diaChi}
+                onChange={(e) => setDiaChi(e.target.value)}
+                type="text"
+                className="w-full p-2 border border-gray-300 rounded-md"
+                placeholder="Nhập địa chỉ tạm trú/tạm vắng"
+              />
+            </div>
+
+            {/* Thời gian */}
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Từ ngày <span className="text-red-500">*</span></label>
+                <input
+                  value={tuNgay}
+                  onChange={(e) => setTuNgay(e.target.value)}
+                  type="date"
+                  className="w-full p-2 border border-gray-300 rounded-md"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Đến ngày <span className="text-red-500">*</span></label>
+                <input
+                  value={denNgay}
+                  onChange={(e) => setDenNgay(e.target.value)}
+                  type="date"
+                  className="w-full p-2 border border-gray-300 rounded-md"
+                />
+              </div>
+            </div>
+
+            {/* Nội dung đề nghị */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Nội dung đề nghị</label>
+              <textarea
+                value={noiDungDeNghi}
+                onChange={(e) => setNoiDungDeNghi(e.target.value)}
+                rows={4}
+                className="w-full p-2 border border-gray-300 rounded-md resize-none"
+                placeholder="Nhập nội dung đề nghị..."
+              />
+            </div>
+          </div>
+
+          {/* Footer */}
+          <div className="flex justify-end gap-3 px-6 py-4 border-t border-gray-200">
+            <button
+              onClick={() => { handleReset(); onClose(); }}
+              className="px-4 py-2 rounded-md bg-gray-100 hover:bg-gray-200 text-gray-800"
             >
               Hủy
+            </button>
+            <button
+              onClick={handleSave}
+              className="px-4 py-2 rounded-md bg-blue-600 hover:bg-blue-700 text-white"
+            >
+              {editData ? 'Cập nhật' : 'Lưu'}
             </button>
           </div>
         </div>
@@ -69,4 +192,4 @@ const AddEditTamTruPopup: React.FC<AddEditTamTruPopupProps> = ({ isOpen, onClose
   );
 };
 
-export default AddEditTamTruPopup; 
+export default AddEditTamTruPopup;

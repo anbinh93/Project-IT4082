@@ -132,6 +132,16 @@ const NopPhiPopup: React.FC<NopPhiPopupProps> = ({
         }
       }
     }
+
+    if (selectedFee && selectedHoKhau) {
+      // Lấy số tiền đúng của hộ khẩu trong khoản thu
+      const ho = selectedFee.hoKhauList?.find((h: any) => h.maHo === selectedHoKhau.maHo);
+      if (ho && ho.soTien !== undefined) {
+        setSoTien(typeof ho.soTien === 'number' ? new Intl.NumberFormat('vi-VN').format(ho.soTien) : ho.soTien);
+      }
+    } else if (selectedFee) {
+      // ... giữ nguyên logic cũ nếu chỉ có selectedFee
+    }
   }, [selectedFee, selectedHoKhau, isOpen, today, isEditMode]);
 
   // Cập nhật thông tin hộ khẩu khi hộ khẩu ID thay đổi
@@ -384,13 +394,13 @@ const NopPhiPopup: React.FC<NopPhiPopupProps> = ({
               </div>
               
               <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700 mb-1">Số tiền <span className="text-red-500">*</span></label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Số tiền phải nộp <span className="text-red-500">*</span> <span className="ml-2 text-xs text-gray-500">(VND)</span></label>
                 <input
                   type="text"
-                  className={`mt-1 block w-full px-3 py-2 border ${errors.soTien ? 'border-red-500' : 'border-gray-300'} rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm`}
-                  placeholder="Ví dụ: 200,000"
+                  className={`mt-1 block w-full px-3 py-2 border ${errors.soTien ? 'border-red-500' : 'border-gray-300'} rounded-md shadow-sm bg-gray-100 text-gray-700 focus:outline-none sm:text-sm`}
                   value={soTien}
-                  onChange={e => setSoTien(formatCurrency(e.target.value))}
+                  readOnly
+                  tabIndex={-1}
                 />
                 {errors.soTien && <p className="text-xs text-red-500 mt-1">{errors.soTien}</p>}
               </div>

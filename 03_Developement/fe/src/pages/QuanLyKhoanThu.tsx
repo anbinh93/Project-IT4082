@@ -6,80 +6,114 @@ import NopPhiPopup from '../components/NopPhiPopup';
 const sampleFees = [
   {
     id: 'KT001',
-    ngayTao: '01/03/2025',
-    thoiHan: '31/03/2025',
-    tenKhoan: 'Phí dịch vụ',
+    ngayTao: '01/05/2025',
+    thoiHan: '31/05/2025',
+    tenKhoan: 'Phí dịch vụ chung cư',
+    loaiKhoan: 'PHI_DICH_VU',
     batBuoc: true,
-    ghiChu: 'Phí dịch vụ hàng tháng',
+    ghiChu: 'Phí dịch vụ tháng 5',
     trangThai: 'Đang thu',
     hoKhauList: [
-      { maHo: 'HK001', chuHo: 'Nguyễn Văn A', trangThai: 'Đã nộp', ngayNop: '15/03/2025', soTien: '200,000 VND', nguoiNop: 'Nguyễn Văn A' },
-      { maHo: 'HK002', chuHo: 'Trần Thị B', trangThai: 'Chưa nộp' },
-      { maHo: 'HK003', chuHo: 'Lê Văn C', trangThai: 'Đã nộp', ngayNop: '16/03/2025', soTien: '200,000 VND', nguoiNop: 'Lê Văn C' },
+      { maHo: 'HK001', chuHo: 'Nguyễn Văn A', trangThai: 'Đã nộp', ngayNop: '10/05/2025', soTien: 755000, nguoiNop: 'Nguyễn Văn A' },
+      { maHo: 'HK002', chuHo: 'Trần Thị B', trangThai: 'Chưa nộp', soTien: 1002000 },
+      { maHo: 'HK003', chuHo: 'Lê Văn C', trangThai: 'Đã nộp', ngayNop: '12/05/2025', soTien: 600000, nguoiNop: 'Lê Văn C' },
+      { maHo: 'HK004', chuHo: 'Phạm Thị D', trangThai: 'Chưa nộp', soTien: 1205000 },
+      { maHo: 'HK005', chuHo: 'Đỗ Văn E', trangThai: 'Chưa nộp', soTien: 850000 },
     ],
     isExpanded: false,
     hoKhauFilterOption: 'Tất cả'
   },
   {
     id: 'KT002',
-    ngayTao: '15/02/2025',
-    thoiHan: '15/04/2025',
-    tenKhoan: 'Phí bảo trì',
-    batBuoc: false,
-    ghiChu: 'Phí bảo trì cơ sở hạ tầng',
-    trangThai: 'Đã thu xong',
+    ngayTao: '01/05/2025',
+    thoiHan: '31/05/2025',
+    tenKhoan: 'Phí gửi xe',
+    loaiKhoan: 'PHI_GUI_XE',
+    batBuoc: true,
+    ghiChu: 'Phí gửi xe tháng 5',
+    trangThai: 'Đang thu',
     hoKhauList: [
-      { maHo: 'HK001', chuHo: 'Nguyễn Văn A', trangThai: 'Đã nộp', ngayNop: '20/02/2025', soTien: '100,000 VND', nguoiNop: 'Nguyễn Thị B' },
-      { maHo: 'HK002', chuHo: 'Trần Thị B', trangThai: 'Đã nộp', ngayNop: '21/02/2025', soTien: '100,000 VND', nguoiNop: 'Trần Thị B' },
-      { maHo: 'HK003', chuHo: 'Lê Văn C', trangThai: 'Đã nộp', ngayNop: '22/02/2025', soTien: '100,000 VND', nguoiNop: 'Lê Thị D' },
+      { maHo: 'HK001', chuHo: 'Nguyễn Văn A', trangThai: 'Chưa nộp', soTien: 140000 },
+      { maHo: 'HK002', chuHo: 'Trần Thị B', trangThai: 'Đã nộp', ngayNop: '11/05/2025', soTien: 1270000, nguoiNop: 'Trần Thị B' },
+      { maHo: 'HK003', chuHo: 'Lê Văn C', trangThai: 'Chưa nộp', soTien: 210000 },
+      { maHo: 'HK004', chuHo: 'Phạm Thị D', trangThai: 'Chưa nộp', soTien: 1270000 },
+      { maHo: 'HK005', chuHo: 'Đỗ Văn E', trangThai: 'Chưa nộp', soTien: 1340000 },
     ],
     isExpanded: false,
     hoKhauFilterOption: 'Tất cả'
   },
   {
     id: 'KT003',
-    ngayTao: '10/03/2025',
-    thoiHan: '31/01/2025',
-    tenKhoan: 'Phí quản lý',
+    ngayTao: '01/04/2025',
+    thoiHan: '30/04/2025',
+    tenKhoan: 'Phí dịch vụ chung cư',
+    loaiKhoan: 'PHI_DICH_VU',
     batBuoc: true,
-    ghiChu: 'Phí quản lý chung cư',
+    ghiChu: 'Phí dịch vụ tháng 4',
     trangThai: 'Đã thu xong',
     hoKhauList: [
-      { maHo: 'HK001', chuHo: 'Nguyễn Văn A', trangThai: 'Đã nộp', ngayNop: '11/03/2025', soTien: '150,000 VND', nguoiNop: 'Nguyễn Văn A' },
-      { maHo: 'HK002', chuHo: 'Trần Thị B', trangThai: 'Đã nộp', ngayNop: '12/03/2025', soTien: '150,000 VND', nguoiNop: 'Trần Thị B' },
-      { maHo: 'HK003', chuHo: 'Lê Văn C', trangThai: 'Đã nộp', ngayNop: '13/03/2025', soTien: '150,000 VND', nguoiNop: 'Lê Văn C' },
+      { maHo: 'HK001', chuHo: 'Nguyễn Văn A', trangThai: 'Đã nộp', ngayNop: '10/04/2025', soTien: 700000, nguoiNop: 'Nguyễn Văn A' },
+      { maHo: 'HK002', chuHo: 'Trần Thị B', trangThai: 'Đã nộp', ngayNop: '11/04/2025', soTien: 950000, nguoiNop: 'Trần Thị B' },
+      { maHo: 'HK003', chuHo: 'Lê Văn C', trangThai: 'Đã nộp', ngayNop: '12/04/2025', soTien: 600000, nguoiNop: 'Lê Văn C' },
+      { maHo: 'HK004', chuHo: 'Phạm Thị D', trangThai: 'Đã nộp', ngayNop: '13/04/2025', soTien: 1200000, nguoiNop: 'Phạm Thị D' },
+      { maHo: 'HK005', chuHo: 'Đỗ Văn E', trangThai: 'Đã nộp', ngayNop: '14/04/2025', soTien: 800000, nguoiNop: 'Đỗ Văn E' },
     ],
     isExpanded: false,
     hoKhauFilterOption: 'Tất cả'
   },
   {
     id: 'KT004',
-    ngayTao: '05/04/2025',
+    ngayTao: '01/04/2025',
     thoiHan: '30/04/2025',
     tenKhoan: 'Phí gửi xe',
+    loaiKhoan: 'PHI_GUI_XE',
     batBuoc: true,
     ghiChu: 'Phí gửi xe tháng 4',
-    trangThai: 'Đang thu',
+    trangThai: 'Đã thu xong',
     hoKhauList: [
-      { maHo: 'HK001', chuHo: 'Nguyễn Văn A', trangThai: 'Chưa nộp' },
-      { maHo: 'HK002', chuHo: 'Trần Thị B', trangThai: 'Đã nộp', ngayNop: '06/04/2025', soTien: '120,000 VND', nguoiNop: 'Lý Văn D' },
-      { maHo: 'HK003', chuHo: 'Lê Văn C', trangThai: 'Chưa nộp' },
+      { maHo: 'HK001', chuHo: 'Nguyễn Văn A', trangThai: 'Đã nộp', ngayNop: '10/04/2025', soTien: 70000, nguoiNop: 'Nguyễn Văn A' },
+      { maHo: 'HK002', chuHo: 'Trần Thị B', trangThai: 'Đã nộp', ngayNop: '11/04/2025', soTien: 1270000, nguoiNop: 'Trần Thị B' },
+      { maHo: 'HK003', chuHo: 'Lê Văn C', trangThai: 'Đã nộp', ngayNop: '12/04/2025', soTien: 210000, nguoiNop: 'Lê Văn C' },
+      { maHo: 'HK004', chuHo: 'Phạm Thị D', trangThai: 'Đã nộp', ngayNop: '13/04/2025', soTien: 1270000, nguoiNop: 'Phạm Thị D' },
+      { maHo: 'HK005', chuHo: 'Đỗ Văn E', trangThai: 'Đã nộp', ngayNop: '14/04/2025', soTien: 1340000, nguoiNop: 'Đỗ Văn E' },
     ],
     isExpanded: false,
     hoKhauFilterOption: 'Tất cả'
   },
   {
     id: 'KT005',
-    ngayTao: '01/03/2025',
+    ngayTao: '01/01/2025',
     thoiHan: '31/03/2025',
-    tenKhoan: 'Bảo hiểm chung cư',
+    tenKhoan: 'Phí quản lý',
+    loaiKhoan: 'PHI_QUAN_LY',
     batBuoc: true,
-    ghiChu: 'Bảo hiểm bắt buộc hàng tháng',
-    trangThai: 'Đang thu',
+    ghiChu: 'Phí quản lý quý',
+    trangThai: 'Đã thu xong',
     hoKhauList: [
-      { maHo: 'HK001', chuHo: 'Nguyễn Văn A', trangThai: 'Đã nộp', ngayNop: '05/03/2025', soTien: '50,000 VND', nguoiNop: 'Nguyễn Văn A' },
-      { maHo: 'HK002', chuHo: 'Trần Thị B', trangThai: 'Chưa nộp' },
-      { maHo: 'HK003', chuHo: 'Lê Văn C', trangThai: 'Chưa nộp' },
+      { maHo: 'HK001', chuHo: 'Nguyễn Văn A', trangThai: 'Đã nộp', ngayNop: '10/01/2025', soTien: 400000, nguoiNop: 'Nguyễn Văn A' },
+      { maHo: 'HK002', chuHo: 'Trần Thị B', trangThai: 'Đã nộp', ngayNop: '11/01/2025', soTien: 700000, nguoiNop: 'Trần Thị B' },
+      { maHo: 'HK003', chuHo: 'Lê Văn C', trangThai: 'Đã nộp', ngayNop: '12/01/2025', soTien: 300000, nguoiNop: 'Lê Văn C' },
+      { maHo: 'HK004', chuHo: 'Phạm Thị D', trangThai: 'Đã nộp', ngayNop: '13/01/2025', soTien: 900000, nguoiNop: 'Phạm Thị D' },
+      { maHo: 'HK005', chuHo: 'Đỗ Văn E', trangThai: 'Đã nộp', ngayNop: '14/01/2025', soTien: 500000, nguoiNop: 'Đỗ Văn E' },
+    ],
+    isExpanded: false,
+    hoKhauFilterOption: 'Tất cả'
+  },
+  {
+    id: 'KT006',
+    ngayTao: '01/01/2025',
+    thoiHan: '31/03/2025',
+    tenKhoan: 'Phí sửa chữa chung',
+    loaiKhoan: 'KHOAN_DONG_GOP',
+    batBuoc: false,
+    ghiChu: 'Sửa chữa cơ sở vật chất',
+    trangThai: 'Đã thu xong',
+    hoKhauList: [
+      { maHo: 'HK001', chuHo: 'Nguyễn Văn A', trangThai: 'Đã nộp', ngayNop: '10/01/2025', soTien: 100000, nguoiNop: 'Nguyễn Văn A' },
+      { maHo: 'HK002', chuHo: 'Trần Thị B', trangThai: 'Đã nộp', ngayNop: '11/01/2025', soTien: 200000, nguoiNop: 'Trần Thị B' },
+      { maHo: 'HK003', chuHo: 'Lê Văn C', trangThai: 'Đã nộp', ngayNop: '12/01/2025', soTien: 0, nguoiNop: 'Lê Văn C' },
+      { maHo: 'HK004', chuHo: 'Phạm Thị D', trangThai: 'Đã nộp', ngayNop: '13/01/2025', soTien: 0, nguoiNop: 'Phạm Thị D' },
+      { maHo: 'HK005', chuHo: 'Đỗ Văn E', trangThai: 'Đã nộp', ngayNop: '14/01/2025', soTien: 0, nguoiNop: 'Đỗ Văn E' },
     ],
     isExpanded: false,
     hoKhauFilterOption: 'Tất cả'
@@ -210,6 +244,17 @@ const QuanLyKhoanThu: React.FC = () => {
       filterOption === 'Chưa nộp' ? ho.trangThai === 'Chưa nộp' : 
       true
     );
+  };
+
+  // Số tiền hiển thị đúng định dạng
+  const formatCurrency = (value: number | string | undefined) => {
+    if (typeof value === 'number') {
+      return value.toLocaleString('vi-VN') + ' VND';
+    }
+    if (typeof value === 'string' && /^\d+$/.test(value)) {
+      return Number(value).toLocaleString('vi-VN') + ' VND';
+    }
+    return value || '-';
   };
 
   return (
@@ -389,7 +434,7 @@ const QuanLyKhoanThu: React.FC = () => {
                                       </span>
                                     </td>
                                     <td className="px-4 py-3 text-sm text-gray-900">{hoKhau.ngayNop || '-'}</td>
-                                    <td className="px-4 py-3 text-sm text-gray-900">{hoKhau.soTien || '-'}</td>
+                                    <td className="px-4 py-3 text-sm text-gray-900">{formatCurrency(hoKhau.soTien)}</td>
                                     <td className="px-4 py-3 text-sm text-gray-900">{hoKhau.nguoiNop || '-'}</td>
                                     <td className="px-4 py-3 text-sm text-center">
                                       {fee.trangThai === 'Đang thu' && (

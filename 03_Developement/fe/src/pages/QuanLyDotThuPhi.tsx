@@ -3,24 +3,80 @@ import Layout from '../components/Layout'; // Import Layout component
 import AddEditDotThuPhiPopup from '../components/AddEditDotThuPhiPopup'; // Import Add popup
 import EditDotThuPhiPopup from '../components/EditDotThuPhiPopup'; // Import Edit popup
 import AddEditFeePopup from '../components/AddEditFeePopup'; // Import Add/Edit Fee popup
+import { FEE_TYPES } from '../components/AddEditFeePopup';
 
-// Sample data for payment batches (based on your table)
-const sampleBatches = [
+// Định nghĩa type mới cho khoản thu và batch
+interface HouseholdFee {
+  amount: number;
+  auto: boolean;
+}
+interface FeeItem {
+  id: string;
+  type: string;
+  tenKhoan: string;
+  chiTiet: string;
+  batBuoc: string;
+  householdFees: { [maHo: string]: HouseholdFee };
+}
+interface BatchDetails {
+  maDot: string;
+  tenDot: string;
+  ngayTao: string;
+  hanCuoi: string;
+  khoanThu: FeeItem[];
+}
+interface Batch {
+  maDot: string;
+  tenDot: string;
+  ngayTao: string;
+  hanCuoi: string;
+  trangThai: string;
+  details: BatchDetails;
+  isExpanded: boolean;
+}
+
+// Sample data for payment batches (dùng cấu trúc mới cho khoản thu)
+const sampleBatches: Batch[] = [
   {
     maDot: 'D001',
     tenDot: 'Tháng 05/2025',
     ngayTao: '01/05/2025',
     hanCuoi: '31/05/2025',
     trangThai: 'Đang mở',
-    details: { // Add sample details
+    details: {
       maDot: 'D001',
       tenDot: 'Tháng 05/2025',
       ngayTao: '01/05/2025',
       hanCuoi: '31/05/2025',
       khoanThu: [
-        { id: 'K001', tenKhoan: 'Phí dịch vụ', chiTiet: 'Phí dịch vụ hàng tháng', thoiHan: '31/05/2025', soTien: '200,000 VND', batBuoc: 'Bắt buộc' },
-        { id: 'K002', tenKhoan: 'Phí gửi xe', chiTiet: 'Phí gửi xe tháng 5', thoiHan: '31/05/2025', soTien: '120,000 VND', batBuoc: 'Bắt buộc' },
-        { id: 'K003', tenKhoan: 'Phí bảo trì', chiTiet: 'Phí bảo trì thiết bị công cộng', thoiHan: '31/05/2025', soTien: '50,000 VND', batBuoc: 'Không bắt buộc' },
+        {
+          id: 'K001',
+          type: 'PHI_DICH_VU',
+          tenKhoan: 'Phí dịch vụ chung cư',
+          chiTiet: 'Phí dịch vụ tháng 5',
+          batBuoc: 'Bắt buộc',
+          householdFees: {
+            HK001: { amount: 755000, auto: true },
+            HK002: { amount: 1002000, auto: true },
+            HK003: { amount: 600000, auto: true },
+            HK004: { amount: 1205000, auto: true },
+            HK005: { amount: 850000, auto: true }
+          }
+        },
+        {
+          id: 'K002',
+          type: 'PHI_GUI_XE',
+          tenKhoan: 'Phí gửi xe',
+          chiTiet: 'Phí gửi xe tháng 5',
+          batBuoc: 'Bắt buộc',
+          householdFees: {
+            HK001: { amount: 140000, auto: true },
+            HK002: { amount: 1270000, auto: true },
+            HK003: { amount: 210000, auto: true },
+            HK004: { amount: 1270000, auto: true },
+            HK005: { amount: 1340000, auto: true }
+          }
+        }
       ]
     },
     isExpanded: false
@@ -31,36 +87,88 @@ const sampleBatches = [
     ngayTao: '01/04/2025',
     hanCuoi: '30/04/2025',
     trangThai: 'Đã đóng',
-     details: { // Add sample details
+    details: {
       maDot: 'D002',
       tenDot: 'Tháng 04/2025',
       ngayTao: '01/04/2025',
       hanCuoi: '30/04/2025',
       khoanThu: [
-        { id: 'K004', tenKhoan: 'Phí chung cư', chiTiet: 'Phí chung cư hàng tháng', thoiHan: '30/04/2025', soTien: '150,000 VND', batBuoc: 'Bắt buộc' },
-        { id: 'K005', tenKhoan: 'Phí gửi xe', chiTiet: 'Phí gửi xe tháng 4', thoiHan: '30/04/2025', soTien: '120,000 VND', batBuoc: 'Bắt buộc' },
+        {
+          id: 'K004',
+          type: 'PHI_DICH_VU',
+          tenKhoan: 'Phí dịch vụ chung cư',
+          chiTiet: 'Phí dịch vụ tháng 4',
+          batBuoc: 'Bắt buộc',
+          householdFees: {
+            HK001: { amount: 700000, auto: true },
+            HK002: { amount: 950000, auto: true },
+            HK003: { amount: 600000, auto: true },
+            HK004: { amount: 1200000, auto: true },
+            HK005: { amount: 800000, auto: true }
+          }
+        },
+        {
+          id: 'K005',
+          type: 'PHI_GUI_XE',
+          tenKhoan: 'Phí gửi xe',
+          chiTiet: 'Phí gửi xe tháng 4',
+          batBuoc: 'Bắt buộc',
+          householdFees: {
+            HK001: { amount: 70000, auto: true },
+            HK002: { amount: 1270000, auto: true },
+            HK003: { amount: 210000, auto: true },
+            HK004: { amount: 1270000, auto: true },
+            HK005: { amount: 1340000, auto: true }
+          }
+        }
       ]
     },
     isExpanded: false
   },
-    {
+  {
     maDot: 'D003',
     tenDot: 'Quý I /2025',
     ngayTao: '01/01/2025',
     hanCuoi: '31/03/2025',
     trangThai: 'Đã đóng',
-     details: { // Add sample details
+    details: {
       maDot: 'D003',
       tenDot: 'Quý I /2025',
       ngayTao: '01/01/2025',
       hanCuoi: '31/03/2025',
       khoanThu: [
-        { id: 'K006', tenKhoan: 'Phí quản lý', chiTiet: 'Phí quản lý quý', thoiHan: '31/03/2025', soTien: '300,000 VND', batBuoc: 'Bắt buộc' },
-        { id: 'K007', tenKhoan: 'Phí sửa chữa chung', chiTiet: 'Sửa chữa cơ sở vật chất', thoiHan: '31/03/2025', soTien: '100,000 VND', batBuoc: 'Bắt buộc' },
+        {
+          id: 'K006',
+          type: 'PHI_QUAN_LY',
+          tenKhoan: 'Phí quản lý',
+          chiTiet: 'Phí quản lý quý',
+          batBuoc: 'Bắt buộc',
+          householdFees: {
+            HK001: { amount: 400000, auto: true },
+            HK002: { amount: 700000, auto: true },
+            HK003: { amount: 300000, auto: true },
+            HK004: { amount: 900000, auto: true },
+            HK005: { amount: 500000, auto: true }
+          }
+        },
+        {
+          id: 'K007',
+          type: 'KHOAN_DONG_GOP',
+          tenKhoan: 'Phí sửa chữa chung',
+          chiTiet: 'Sửa chữa cơ sở vật chất',
+          batBuoc: 'Không bắt buộc',
+          householdFees: {
+            HK001: { amount: 100000, auto: true },
+            HK002: { amount: 200000, auto: true },
+            HK003: { amount: 0, auto: true },
+            HK004: { amount: 0, auto: true },
+            HK005: { amount: 0, auto: true }
+          }
+        }
       ]
     },
     isExpanded: false
-  },
+  }
 ];
 
 const QuanLyDotThuPhi: React.FC = () => {
@@ -69,7 +177,7 @@ const QuanLyDotThuPhi: React.FC = () => {
   const [selectedBatch, setSelectedBatch] = useState<any | null>(null); // State for selected batch details
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState('Tất cả');
-  const [batches, setBatches] = useState(sampleBatches); // State for all batches
+  const [batches, setBatches] = useState<Batch[]>(sampleBatches); // State for all batches
   
   // Thêm các state mới
   const [isDeleteBatchConfirmOpen, setIsDeleteBatchConfirmOpen] = useState(false); // Xác nhận xóa đợt thu
@@ -78,6 +186,7 @@ const QuanLyDotThuPhi: React.FC = () => {
   const [isDeleteFeeConfirmOpen, setIsDeleteFeeConfirmOpen] = useState(false); // Xác nhận xóa khoản thu
   const [selectedFee, setSelectedFee] = useState<any | null>(null); // Khoản thu được chọn để sửa/xóa
   const [activeBatchForFee, setActiveBatchForFee] = useState<any | null>(null); // Đợt thu đang được thao tác với khoản thu
+  const [addFeeError, setAddFeeError] = useState<string | null>(null);
 
   // Hàm kiểm tra và cập nhật trạng thái đợt thu
   const updateBatchStatus = (batch: any) => {
@@ -143,10 +252,14 @@ const QuanLyDotThuPhi: React.FC = () => {
 
   // Thêm khoản thu vào đợt thu
   const openAddFeePopup = (batch: any, e: React.MouseEvent) => {
-    e.stopPropagation(); // Ngăn việc mở rộng/thu gọn khi click vào nút thêm
+    e.stopPropagation();
+    if (batch.trangThai === 'Đã đóng') {
+      setAddFeeError('Không thể thêm khoản thu vào đợt thu đã đóng.');
+      return;
+    }
     setSelectedBatch(batch);
     setActiveBatchForFee(batch);
-    setSelectedFee(null); // Đảm bảo không có dữ liệu khoản thu trước đó
+    setSelectedFee(null);
     setIsAddFeePopupOpen(true);
   };
   const closeAddFeePopup = () => {
@@ -154,21 +267,17 @@ const QuanLyDotThuPhi: React.FC = () => {
   };
   const handleAddFee = (newFee: any) => {
     if (activeBatchForFee) {
-      // Tạo ID mới cho khoản thu
       const feeId = `K${Math.floor(Math.random() * 1000).toString().padStart(3, '0')}`;
       const updatedFee = { id: feeId, ...newFee };
-      
-      // Thêm khoản thu vào đợt thu được chọn
       setBatches(prev => prev.map(batch => {
         if (batch.maDot === activeBatchForFee.maDot) {
-          const updatedBatch = { 
+          const updatedBatch = {
             ...batch,
             details: {
               ...batch.details,
               khoanThu: [...batch.details.khoanThu, updatedFee]
             }
           };
-          // Cập nhật selectedBatch để UI hiển thị ngay lập tức
           setSelectedBatch(updatedBatch);
           return updatedBatch;
         }
@@ -180,15 +289,8 @@ const QuanLyDotThuPhi: React.FC = () => {
 
   // Sửa khoản thu
   const openEditFeePopup = (fee: any, batch: any, e: React.MouseEvent) => {
-    e.stopPropagation(); // Ngăn việc mở rộng/thu gọn khi click vào nút sửa
-    const feeData = {
-      id: fee.id,
-      tenKhoan: fee.tenKhoan,
-      chiTiet: fee.chiTiet,
-      soTien: fee.soTien,
-      batBuoc: fee.batBuoc
-    };
-    setSelectedFee(feeData);
+    e.stopPropagation();
+    setSelectedFee(fee);
     setActiveBatchForFee(batch);
     setIsEditFeePopupOpen(true);
   };
@@ -200,10 +302,9 @@ const QuanLyDotThuPhi: React.FC = () => {
     if (activeBatchForFee && selectedFee) {
       setBatches(prev => prev.map(batch => {
         if (batch.maDot === activeBatchForFee.maDot) {
-          const updatedKhoanThu = batch.details.khoanThu.map((fee: any) => 
+          const updatedKhoanThu = batch.details.khoanThu.map((fee: any) =>
             fee.id === selectedFee.id ? { id: fee.id, ...updatedFee } : fee
           );
-          
           const updatedBatch = {
             ...batch,
             details: {
@@ -211,7 +312,6 @@ const QuanLyDotThuPhi: React.FC = () => {
               khoanThu: updatedKhoanThu
             }
           };
-          
           return updatedBatch;
         }
         return batch;
@@ -452,51 +552,38 @@ const QuanLyDotThuPhi: React.FC = () => {
                                 <table className="min-w-full divide-y divide-gray-200">
                                   <thead className="bg-gray-100">
                                     <tr>
-                                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Tên khoản thu</th>
-                                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Số tiền</th>
+                                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Loại khoản thu</th>
+                                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Mô tả</th>
+                                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Tổng tiền</th>
                                       <th className="px-4 py-2 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Bắt buộc</th>
                                       <th className="px-4 py-2 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Thao tác</th>
                                     </tr>
                                   </thead>
                                   <tbody className="bg-white divide-y divide-gray-200">
-                                    {batch.details.khoanThu.map((fee: any) => (
-                                      <tr key={fee.id} className="hover:bg-gray-50">
-                                        <td className="px-4 py-3 text-sm text-gray-900">
-                                          <div>
-                                            <p className="font-medium">{fee.tenKhoan}</p>
-                                            <p className="text-xs text-gray-500">{fee.chiTiet}</p>
-                                          </div>
-                                        </td>
-                                        <td className="px-4 py-3 text-sm text-gray-900">{fee.soTien}</td>
-                                        <td className="px-4 py-3 text-sm">
-                                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${fee.batBuoc === 'Bắt buộc' ? 'bg-red-100 text-red-800' : 'bg-gray-100 text-gray-800'}`}>
-                                            {fee.batBuoc}
-                                          </span>
-                                        </td>
-                                        <td className="px-4 py-3 text-sm text-gray-500">
-                                          <div className="flex space-x-3">
-                                            <button 
-                                              onClick={(e) => openEditFeePopup(fee, batch, e)}
-                                              className="text-indigo-600 hover:text-indigo-900"
-                                              title="Chỉnh sửa"
-                                            >
-                                              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                                              </svg>
-                                            </button>
-                                            <button 
-                                              onClick={(e) => openDeleteFeeConfirm(fee, batch, e)}
-                                              className="text-red-600 hover:text-red-800"
-                                              title="Xóa"
-                                            >
-                                              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                              </svg>
-                                            </button>
-                                          </div>
-                                        </td>
-                                      </tr>
-                                    ))}
+                                    {batch.details.khoanThu.map((fee: any) => {
+                                      const feeType = FEE_TYPES[fee.type];
+                                      const total = fee.householdFees ? Object.values(fee.householdFees).reduce((sum: number, h: any) => sum + (h.amount || 0), 0) : 0;
+                                      return (
+                                        <tr key={fee.id} className="hover:bg-gray-50">
+                                          <td className="px-4 py-3 text-sm text-gray-900 font-medium">{feeType?.name || ''}</td>
+                                          <td className="px-4 py-3 text-sm text-gray-700">{fee.chiTiet}</td>
+                                          <td className="px-4 py-3 text-sm text-blue-700 font-semibold">{total.toLocaleString('vi-VN')} VND</td>
+                                          <td className="px-4 py-3 text-sm">
+                                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${fee.batBuoc === 'Bắt buộc' ? 'bg-red-100 text-red-800' : 'bg-gray-100 text-gray-800'}`}>{fee.batBuoc}</span>
+                                          </td>
+                                          <td className="px-4 py-3 text-sm text-gray-500">
+                                            <div className="flex space-x-3">
+                                              <button onClick={(e) => openEditFeePopup(fee, batch, e)} className="text-indigo-600 hover:text-indigo-900" title="Chỉnh sửa">
+                                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+                                              </button>
+                                              <button onClick={(e) => openDeleteFeeConfirm(fee, batch, e)} className="text-red-600 hover:text-red-800" title="Xóa">
+                                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                                              </button>
+                                            </div>
+                                          </td>
+                                        </tr>
+                                      );
+                                    })}
                                   </tbody>
                                 </table>
                               </div>
@@ -589,6 +676,23 @@ const QuanLyDotThuPhi: React.FC = () => {
                 onClick={handleDeleteFee}
               >
                 Xóa
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {addFeeError && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50" onClick={() => setAddFeeError(null)}>
+          <div className="bg-white rounded-2xl shadow-2xl p-8 max-w-md w-full relative flex flex-col items-center" onClick={e => e.stopPropagation()}>
+            <h3 className="text-xl font-bold text-gray-900 mb-2">Không thể thêm khoản thu</h3>
+            <p className="text-gray-700 mb-6 text-center">{addFeeError}</p>
+            <div className="flex justify-center w-full">
+              <button
+                className="px-6 py-2 bg-blue-500 text-white rounded-lg font-semibold shadow hover:bg-blue-600 transition-all focus:outline-none focus:ring-2 focus:ring-blue-400"
+                onClick={() => setAddFeeError(null)}
+              >
+                Đóng
               </button>
             </div>
           </div>

@@ -14,6 +14,8 @@ import {
   ThongKeKhoanThu,
   QuanLyHoKhau,
   QuanLyNhanKhau,
+  QuanLyPhong,
+  QuanLyXe,
   QuanLyTamTru,
   LichSuThayDoiNhanKhau,
   ThongKeNhanKhau
@@ -32,6 +34,8 @@ function App() {
         <Link to="/thong-ke-khoan-thu" className="hover:underline">Thống kê khoản thu</Link>
         <Link to="/quan-ly-ho-khau" className="hover:underline">Quản lý hộ khẩu</Link>
         <Link to="/quan-ly-nhan-khau" className="hover:underline">Quản lý nhân khẩu</Link>
+        <Link to="/quan-ly-phong" classNameclassName="hover:underline">Quản lý phòng</Link>
+        <Link to="/quan-ly-xe" className="hover:underline">Quản lý xe</Link>
         <Link to="/quan-ly-tam-tru" className="hover:underline">Quản lý tạm trú/tạm vắng</Link>
         <Link to="/lich-su-thay-doi-nhan-khau" className="hover:underline">Lịch sử thay đổi nhân khẩu</Link>
         <Link to="/thong-ke-nhan-khau" className="hover:underline">Thống kê nhân khẩu</Link>
@@ -46,6 +50,8 @@ function App() {
         <Route path="/thong-ke-khoan-thu" element={<ThongKeKhoanThu />} />
         <Route path="/quan-ly-ho-khau" element={<QuanLyHoKhau />} />
         <Route path="/quan-ly-nhan-khau" element={<QuanLyNhanKhau />} />
+        <Route path="/quan-ly-phong" element={<QuanLyPhong/>} />
+        <Route path="/quan-ly-xe" element={<QuanLyXe/>} />
         <Route path="/quan-ly-tam-tru" element={<QuanLyTamTru />} />
         <Route path="/lich-su-thay-doi-nhan-khau" element={<LichSuThayDoiNhanKhau />} />
         <Route path="/thong-ke-nhan-khau" element={<ThongKeNhanKhau />} />

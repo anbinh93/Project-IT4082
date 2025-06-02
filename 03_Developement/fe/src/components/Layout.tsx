@@ -21,6 +21,8 @@ const Layout: React.FC<LayoutProps> = ({ children, role }) => {
     { path: '/homepage-totruong', label: 'Trang chủ' },
     { path: '/quan-ly-ho-khau', label: 'Quản lý Hộ khẩu' },
     { path: '/quan-ly-nhan-khau', label: 'Quản lý Nhân khẩu' },
+    { path: '/quan-ly-phong', label: 'Quản lý Phòng' },
+    { path: '/quan-ly-xe', label: 'Quản lý Xe' },
     { path: '/quan-ly-tam-tru', label: 'Quản lý Tạm trú/ Tạm vắng' },
     { path: '/lich-su-thay-doi-nhan-khau', label: 'Lịch sử thay đổi Nhân khẩu' },
     { path: '/thong-ke-nhan-khau', label: 'Thống kê Nhân khẩu' },

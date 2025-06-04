@@ -11,14 +11,21 @@ interface AddMemberPopupProps {
   residents?: { id: string; name: string }[];
 }
 
-const AddMemberPopup: React.FC<AddMemberPopupProps> = ({ isOpen, onClose, onAdd, residents = [] }) => {
+const AddMemberPopup: React.FC<AddMemberPopupProps> = ({
+  isOpen,
+  onClose,
+  onAdd,
+  residents = []
+}) => {
   const [formData, setFormData] = useState({
     tenNhanKhau: '',
     quanHeVoiChuHo: '',
     ngayThem: ''
   });
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+  const handleInputChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
+  ) => {
     const { name, value } = e.target;
     setFormData(prev => ({
       ...prev,
@@ -39,17 +46,35 @@ const AddMemberPopup: React.FC<AddMemberPopupProps> = ({ isOpen, onClose, onAdd,
       <div className="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-md max-h-[90vh] overflow-y-auto relative">
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
-          <h2 className="text-2xl font-bold text-gray-800">Thêm Nhân khẩu vào Hộ khẩu</h2>
-          <button onClick={onClose} className="w-10 h-10 flex items-center justify-center rounded-full bg-gray-100 hover:bg-gray-200 transition">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+          <h2 className="text-2xl font-bold text-gray-800">
+            Thêm Nhân khẩu vào Hộ khẩu
+          </h2>
+          <button
+            onClick={onClose}
+            className="w-10 h-10 flex items-center justify-center rounded-full bg-gray-100 hover:bg-gray-200 transition"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              className="h-6 w-6 text-gray-500"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M6 18L18 6M6 6l12 12"
+              />
             </svg>
           </button>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-6">
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-1">Nhân khẩu</label>
+            <label className="block text-sm font-semibold text-gray-700 mb-1">
+              Nhân khẩu <span className="text-red-500">*</span>
+            </label>
             <select
               name="tenNhanKhau"
               value={formData.tenNhanKhau}
@@ -59,13 +84,17 @@ const AddMemberPopup: React.FC<AddMemberPopupProps> = ({ isOpen, onClose, onAdd,
             >
               <option value="">Chọn nhân khẩu</option>
               {residents.map(r => (
-                <option key={r.id} value={r.name}>{r.name}</option>
+                <option key={r.id} value={r.name}>
+                  {r.name}
+                </option>
               ))}
             </select>
           </div>
 
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-1">Quan hệ với chủ hộ</label>
+            <label className="block text-sm font-semibold text-gray-700 mb-1">
+              Quan hệ với chủ hộ <span className="text-red-500">*</span>
+            </label>
             <select
               name="quanHeVoiChuHo"
               value={formData.quanHeVoiChuHo}
@@ -83,7 +112,9 @@ const AddMemberPopup: React.FC<AddMemberPopupProps> = ({ isOpen, onClose, onAdd,
           </div>
 
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-1">Ngày thêm</label>
+            <label className="block text-sm font-semibold text-gray-700 mb-1">
+              Ngày thêm <span className="text-red-500">*</span>
+            </label>
             <input
               type="date"
               name="ngayThem"

@@ -100,7 +100,7 @@ const EditHoKhauPopup: React.FC<EditHoKhauPopupProps> = ({ isOpen, onClose, init
           {/* Grid Form */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-1">Số hộ khẩu</label>
+              <label className="block text-sm font-semibold text-gray-700 mb-1">Số hộ khẩu <span className="text-red-500">*</span> </label>
               <input
                 type="text"
                 name="soHoKhau"
@@ -111,7 +111,7 @@ const EditHoKhauPopup: React.FC<EditHoKhauPopupProps> = ({ isOpen, onClose, init
               />
             </div>
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-1">Chủ hộ</label>
+              <label className="block text-sm font-semibold text-gray-700 mb-1">Chủ hộ <span className="text-red-500">*</span></label>
               <select
                 name="chuHo"
                 value={formData.chuHo}
@@ -126,7 +126,7 @@ const EditHoKhauPopup: React.FC<EditHoKhauPopupProps> = ({ isOpen, onClose, init
               </select>
             </div>
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-1">Số nhà</label>
+              <label className="block text-sm font-semibold text-gray-700 mb-1">Số nhà <span className="text-red-500">*</span> </label>
               <input
                 type="text"
                 name="soNha"
@@ -137,7 +137,7 @@ const EditHoKhauPopup: React.FC<EditHoKhauPopupProps> = ({ isOpen, onClose, init
               />
             </div>
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-1">Đường</label>
+              <label className="block text-sm font-semibold text-gray-700 mb-1">Đường <span className="text-red-500">*</span> </label>
               <input
                 type="text"
                 name="duong"
@@ -148,7 +148,7 @@ const EditHoKhauPopup: React.FC<EditHoKhauPopupProps> = ({ isOpen, onClose, init
               />
             </div>
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-1">Phường</label>
+              <label className="block text-sm font-semibold text-gray-700 mb-1">Phường <span className="text-red-500">*</span> </label>
               <input
                 type="text"
                 name="phuong"
@@ -159,7 +159,7 @@ const EditHoKhauPopup: React.FC<EditHoKhauPopupProps> = ({ isOpen, onClose, init
               />
             </div>
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-1">Quận</label>
+              <label className="block text-sm font-semibold text-gray-700 mb-1">Quận <span className="text-red-500">*</span> </label>
               <input
                 type="text"
                 name="quan"
@@ -170,7 +170,7 @@ const EditHoKhauPopup: React.FC<EditHoKhauPopupProps> = ({ isOpen, onClose, init
               />
             </div>
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-1">Thành phố</label>
+              <label className="block text-sm font-semibold text-gray-700 mb-1">Thành phố <span className="text-red-500">*</span> </label>
               <input
                 type="text"
                 name="thanhPho"

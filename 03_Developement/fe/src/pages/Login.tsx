@@ -45,7 +45,7 @@ const Login: React.FC = () => {
             Đăng nhập
           </h1>
           <span className="text-center text-[16px] font-semibold text-[#1976D2] font-['Roboto'] mb-2">
-            HỆ THỐNG QUẢN LÝ THU PHÍ CHUNG CƯ
+          HỆ THỐNG QUẢN LÝ THU PHÍ CHUNG CƯ
           </span>
         </div>
         <form className="flex flex-col gap-3" onSubmit={handleSubmit}>
@@ -90,17 +90,17 @@ const Login: React.FC = () => {
               Mật khẩu
             </label>
             <div className="relative">
-              <input
-                id="password"
-                name="password"
+            <input
+              id="password"
+              name="password"
                 type={showPassword ? "text" : "password"}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-[#2196F3] text-[16px] placeholder-gray-400 shadow-sm font-['Roboto'] font-normal"
-                autoComplete="current-password"
-                value={password}
-                onChange={e => setPassword(e.target.value)}
-                placeholder="Nhập mật khẩu"
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-[#2196F3] text-[16px] placeholder-gray-400 shadow-sm font-['Roboto'] font-normal"
+              autoComplete="current-password"
+              value={password}
+              onChange={e => setPassword(e.target.value)}
+              placeholder="Nhập mật khẩu"
                 required
-              />
+            />
               <button
                 type="button"
                 className="absolute right-3 top-1/2 -translate-y-1/2 text-[#1976D2] text-xs font-semibold focus:outline-none"

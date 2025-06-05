@@ -87,6 +87,12 @@ export const FEE_TYPES: Record<string, FeeType> = {
     name: 'Khoản đóng góp',
     mandatory: false,
     voluntary: true,
+  },
+  TUY_CHINH: {
+    id: 'TUY_CHINH',
+    name: 'Tùy chỉnh',
+    mandatory: false,
+    voluntary: true
   }
 };
 
@@ -151,6 +157,7 @@ const AddEditFeePopup: React.FC<AddEditFeePopupProps> = ({
   const [showConfirmSave, setShowConfirmSave] = useState(false);
   const [pendingAction, setPendingAction] = useState<'close' | 'save' | null>(null);
   const [importedFileName, setImportedFileName] = useState<string | null>(null);
+  const [isMandatory, setIsMandatory] = useState<boolean>(false);
 
   // Determine if this is edit mode
   const isEditMode = Boolean(initialData);
@@ -160,25 +167,15 @@ const AddEditFeePopup: React.FC<AddEditFeePopupProps> = ({
   
   // Flag for showing household fee list
   const showHouseholdList = selectedFeeType && 
-    (selectedFeeType.calculateByArea || selectedFeeType.calculateByVehicle);
+    (selectedFeeType.calculateByArea || selectedFeeType.calculateByVehicle || feeType === 'TUY_CHINH');
   
   // Flag for showing file import
   const showFileImport = selectedFeeType?.importable;
 
-  // Flag for showing description field (always true except for voluntary contributions)
-  const showDescription = !selectedFeeType?.voluntary;
-  
   // Định dạng số tiền (dấu phẩy)
   const formatCurrency = (value: number): string => {
     if (!value) return '';
     return new Intl.NumberFormat('vi-VN').format(value);
-  };
-
-  // Chỉ lấy số, format lại khi nhập
-  const formatInputValue = (value: string): string => {
-    const numeric = value.replace(/[^\d]/g, '');
-    if (!numeric) return '';
-    return new Intl.NumberFormat('vi-VN').format(Number(numeric));
   };
 
   // Tính lại số tiền từng hộ khi chọn loại phí
@@ -195,6 +192,10 @@ const AddEditFeePopup: React.FC<AddEditFeePopupProps> = ({
       } else if ('voluntary' in feeTypeObj && feeTypeObj.voluntary) {
         amount = 0;
       }
+      // Đối với TUY_CHINH, mặc định amount = 0
+      if (type === 'TUY_CHINH') {
+        amount = 0;
+      }
       newFees[household.id] = { amount, auto: true };
     });
     return newFees;
@@ -203,6 +204,8 @@ const AddEditFeePopup: React.FC<AddEditFeePopupProps> = ({
   // Khi đổi loại phí
   const handleFeeTypeChange = (newType: string) => {
     setFeeType(newType);
+    const typeObj = FEE_TYPES[newType as keyof typeof FEE_TYPES];
+    setIsMandatory(typeObj?.mandatory ?? false);
     // Phân biệt loại phí import file và loại phí tự động
     if (newType === 'PHI_DIEN' || newType === 'PHI_NUOC' || newType === 'PHI_INTERNET') {
       setHouseholdFees({});
@@ -288,6 +291,7 @@ const AddEditFeePopup: React.FC<AddEditFeePopupProps> = ({
     if (initialData) {
       setFeeType(initialData.type || '');
       setChiTiet(initialData.chiTiet || '');
+      setIsMandatory(initialData.batBuoc === 'Bắt buộc');
       
       // If we have household fees in initial data, use them
       if (initialData.householdFees) {
@@ -361,7 +365,7 @@ const AddEditFeePopup: React.FC<AddEditFeePopupProps> = ({
         type: feeType,
         tenKhoan: feeTypeObj?.name || '',
         chiTiet: chiTiet,
-        batBuoc: feeTypeObj?.mandatory ? 'Bắt buộc' : 'Không bắt buộc',
+        batBuoc: isMandatory ? 'Bắt buộc' : 'Không bắt buộc',
         householdFees,
         importedFileName: importedFileName || undefined
       };
@@ -485,7 +489,7 @@ const AddEditFeePopup: React.FC<AddEditFeePopupProps> = ({
                 {fileError && (<p className="text-xs text-red-500 mt-2">{fileError}</p>)}
               </div>
             )}
-            {/* Loại phí tự động: luôn hiển thị bảng danh sách hộ và số tiền tự động, không liên quan file */}
+            {/* Loại phí tự động hoặc TUY_CHINH: luôn hiển thị bảng danh sách hộ và số tiền tự động, không liên quan file */}
             {isAutoFeeType && showHouseholdList && (
               <div className="mb-6">
                 <div className="flex justify-between items-center mb-2">
@@ -542,6 +546,19 @@ const AddEditFeePopup: React.FC<AddEditFeePopupProps> = ({
                 {errors.householdFees && <p className="text-xs text-red-500 mt-1">{errors.householdFees}</p>}
               </div>
             )}
+            {/* Nút chọn bắt buộc/không bắt buộc */}
+            <div className="flex items-center mt-2 mb-4">
+              <input
+                id="mandatory-checkbox"
+                type="checkbox"
+                className="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                checked={isMandatory}
+                onChange={e => setIsMandatory(e.target.checked)}
+              />
+              <label htmlFor="mandatory-checkbox" className="ml-2 text-sm text-gray-700 select-none cursor-pointer">
+                Khoản thu này là <span className="font-semibold">bắt buộc</span>
+              </label>
+            </div>
             <div className="flex gap-4 mt-4">
               <button className="flex-1 px-4 py-3 bg-gray-500 text-white text-base font-semibold rounded-md shadow-sm hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition-all" onClick={handleRequestClose}>Hủy</button>
               <button className="flex-1 px-4 py-3 bg-blue-500 text-white text-base font-semibold rounded-md shadow-sm hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-all" onClick={handleSave}>Lưu</button>

@@ -65,7 +65,7 @@ const ForgetPassword: React.FC = () => {
             Khôi phục mật khẩu
           </h1>
           <span className="text-center text-[16px] font-semibold text-[#1976D2] font-['Roboto'] mb-2">
-            HỆ THỐNG QUẢN LÝ THU PHÍ CHUNG CƯ
+          HỆ THỐNG QUẢN LÝ THU PHÍ CHUNG CƯ
           </span>
         </div>
         {!showConfirmSection && (
@@ -124,14 +124,14 @@ const ForgetPassword: React.FC = () => {
               Mật khẩu mới
             </label>
             <div className="relative">
-              <input
-                id="newPassword"
-                name="newPassword"
+            <input
+              id="newPassword"
+              name="newPassword"
                 type={showNewPassword ? "text" : "password"}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-[#2196F3] text-[16px] placeholder-gray-400 shadow-sm mt-1 font-['Roboto'] font-normal"
-                value={newPassword}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-[#2196F3] text-[16px] placeholder-gray-400 shadow-sm mt-1 font-['Roboto'] font-normal"
+              value={newPassword}
                 onChange={handleNewPasswordChange}
-                placeholder="Nhập mật khẩu mới của bạn"
+              placeholder="Nhập mật khẩu mới của bạn"
                 required
               />
               <button
@@ -149,16 +149,16 @@ const ForgetPassword: React.FC = () => {
               Xác nhận mật khẩu
             </label>
             <div className="relative">
-              <input
-                id="confirmPassword"
-                name="confirmPassword"
+            <input
+              id="confirmPassword"
+              name="confirmPassword"
                 type={showConfirmPassword ? "text" : "password"}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-[#2196F3] text-[16px] placeholder-gray-400 shadow-sm mt-1 font-['Roboto'] font-normal"
-                value={confirmPassword}
-                onChange={e => setConfirmPassword(e.target.value)}
-                placeholder="Xác nhận mật khẩu"
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-[#2196F3] text-[16px] placeholder-gray-400 shadow-sm mt-1 font-['Roboto'] font-normal"
+              value={confirmPassword}
+              onChange={e => setConfirmPassword(e.target.value)}
+              placeholder="Xác nhận mật khẩu"
                 required
-              />
+            />
               <button
                 type="button"
                 className="absolute right-3 top-1/2 -translate-y-1/2 text-[#1976D2] text-xs font-semibold focus:outline-none"

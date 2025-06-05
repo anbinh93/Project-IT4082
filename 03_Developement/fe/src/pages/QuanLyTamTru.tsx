@@ -143,12 +143,11 @@ const QuanLyTamTru: React.FC = () => {
   return (
     <>
       <Layout role="totruong">
-        <div className="min-h-screen bg-gray-50">
           <div className="p-4 flex flex-col gap-6" style={{ fontFamily: 'system-ui, -apple-system, "Segoe UI", Roboto, sans-serif' }}>
             <div>
-              <h1 className="text-2xl font-medium text-gray-900" style={{ fontWeight: '500' }}>QUẢN LÝ TẠM TRÚ/TẠM VẮNG</h1>
-              <p className="text-gray-500 text-sm mt-1" style={{ fontWeight: '400' }}>Chào mừng đến với Hệ thống Quản lý Thu phí Chung cư</p>
-            </div>
+              <h1 className="text-2xl font-bold" >QUẢN LÝ TẠM TRÚ/TẠM VẮNG</h1>
+              <p className="text-gray-600 text-sm mt-1">Chào mừng đến với Hệ thống Quản lý Thu phí Chung cư</p>
+          </div>
 
             <div className="flex items-center gap-4">
               {/* Dropdown chọn kiểu */}
@@ -213,12 +212,12 @@ const QuanLyTamTru: React.FC = () => {
                 <table className="min-w-full divide-y divide-gray-200">
                   <thead className="bg-gray-50">
                     <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider" style={{ fontWeight: '500' }}>Họ tên</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider" style={{ fontWeight: '500' }}>Trạng thái</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider" style={{ fontWeight: '500' }}>Địa chỉ</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider" style={{ fontWeight: '500' }}>Thời gian</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider" style={{ fontWeight: '500' }}>Nội dung đề nghị</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider" style={{ fontWeight: '500' }}>Thao tác</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider" style={{ fontWeight: '500' }}>Họ tên</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider" style={{ fontWeight: '500' }}>Trạng thái</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider" style={{ fontWeight: '500' }}>Địa chỉ</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider" style={{ fontWeight: '500' }}>Thời gian</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider" style={{ fontWeight: '500' }}>Nội dung đề nghị</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider" style={{ fontWeight: '500' }}>Thao tác</th>
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
@@ -234,8 +233,8 @@ const QuanLyTamTru: React.FC = () => {
                     ) : (
                       filteredData.map((item) => (
                         <tr key={item.id} className="hover:bg-gray-50">
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900" style={{ fontWeight: '500' }}>{item.hoTen}</td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700" style={{ fontWeight: '400' }}>
+                          <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900" style={{ fontWeight: '500' }}>{item.hoTen}</td>
+                          <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-700" style={{ fontWeight: '400' }}>
                             <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
                               item.trangThai === 'Tạm trú' 
                                 ? 'bg-green-100 text-green-800' 
@@ -244,26 +243,26 @@ const QuanLyTamTru: React.FC = () => {
                               {item.trangThai}
                             </span>
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700" style={{ fontWeight: '400' }}>{item.diaChi}</td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700" style={{ fontWeight: '400' }}>{item.tuNgay} → {item.denNgay}</td>
-                          <td className="px-6 py-4 text-sm text-gray-700 max-w-xs truncate" style={{ fontWeight: '400' }} title={item.noiDungDeNghi}>{item.noiDungDeNghi}</td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm">
+                          <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-700" style={{ fontWeight: '400' }}>{item.diaChi}</td>
+                          <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-700" style={{ fontWeight: '400' }}>{item.tuNgay} → {item.denNgay}</td>
+                          <td className="px-4 py-3 text-sm text-gray-700 max-w-xs truncate" style={{ fontWeight: '400' }} title={item.noiDungDeNghi}>{item.noiDungDeNghi}</td>
+                          <td className="px-4 py-3 whitespace-nowrap text-sm">
                             <div className="flex gap-3">
                               <button 
                                 onClick={() => handleEdit(item.id)} 
-                                className="text-blue-600 hover:text-blue-800 p-1 rounded hover:bg-blue-50 transition-colors"
+                                className="p-1 rounded hover:bg-blue-100 transition"
                                 title="Sửa"
                               >
-                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                                 </svg>
                               </button>
                               <button 
                                 onClick={() => handleDelete(item.id)} 
-                                className="text-red-600 hover:text-red-800 p-1 rounded hover:bg-red-50 transition-colors"
+                                className="p-1 rounded hover:bg-red-100 transition"
                                 title="Xóa"
                               >
-                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                                 </svg>
                               </button>
@@ -277,7 +276,6 @@ const QuanLyTamTru: React.FC = () => {
               </div>
             </div>
           </div>
-        </div>
       </Layout>
 
       {/* Portal Dropdown - render outside of Layout */}

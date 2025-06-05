@@ -132,19 +132,14 @@ const QuanLyPhong: React.FC = () => {
     setRoomToDelete(null);
   };
 
-  const getDoanhThu = () => {
-    return rooms.reduce((sum, r) => r.hoThue ? sum + (r.dienTich * r.donGia) : sum, 0);
-  };
-
-  const phongDaThue = rooms.filter(r => r.hoThue).length;
-  const phongTrong = rooms.length - phongDaThue;
-
   return (
     <Layout role="totruong">
       <div className="p-4 flex flex-col gap-6">
-        <h1 className="text-2xl font-bold text-gray-800">QUẢN LÝ PHÒNG</h1>
-        <p className="text-gray-600 text-sm">Chào mừng đến với Hệ thống Quản lý Thu phí Chung cư</p>
-
+        <div>
+          <h1 className="text-2xl font-bold text-gray-800">QUẢN LÝ PHÒNG</h1>
+          <p className="text-gray-600 text-sm mt-1">Chào mừng đến với Hệ thống Quản lý Thu phí Chung cư</p>
+        </div>
+          
         <div className="flex justify-between items-center">
           <button onClick={() => openRoomPopup()} className="bg-blue-500 text-white px-4 py-2 rounded-md shadow hover:bg-blue-600">
             + Thêm phòng mới
@@ -154,63 +149,43 @@ const QuanLyPhong: React.FC = () => {
           </button>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          <div className="bg-white rounded shadow p-4">
-            <div className="text-gray-500 text-sm">Tổng số phòng</div>
-            <div className="text-xl font-semibold">{rooms.length}</div>
+        <div className="mt-2 bg-white rounded-md shadow-md overflow-hidden border border-gray-200">
+          <div className="p-4 bg-gray-100 border-b border-gray-200">
+            <h2 className="text-lg font-semibold text-gray-800">Danh sách phòng</h2>
           </div>
-          <div className="bg-white rounded shadow p-4">
-            <div className="text-gray-500 text-sm">Phòng đã thuê</div>
-            <div className="text-xl font-semibold">{phongDaThue}</div>
-          </div>
-          <div className="bg-white rounded shadow p-4">
-            <div className="text-gray-500 text-sm">Phòng trống</div>
-            <div className="text-xl font-semibold">{phongTrong}</div>
-          </div>
-          <div className="bg-white rounded shadow p-4">
-            <div className="text-gray-500 text-sm">Doanh thu / tháng</div>
-            <div className="text-xl font-semibold">{getDoanhThu().toLocaleString()} VND</div>
-          </div>
-        </div>
-
-        <div className="overflow-x-auto mt-6">
-          <table className="min-w-full bg-white rounded shadow">
+          <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-100">
               <tr>
-                <th className="px-4 py-2 text-left text-xs font-bold text-gray-700">Số phòng</th>
-                <th className="px-4 py-2 text-left text-xs font-bold text-gray-700">Tầng</th>
-                <th className="px-4 py-2 text-left text-xs font-bold text-gray-700">Diện tích (m²)</th>
-                <th className="px-4 py-2 text-left text-xs font-bold text-gray-700">Đơn giá (VNĐ/m²)</th>
-                <th className="px-4 py-2 text-left text-xs font-bold text-gray-700">Hộ thuê</th>
-                <th className="px-4 py-2 text-left text-xs font-bold text-gray-700">Tiền phòng</th>
-                <th className="px-4 py-2 text-left text-xs font-bold text-gray-700">Ghi chú</th>
-                <th className="px-4 py-2 text-center text-xs font-bold text-gray-700">Thao tác</th>
+                <th className="px-4 py-3 text-left text-xs font-bold text-gray-800 uppercase tracking-wider">Số phòng</th>
+                <th className="px-4 py-3 text-left text-xs font-bold text-gray-800 uppercase tracking-wider">Tầng</th>
+                <th className="px-4 py-3 text-left text-xs font-bold text-gray-800 uppercase tracking-wider">Diện tích (m²)</th>
+                <th className="px-4 py-3 text-left text-xs font-bold text-gray-800 uppercase tracking-wider">Đơn giá (VNĐ/m²)</th>
+                <th className="px-4 py-3 text-left text-xs font-bold text-gray-800 uppercase tracking-wider">Hộ thuê</th>
+                <th className="px-4 py-3 text-center text-xs font-bold text-gray-800 uppercase tracking-wider">Thao tác</th>
               </tr>
             </thead>
-            <tbody>
+            <tbody className="bg-white divide-y divide-gray-200">
               {rooms.map(room => (
                 <tr key={room.id} className="hover:bg-gray-50">
-                  <td className="px-4 py-2 text-sm text-gray-800">{room.soPhong}</td>
-                  <td className="px-4 py-2 text-sm text-gray-800">{room.tang}</td>
-                  <td className="px-4 py-2 text-sm text-gray-800">{room.dienTich}</td>
-                  <td className="px-4 py-2 text-sm text-gray-800">{room.donGia.toLocaleString()}</td>
-                  <td className="px-4 py-2 text-sm text-gray-800">{room.hoThue || '-'}</td>
-                  <td className="px-4 py-2 text-sm text-gray-800">{room.hoThue ? (room.dienTich * room.donGia).toLocaleString() + ' VND' : '-'}</td>
-                  <td className="px-4 py-2 text-sm text-gray-800">{room.ghiChu || '-'}</td>
-                  <td className="px-4 py-2 text-center">
+                  <td className="px-4 py-3 text-sm text-gray-800">{room.soPhong}</td>
+                  <td className="px-4 py-3 text-sm text-gray-800">{room.tang}</td>
+                  <td className="px-4 py-3 text-sm text-gray-800">{room.dienTich}</td>
+                  <td className="px-4 py-3 text-sm text-gray-800">{room.donGia.toLocaleString()}</td>
+                  <td className="px-4 py-3 text-sm text-gray-800">{room.hoThue || '-'}</td>
+                  <td className="px-4 py-3 text-center">
                     <div className="flex justify-center gap-3">
                       <button onClick={() => openRoomPopup(room)} 
-                      className="text-blue-600 hover:text-blue-800 p-1 rounded hover:bg-blue-50 transition-colors"
-                      title="Sửa">
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                        className="p-1 rounded hover:bg-blue-100 transition"
+                        title="Sửa">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                         </svg>
                       </button>
                       <button onClick={() => setRoomToDelete(room)} 
-                      className="text-red-600 hover:text-red-800 p-1 rounded hover:bg-red-50 transition-colors"
-                      title="Xóa">
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        className="p-1 rounded hover:bg-red-100 transition"
+                        title="Xóa">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                         </svg>
                       </button>
                     </div>

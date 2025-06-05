@@ -10,10 +10,10 @@ const CHANGE_TYPES = [
 ];
 
 const sampleData = [
-  { ten: 'Nguyễn Văn An', soHoKhau: 'HK123456', loai: 'Cập nhật thông tin', thoiGian: '2025-05-01 09:15', chiTiet: '[Nội dung chi tiết thay đổi]' },
-  { ten: 'Trần Thị Bình', soHoKhau: 'HK654321', loai: 'Tạm vắng', thoiGian: '2025-05-12 15:30', chiTiet: 'Xin tạm vắng để về quê chăm người thân' },
-  { ten: 'Lê Minh Công', soHoKhau: 'HK123456', loai: 'Thêm vào hộ', thoiGian: '2025-05-24 11:10', chiTiet: '[Nội dung chi tiết thay đổi]' },
-  { ten: 'Phạm Thị Hoa', soHoKhau: 'HK789012', loai: 'Xóa khỏi hộ', thoiGian: '2025-05-28 14:20', chiTiet: 'Chuyển hộ khẩu sang địa chỉ mới' },
+  { ten: 'Nguyễn Văn An', cccd: '1234567890123456', soHoKhau: 'HK123456', loai: 'Cập nhật thông tin', thoiGian: '2025-05-01 09:15', chiTiet: '[Nội dung chi tiết thay đổi]' },
+  { ten: 'Trần Thị Bình', cccd: '1234567890123457', soHoKhau: 'HK654321', loai: 'Tạm vắng', thoiGian: '2025-05-12 15:30', chiTiet: 'Xin tạm vắng để về quê chăm người thân' },
+  { ten: 'Lê Minh Công', cccd: '1234567890123458', soHoKhau: 'HK123456', loai: 'Thêm vào hộ', thoiGian: '2025-05-24 11:10', chiTiet: '[Nội dung chi tiết thay đổi]' },
+  { ten: 'Phạm Thị Hoa', cccd: '1234567890123459', soHoKhau: 'HK789012', loai: 'Xóa khỏi hộ', thoiGian: '2025-05-28 14:20', chiTiet: 'Chuyển hộ khẩu sang địa chỉ mới' },
 ];
 
 const LichSuThayDoiNhanKhau: React.FC = () => {

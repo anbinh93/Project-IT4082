@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import Layout from '../components/Layout';
 import NopPhiPopup from '../components/NopPhiPopup';
+import DetailFeePopup from '../components/DetailFeePopup';
 
 // Dữ liệu mẫu cho các khoản thu
 const sampleFees = [
@@ -128,6 +129,8 @@ const QuanLyKhoanThu: React.FC = () => {
   const [selectedHoKhau, setSelectedHoKhau] = useState<any | null>(null);
   const [fees, setFees] = useState(sampleFees);
   const [isEditMode, setIsEditMode] = useState(false);
+  const [isDetailFeePopupOpen, setIsDetailFeePopupOpen] = useState(false);
+  const [selectedDetailFee, setSelectedDetailFee] = useState<any | null>(null);
 
   // Xử lý mở popup nhập thông tin nộp phí
   const handleOpenPopup = (fee?: any, hoKhau?: any, isEdit: boolean = false) => {
@@ -196,15 +199,6 @@ const QuanLyKhoanThu: React.FC = () => {
     ));
   };
 
-  // Cập nhật bộ lọc hộ khẩu cho từng khoản thu
-  const updateHoKhauFilter = (feeId: string, filterValue: string) => {
-    setFees(prev => prev.map(fee => 
-      fee.id === feeId 
-        ? { ...fee, hoKhauFilterOption: filterValue } 
-        : fee
-    ));
-  };
-
   // Sắp xếp danh sách khoản thu: gần đây nhất trước, cùng ngày thì sắp xếp theo thứ tự từ điển của tên
   const sortedFees = [...fees].sort((a, b) => {
     // Chuyển đổi định dạng ngày dd/mm/yyyy sang yyyy-mm-dd để so sánh
@@ -236,25 +230,14 @@ const QuanLyKhoanThu: React.FC = () => {
     return matchSearch && matchFilter;
   });
 
-  // Lọc danh sách hộ khẩu trong một khoản thu theo bộ lọc cụ thể của khoản đó
-  const filterHoKhauList = (hoKhauList: any[], filterOption: string) => {
-    return hoKhauList.filter(ho => 
-      filterOption === 'Tất cả' ? true :
-      filterOption === 'Đã nộp' ? ho.trangThai === 'Đã nộp' :
-      filterOption === 'Chưa nộp' ? ho.trangThai === 'Chưa nộp' : 
-      true
-    );
+  const openDetailFeePopup = (fee: any) => {
+    setSelectedDetailFee(fee);
+    setIsDetailFeePopupOpen(true);
   };
 
-  // Số tiền hiển thị đúng định dạng
-  const formatCurrency = (value: number | string | undefined) => {
-    if (typeof value === 'number') {
-      return value.toLocaleString('vi-VN') + ' VND';
-    }
-    if (typeof value === 'string' && /^\d+$/.test(value)) {
-      return Number(value).toLocaleString('vi-VN') + ' VND';
-    }
-    return value || '-';
+  const closeDetailFeePopup = () => {
+    setIsDetailFeePopupOpen(false);
+    setSelectedDetailFee(null);
   };
 
   return (
@@ -329,6 +312,7 @@ const QuanLyKhoanThu: React.FC = () => {
               <th className="px-6 py-3 text-left text-xs font-bold text-gray-800 uppercase tracking-wider">Bắt buộc?</th>
               <th className="px-6 py-3 text-left text-xs font-bold text-gray-800 uppercase tracking-wider">Ghi chú</th>
               <th className="px-6 py-3 text-left text-xs font-bold text-gray-800 uppercase tracking-wider">Trạng thái</th>
+              <th className="px-6 py-3 text-left text-xs font-bold text-gray-800 uppercase tracking-wider">Thao tác</th>
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
@@ -365,124 +349,15 @@ const QuanLyKhoanThu: React.FC = () => {
                       {fee.trangThai}
                     </span>
                   </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    <button onClick={e => { e.stopPropagation(); openDetailFeePopup(fee); }} className="text-green-600 hover:text-green-800" title="Xem chi tiết">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.477 0 8.268 2.943 9.542 7-1.274 4.057-5.065 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                      </svg>
+                    </button>
+                  </td>
                 </tr>
-                
-                {/* Expanded row showing household list */}
-                {fee.isExpanded && (
-                  <tr>
-                    <td colSpan={6} className="px-0 py-0 bg-blue-50 border-b-2 border-blue-200">
-                      <div className="p-4">
-                        <div className="flex justify-between items-center mb-3 pb-2 border-b border-blue-200">
-                          <div className="flex items-center gap-3">
-                            <h3 className="text-md font-semibold text-gray-800">Danh sách hộ nộp phí - {fee.tenKhoan}</h3>
-                            {/* Bộ lọc trạng thái hộ khẩu */}
-                            <div className="border border-gray-300 rounded-md shadow-sm overflow-hidden bg-white">
-                              <select
-                                className="p-1 text-sm bg-white outline-none"
-                                value={fee.hoKhauFilterOption}
-                                onChange={e => {
-                                  e.stopPropagation();
-                                  updateHoKhauFilter(fee.id, e.target.value);
-                                }}
-                                onClick={e => e.stopPropagation()}
-                              >
-                                <option value="Tất cả">Tất cả</option>
-                                <option value="Đã nộp">Đã nộp</option>
-                                <option value="Chưa nộp">Chưa nộp</option>
-                              </select>
-                            </div>
-                          </div>
-                          
-                          {fee.trangThai === 'Đang thu' && (
-                            <button 
-                              className="bg-blue-500 text-white px-3 py-1 rounded-md text-sm hover:bg-blue-600 flex items-center gap-1"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleOpenPopup(fee);
-                              }}
-                            >
-                              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                              </svg>
-                              Thêm hộ nộp
-                            </button>
-                          )}
-                        </div>
-                        
-                        {fee.hoKhauList.length > 0 ? (
-                          <div className="overflow-x-auto bg-white rounded-lg shadow">
-                            <table className="min-w-full divide-y divide-gray-200">
-                              <thead className="bg-gray-100">
-                                <tr>
-                                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Hộ khẩu</th>
-                                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Chủ hộ</th>
-                                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Trạng thái</th>
-                                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Ngày nộp</th>
-                                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Số tiền</th>
-                                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Người nộp</th>
-                                  <th className="px-4 py-2 text-center text-xs font-medium text-gray-700 uppercase tracking-wider">Thao tác</th>
-                                </tr>
-                              </thead>
-                              <tbody className="bg-white divide-y divide-gray-200">
-                                {filterHoKhauList(fee.hoKhauList, fee.hoKhauFilterOption).map((hoKhau: any) => (
-                                  <tr key={hoKhau.maHo} className="hover:bg-gray-50">
-                                    <td className="px-4 py-3 text-sm font-medium text-gray-900">{hoKhau.maHo}</td>
-                                    <td className="px-4 py-3 text-sm text-gray-900">{hoKhau.chuHo}</td>
-                                    <td className="px-4 py-3">
-                                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${hoKhau.trangThai === 'Đã nộp' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}>
-                                        {hoKhau.trangThai}
-                                      </span>
-                                    </td>
-                                    <td className="px-4 py-3 text-sm text-gray-900">{hoKhau.ngayNop || '-'}</td>
-                                    <td className="px-4 py-3 text-sm text-gray-900">{formatCurrency(hoKhau.soTien)}</td>
-                                    <td className="px-4 py-3 text-sm text-gray-900">{hoKhau.nguoiNop || '-'}</td>
-                                    <td className="px-4 py-3 text-sm text-center">
-                                      {fee.trangThai === 'Đang thu' && (
-                                        <div className="flex justify-center space-x-3">
-                                          {hoKhau.trangThai === 'Chưa nộp' ? (
-                                            <button 
-                                              onClick={(e) => {
-                                                e.stopPropagation();
-                                                handleOpenPopup(fee, hoKhau);
-                                              }}
-                                              className="text-blue-600 hover:text-blue-800"
-                                              title="Nhập thông tin nộp phí"
-                                            >
-                                              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                                              </svg>
-                                            </button>
-                                          ) : (
-                                            <button 
-                                              onClick={(e) => {
-                                                e.stopPropagation();
-                                                handleOpenPopup(fee, hoKhau, true);
-                                              }}
-                                              className="text-indigo-600 hover:text-indigo-900"
-                                              title="Chỉnh sửa thông tin"
-                                            >
-                                              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                                              </svg>
-                                            </button>
-                                          )}
-                                        </div>
-                                      )}
-                                    </td>
-                                  </tr>
-                                ))}
-                              </tbody>
-                            </table>
-                          </div>
-                        ) : (
-                          <div className="text-center text-gray-500 text-sm py-6 bg-white rounded-lg shadow">
-                            Chưa có hộ nào nộp phí
-                          </div>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                )}
               </React.Fragment>
             ))}
           </tbody>
@@ -499,6 +374,13 @@ const QuanLyKhoanThu: React.FC = () => {
       selectedHoKhau={selectedHoKhau}
       onSave={handleSaveNopPhi}
       isEditMode={isEditMode}
+    />
+
+    {/* Popup chi tiết khoản thu */}
+    <DetailFeePopup
+      isOpen={isDetailFeePopupOpen}
+      onClose={closeDetailFeePopup}
+      fee={selectedDetailFee}
     />
     </>
   );

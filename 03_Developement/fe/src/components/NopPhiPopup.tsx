@@ -270,15 +270,6 @@ const NopPhiPopup: React.FC<NopPhiPopupProps> = ({
       return sampleHoKhau;
     }
 
-    // ID của khoản thu đã chọn (từ tham số hoặc từ trạng thái)
-    const currentFeeId = selectedFee ? selectedFee.id : khoanThuId;
-    
-    // Nếu đang ở chế độ chỉnh sửa và đã chọn hộ khẩu, luôn hiển thị hộ đó
-    if (isEditMode && selectedHoKhau) {
-      const foundHoKhau = sampleHoKhau.find(item => item.maHo === selectedHoKhau.maHo);
-      return foundHoKhau ? [foundHoKhau] : [];
-    }
-    
     // Tìm khoản thu được chọn
     const currentFee = selectedFee || 
       (khoanThuId ? { id: khoanThuId, hoKhauList: [] } : null);

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import AddMemberPopup from './AddMemberPopup';
 
 interface EditHoKhauPopupProps {
@@ -34,6 +34,12 @@ const EditHoKhauPopup: React.FC<EditHoKhauPopupProps> = ({ isOpen, onClose, init
     danhSachThanhVien: []
   });
 
+  useEffect(() => {
+    if (initialData) {
+      setFormData(initialData);
+    }
+  }, [initialData]);
+
   const [isAddMemberPopupOpen, setIsAddMemberPopupOpen] = useState(false);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
@@ -50,22 +56,6 @@ const EditHoKhauPopup: React.FC<EditHoKhauPopupProps> = ({ isOpen, onClose, init
     onClose();
   };
 
-  const handleMemberRelationChange = (index: number, value: string) => {
-    setFormData(prev => {
-      const updated = [...prev.danhSachThanhVien];
-      updated[index].quanHeVoiChuHo = value;
-      return { ...prev, danhSachThanhVien: updated };
-    });
-  };
-
-  const handleRemoveMember = (index: number) => {
-    setFormData(prev => {
-      const updated = [...prev.danhSachThanhVien];
-      updated.splice(index, 1);
-      return { ...prev, danhSachThanhVien: updated };
-    });
-  };
-
   const handleAddMember = (member: { tenNhanKhau: string; quanHeVoiChuHo: string; ngayThem: string }) => {
     setFormData(prev => ({
       ...prev,
@@ -76,9 +66,9 @@ const EditHoKhauPopup: React.FC<EditHoKhauPopupProps> = ({ isOpen, onClose, init
 
   // Add a sample resident list
   const sampleResidents = [
-    { id: '1', name: 'Nguyễn Văn An' },
-    { id: '2', name: 'Trần Thị Bình' },
-    { id: '3', name: 'Lê Minh Công' },
+    { id: '1', name: 'Nguyễn Văn An', cccd: '001234567890', ngaySinh: '1980-01-01', gioiTinh: 'Nam', ngheNghiep: 'Kỹ sư' },
+    { id: '2', name: 'Trần Thị Bình', cccd: '001234567891', ngaySinh: '1985-02-02', gioiTinh: 'Nữ', ngheNghiep: 'Giáo viên' },
+    { id: '3', name: 'Lê Minh Công', cccd: '001234567892', ngaySinh: '1990-03-03', gioiTinh: 'Nam', ngheNghiep: 'Bác sĩ' },
   ];
 
   if (!isOpen) return null;
@@ -192,65 +182,6 @@ const EditHoKhauPopup: React.FC<EditHoKhauPopupProps> = ({ isOpen, onClose, init
               />
             </div>
           </div>
-
-          {/* Danh sách thành viên */}
-          <div className="mt-8">
-            <div className="flex justify-between items-center mb-3">
-              <h3 className="text-lg font-bold text-gray-800">Danh sách thành viên</h3>
-              <button
-                type="button"
-                onClick={() => setIsAddMemberPopupOpen(true)}
-                className="flex items-center gap-2 bg-blue-500 text-white px-4 py-2 rounded-xl font-semibold shadow hover:bg-blue-600 transition"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                </svg>
-                Thêm thành viên
-              </button>
-            </div>
-            <div className="border rounded-xl overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">Tên nhân khẩu</th>
-                    <th className="px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">Quan hệ với chủ hộ</th>
-                    <th className="px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">Ngày thêm</th>
-                    <th className="px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">Thao tác</th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {formData.danhSachThanhVien.map((member, index) => (
-                    <tr key={index} className="hover:bg-blue-50">
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-semibold">{member.tenNhanKhau}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        <select
-                          value={member.quanHeVoiChuHo}
-                          onChange={e => handleMemberRelationChange(index, e.target.value)}
-                          className="border rounded-lg px-2 py-1"
-                        >
-                          <option value="">Chọn quan hệ</option>
-                          <option value="Con">Con</option>
-                          <option value="Vợ/Chồng">Vợ/Chồng</option>
-                          <option value="Cha/Mẹ">Cha/Mẹ</option>
-                          <option value="Anh/Chị/Em">Anh/Chị/Em</option>
-                          <option value="Khác">Khác</option>
-                        </select>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{member.ngayThem}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm">
-                        <button type="button" onClick={() => handleRemoveMember(index)} className="p-2 rounded-full hover:bg-red-50 group">
-                          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-red-500 group-hover:text-red-700" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                          </svg>
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-
           {/* Footer */}
           <div className="flex justify-end gap-4 mt-8">
             <button

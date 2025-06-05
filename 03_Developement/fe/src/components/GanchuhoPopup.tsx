@@ -36,6 +36,8 @@ const GanchuhoPopup: React.FC<AssignChuHoPopupProps> = ({
 }) => {
   const [selectedMemberId, setSelectedMemberId] = useState<string>('');
   const [searchTerm, setSearchTerm] = useState('');
+  const [editingRelation, setEditingRelation] = useState<string | null>(null);
+  const [relationValue, setRelationValue] = useState('');
 
   // Sample members data - in real app this would come from props or API
   const sampleMembers: Member[] = [
@@ -123,24 +125,10 @@ const GanchuhoPopup: React.FC<AssignChuHoPopupProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] overflow-hidden">
-        {/* Header */}
-        <div className="bg-blue-600 text-white p-4 flex justify-between items-center">
-          <h2 className="text-lg font-semibold">
-            Gán/Sửa Chủ Hộ - {currentHousehold?.soHoKhau || 'N/A'}
-          </h2>
-          <button
-            onClick={onClose}
-            className="text-white hover:text-gray-200 transition-colors"
-          >
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-        </div>
-
-        <div className="p-6">
+    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+      <div className="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-6xl max-h-[90vh] overflow-y-auto relative">
+        <h2 className="text-2xl font-bold mb-4">Gán/Sửa Chủ Hộ - {currentHousehold?.soHoKhau || 'N/A'}</h2>
+        <div className="space-y-6">
           {/* Current Head of Household Info */}
           <div className="mb-6 p-4 bg-gray-50 rounded-lg">
             <h3 className="text-md font-semibold text-gray-800 mb-2">Chủ hộ hiện tại:</h3>
@@ -159,7 +147,6 @@ const GanchuhoPopup: React.FC<AssignChuHoPopupProps> = ({
               <p className="text-sm text-gray-500">Chưa có thông tin chủ hộ</p>
             )}
           </div>
-
           {/* Search */}
           <div className="mb-4">
             <div className="flex items-center border border-gray-300 rounded-md shadow-sm overflow-hidden">
@@ -177,11 +164,9 @@ const GanchuhoPopup: React.FC<AssignChuHoPopupProps> = ({
               />
             </div>
           </div>
-
           {/* Members List */}
           <div className="mb-6">
             <h3 className="text-md font-semibold text-gray-800 mb-3">Chọn thành viên làm chủ hộ mới:</h3>
-            
             <div className="border border-gray-200 rounded-lg overflow-hidden max-h-96 overflow-y-auto">
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
@@ -199,9 +184,7 @@ const GanchuhoPopup: React.FC<AssignChuHoPopupProps> = ({
                   {filteredMembers.map((member) => (
                     <tr 
                       key={member.id} 
-                      className={`hover:bg-blue-50 cursor-pointer ${
-                        selectedMemberId === member.id ? 'bg-blue-100' : ''
-                      }`}
+                      className={`hover:bg-blue-50 cursor-pointer ${selectedMemberId === member.id ? 'bg-blue-100' : ''}`}
                       onClick={() => setSelectedMemberId(member.id)}
                     >
                       <td className="px-4 py-3 whitespace-nowrap">
@@ -227,13 +210,50 @@ const GanchuhoPopup: React.FC<AssignChuHoPopupProps> = ({
                         {member.cccd}
                       </td>
                       <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
-                        <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                          member.quanHeVoiChuHo === 'Chủ hộ' 
-                            ? 'bg-green-100 text-green-800' 
-                            : 'bg-gray-100 text-gray-800'
-                        }`}>
-                          {member.quanHeVoiChuHo}
-                        </span>
+                        {editingRelation === member.id ? (
+                          <div className="flex items-center gap-2">
+                            <input
+                              className="border rounded px-2 py-1 text-sm"
+                              value={relationValue}
+                              onChange={e => setRelationValue(e.target.value)}
+                              autoFocus
+                              onClick={e => e.stopPropagation()}
+                            />
+                            <button
+                              className="p-1 rounded hover:bg-green-100 transition"
+                              title="Lưu"
+                              onClick={e => {
+                                e.stopPropagation();
+                                // Cập nhật quan hệ cho member (giả lập, thực tế cần cập nhật state hoặc gọi API)
+                                member.quanHeVoiChuHo = relationValue;
+                                setEditingRelation(null);
+                              }}
+                              style={{ lineHeight: 0 }}
+                            >
+                              <svg className="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                              </svg>
+                            </button>
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-2">
+                            <span>{member.quanHeVoiChuHo}</span>
+                            <button
+                              className="p-1 rounded hover:bg-blue-100 transition"
+                              title="Sửa"
+                              onClick={e => {
+                                e.stopPropagation();
+                                setEditingRelation(member.id);
+                                setRelationValue(member.quanHeVoiChuHo);
+                              }}
+                              style={{ lineHeight: 0 }}
+                            >
+                              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                              </svg>
+                            </button>
+                          </div>
+                        )}
                       </td>
                       <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
                         {member.ngheNghiep}
@@ -242,7 +262,6 @@ const GanchuhoPopup: React.FC<AssignChuHoPopupProps> = ({
                   ))}
                 </tbody>
               </table>
-              
               {filteredMembers.length === 0 && (
                 <div className="p-4 text-center text-gray-500">
                   Không tìm thấy thành viên nào
@@ -250,21 +269,22 @@ const GanchuhoPopup: React.FC<AssignChuHoPopupProps> = ({
               )}
             </div>
           </div>
-
           {/* Action Buttons */}
-          <div className="flex justify-end gap-3">
+          <div className="flex justify-end gap-4 mt-8">
             <button
+              type="button"
               onClick={onClose}
-              className="px-4 py-2 text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300 transition-colors"
+              className="px-5 py-2 border border-gray-300 rounded-xl text-gray-700 font-semibold bg-white hover:bg-gray-50 shadow-sm"
             >
               Hủy
             </button>
             <button
+              type="button"
               onClick={handleAssign}
               disabled={!selectedMemberId}
-              className={`px-4 py-2 rounded-md transition-colors ${
+              className={`px-5 py-2 rounded-xl font-semibold shadow transition-colors ${
                 selectedMemberId
-                  ? 'bg-blue-600 text-white hover:bg-blue-700'
+                  ? 'bg-blue-500 text-white hover:bg-blue-600'
                   : 'bg-gray-300 text-gray-500 cursor-not-allowed'
               }`}
             >

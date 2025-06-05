@@ -165,7 +165,6 @@ function exportToExcel() {
 
 const ThongKeNhanKhau: React.FC = () => {
   const [filterType, setFilterType] = useState('gender');
-  const [status, setStatus] = useState('tamtru');
   const [dateFrom, setDateFrom] = useState('2024-05-01');
   const [dateTo, setDateTo] = useState('2024-05-31');
 

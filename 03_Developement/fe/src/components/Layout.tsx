@@ -63,7 +63,7 @@ const Layout: React.FC<LayoutProps> = ({ children, role }) => {
       {/* Content Area: Sidebar + Main Content */}
       <div className="flex flex-1 pt-14">
         {/* Sidebar */}
-        <div className="w-64 bg-white shadow-md flex flex-col fixed top-[64px] bottom-0">
+        <div className="w-52 bg-white shadow-md flex flex-col fixed top-[64px] bottom-0">
           <nav className="mt-4 flex-1 overflow-y-auto">
             <ul className="flex flex-col h-full">
               {menuItems.map(item => {
@@ -74,12 +74,12 @@ const Layout: React.FC<LayoutProps> = ({ children, role }) => {
                       to={item.path}
                       className={`block text-sm border-b`}
                       style={{
-                         fontFamily: 'Roboto',
-                         borderColor: 'rgba(0, 0, 0, 0.1)',
-                         padding: '12px 16px',
-                         color: '#1976D2',
-                         fontWeight: '600',
-                         backgroundColor: isActive ? 'rgba(0, 122, 255, 0.15)' : 'transparent',
+                        fontFamily: 'Roboto',
+                        borderColor: 'rgba(0, 0, 0, 0.1)',
+                        padding: '12px 16px',
+                        color: '#1976D2',
+                        fontWeight: '600',
+                        backgroundColor: isActive ? 'rgba(0, 122, 255, 0.15)' : 'transparent',
                       }}
                     >
                       {item.label}
@@ -92,11 +92,11 @@ const Layout: React.FC<LayoutProps> = ({ children, role }) => {
                   to="/login"
                   className="block text-sm"
                   style={{
-                     fontFamily: 'Roboto',
-                     padding: '12px 16px',
-                     backgroundColor: 'rgba(0, 122, 255, 0.15)',
-                     color: '#1976D2',
-                     fontWeight: '600',
+                    fontFamily: 'Roboto',
+                    padding: '12px 16px',
+                    backgroundColor: 'rgba(0, 122, 255, 0.15)',
+                    color: '#1976D2',
+                    fontWeight: '600',
                   }}
                 >
                   Đăng xuất
@@ -107,7 +107,7 @@ const Layout: React.FC<LayoutProps> = ({ children, role }) => {
         </div>
 
         {/* Main Content */}
-        <div className="flex-1 flex flex-col pl-64">
+        <div className="flex-1 flex flex-col pl-52">
           <main className="flex-1 p-4 overflow-y-auto">
             {children}
           </main>
@@ -117,4 +117,4 @@ const Layout: React.FC<LayoutProps> = ({ children, role }) => {
   );
 };
 
-export default Layout; 
+export default Layout;

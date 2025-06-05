@@ -14,6 +14,7 @@ import {
 } from 'chart.js';
 import { Bar, Pie, Line } from 'react-chartjs-2';
 import ChartDataLabels from 'chartjs-plugin-datalabels';
+import { sampleBatches } from './QuanLyDotThuPhi';
 
 ChartJS.register(
   CategoryScale,
@@ -35,6 +36,8 @@ const ThongKeKhoanThu: React.FC = () => {
     labels: [] as string[],
     datasets: [] as any[],
   });
+  const [selectedBatchId, setSelectedBatchId] = useState<string>(sampleBatches[0].maDot);
+  const selectedBatch = sampleBatches.find((b: any) => b.maDot === selectedBatchId);
 
   // Mock data generation functions (replace with actual data fetching later)
   const generate7DaysData = () => ({
@@ -99,29 +102,19 @@ const ThongKeKhoanThu: React.FC = () => {
     }
   }, [selectedTimeRange]);
 
-  // Data and options for Bar Chart (Theo khoản)
-  const barChartData = {
-    labels: ['Học phí', 'Chung cư', 'Gửi xe', 'Quản lý'],
+  // Bar chart data theo khoản thu của đợt đã chọn
+  const barChartData = selectedBatch ? {
+    labels: selectedBatch.details.khoanThu.map((k: any) => k.tenKhoan),
     datasets: [
       {
-        label: 'Theo khoản (triệu VND)',
-        data: [250, 550, 120, 180], // Dữ liệu mẫu
-        backgroundColor: [
-          '#8BC34A', // Green
-          '#FFEB3B', // Yellow
-          '#E91E63', // Pink
-          '#2196F3', // Blue
-        ],
-        borderColor: [
-          '#ffffff',
-          '#ffffff',
-          '#ffffff',
-          '#ffffff',
-        ],
-        borderWidth: 1,
+        label: 'Số tiền đã thu (VND)',
+        data: selectedBatch.details.khoanThu.map(
+          (k: any) => Object.values(k.householdFees).reduce((sum: number, h: any) => sum + (h.amount || 0), 0)
+        ),
+        backgroundColor: ['#8BC34A', '#FFEB3B', '#E91E63', '#2196F3'],
       },
     ],
-  };
+  } : { labels: [], datasets: [] };
 
   const barChartOptions = {
     responsive: true,
@@ -148,18 +141,28 @@ const ThongKeKhoanThu: React.FC = () => {
     },
   };
 
-  // Data and options for Pie Chart (Theo đợt thu)
+  // Pie chart data: tổng số tiền đã thu của từng đợt thu
   const pieChartData = {
-    labels: ['Đợt tháng 05/2025', 'Đợt tháng 04/2025'],
+    labels: sampleBatches.map((b: any) => b.tenDot),
     datasets: [
       {
         label: 'Tỷ lệ đợt thu',
-        data: [75, 25], // Dữ liệu mẫu
+        data: sampleBatches.map((b: any) =>
+          b.details.khoanThu.reduce((sum: number, k: any) => sum + Object.values(k.householdFees).reduce((s: number, h: any) => s + (h.amount || 0), 0), 0)
+        ),
         backgroundColor: [
           '#2196F3', // Blue
           '#E0E0E0', // Light Gray
+          '#8BC34A', // Green
+          '#E91E63', // Pink
+          '#FFEB3B', // Yellow
+          '#FF9800', // Orange
         ],
         borderColor: [
+          '#ffffff',
+          '#ffffff',
+          '#ffffff',
+          '#ffffff',
           '#ffffff',
           '#ffffff',
         ],
@@ -299,14 +302,28 @@ const ThongKeKhoanThu: React.FC = () => {
           </button>
         </div>
 
+        <div className="flex items-center gap-4">
+          <label className="font-semibold text-gray-700">Chọn đợt thu:</label>
+          <select
+            value={selectedBatchId}
+            onChange={e => setSelectedBatchId(e.target.value)}
+            className="p-2 border rounded"
+          >
+            {sampleBatches.map((b: any) => (
+              <option key={b.maDot} value={b.maDot}>
+                {b.tenDot} ({b.maDot})
+              </option>
+            ))}
+          </select>
+        </div>
+
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {/* Theo khoản Chart */}
           <div className="bg-white rounded-md shadow-md overflow-hidden border border-gray-200 p-4 flex flex-col gap-4">
-            <h2 className="text-lg font-semibold text-gray-800">Theo khoản (triệu VND)</h2>
+            <h2 className="text-lg font-semibold text-gray-800">Theo khoản (VND)</h2>
             <div className="h-48 flex items-center justify-center">
               <Bar data={barChartData} options={barChartOptions} />
             </div>
-            {/* Removed manual legend */}
           </div>
 
           {/* Theo đợt thu Chart */}
@@ -315,37 +332,38 @@ const ThongKeKhoanThu: React.FC = () => {
             <div className="h-48 flex items-center justify-center">
               <Pie data={pieChartData} options={pieChartOptions} />
             </div>
-            {/* Removed manual legend */}
           </div>
         </div>
 
-        {/* Theo thời gian Chart */}
+        {/* Danh sách các khoản thu của đợt đã chọn */}
         <div className="bg-white rounded-md shadow-md overflow-hidden border border-gray-200 p-4 flex flex-col gap-4">
-          <h2 className="text-lg font-semibold text-gray-800">Theo thời gian</h2>
-          <div className="flex gap-2">
-            <button
-              className={`px-4 py-1 text-sm rounded-full ${selectedTimeRange === '7days' ? 'bg-blue-500 text-white' : 'border border-gray-300 text-gray-700'}`}
-              onClick={() => setSelectedTimeRange('7days')}
-            >
-              7 days
-            </button>
-            <button
-              className={`px-4 py-1 text-sm rounded-full ${selectedTimeRange === '30days' ? 'bg-blue-500 text-white' : 'border border-gray-300 text-gray-700'}`}
-              onClick={() => setSelectedTimeRange('30days')}
-            >
-              30 days
-            </button>
-            <button
-              className={`px-4 py-1 text-sm rounded-full ${selectedTimeRange === '90days' ? 'bg-blue-500 text-white' : 'border border-gray-300 text-gray-700'}`}
-              onClick={() => setSelectedTimeRange('90days')}
-            >
-              90 days
-            </button>
-          </div>
-          <div className="h-64 flex items-center justify-center p-4">
-            <Line data={lineChartData} options={lineChartOptions} />
-          </div>
-
+          <h2 className="text-lg font-semibold text-gray-800">Danh sách khoản thu trong đợt</h2>
+          <table className="min-w-full divide-y divide-gray-200">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="px-4 py-2 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Khoản thu</th>
+                <th className="px-4 py-2 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Số tiền dự kiến</th>
+                <th className="px-4 py-2 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Số tiền đã thu</th>
+                <th className="px-4 py-2 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Số hộ đã nộp</th>
+                <th className="px-4 py-2 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Trạng thái</th>
+              </tr>
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-200">
+              {selectedBatch && selectedBatch.details.khoanThu.map((k: any) => {
+                const total = Object.values(k.householdFees).reduce((sum: number, h: any) => sum + (h.amount || 0), 0);
+                const paid = Object.values(k.householdFees).filter((h: any) => h.amount > 0).length;
+                return (
+                  <tr key={k.id}>
+                    <td className="px-4 py-2 text-sm text-gray-900">{k.tenKhoan}</td>
+                    <td className="px-4 py-2 text-sm text-gray-900">{total.toLocaleString('vi-VN')}</td>
+                    <td className="px-4 py-2 text-sm text-blue-700 font-semibold">{total.toLocaleString('vi-VN')}</td>
+                    <td className="px-4 py-2 text-sm text-gray-900">{paid}</td>
+                    <td className="px-4 py-2 text-sm text-gray-900">{k.batBuoc}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
         </div>
       </div>
     </Layout>

@@ -134,7 +134,7 @@ const HomepageToTruong: React.FC = () => (
           <h2 className="text-xl font-semibold text-gray-700">Phân phối nhân khẩu theo độ tuổi</h2>
           <div className="w-full h-64">
             <Bar data={ageBarData} options={ageBarOptions} plugins={[ChartDataLabels]} />
-          </div>
+           </div>
         </div>
 
         {/* Tỷ lệ nam/nữ */}
@@ -144,15 +144,15 @@ const HomepageToTruong: React.FC = () => (
             <Pie data={genderPieData} options={genderPieOptions} plugins={[ChartDataLabels]} />
           </div>
           <div className="flex gap-4 justify-center mt-2">
-            <div className="flex items-center gap-1">
+                <div className="flex items-center gap-1">
               <span className="w-4 h-4 bg-blue-500 rounded-full inline-block"></span>
-              <span className="text-sm text-gray-700">Nam</span>
-            </div>
-            <div className="flex items-center gap-1">
+                    <span className="text-sm text-gray-700">Nam</span>
+               </div>
+                 <div className="flex items-center gap-1">
               <span className="w-4 h-4 bg-white border border-gray-400 rounded-full inline-block"></span>
-              <span className="text-sm text-gray-700">Nữ</span>
-            </div>
-          </div>
+                    <span className="text-sm text-gray-700">Nữ</span>
+               </div>
+           </div>
         </div>
       </div>
     </div>

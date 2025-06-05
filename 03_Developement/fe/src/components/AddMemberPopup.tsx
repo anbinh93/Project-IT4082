@@ -5,23 +5,65 @@ interface AddMemberPopupProps {
   onClose: () => void;
   onAdd: (member: {
     tenNhanKhau: string;
+    cccd: string;
+    ngaySinh: string;
+    gioiTinh: string;
+    ngheNghiep: string;
     quanHeVoiChuHo: string;
     ngayThem: string;
   }) => void;
-  residents?: { id: string; name: string }[];
+  residents?: { 
+    id: string; 
+    name: string; 
+    cccd: string;
+    ngaySinh: string;
+    gioiTinh: string;
+    ngheNghiep: string;
+  }[];
 }
 
 const AddMemberPopup: React.FC<AddMemberPopupProps> = ({
   isOpen,
   onClose,
   onAdd,
-  residents = []
+  residents = [
+    { id: 'TV009', name: 'Nguyễn Văn Bình', cccd: '001234567893', ngaySinh: '1990-01-01', gioiTinh: 'Nam', ngheNghiep: 'Kỹ sư' },
+    { id: 'TV010', name: 'Phạm Thị Hoa', cccd: '001234567894', ngaySinh: '1992-02-02', gioiTinh: 'Nữ', ngheNghiep: 'Giáo viên' },
+    { id: 'TV011', name: 'Lê Văn Dũng', cccd: '001234567895', ngaySinh: '1985-03-03', gioiTinh: 'Nam', ngheNghiep: 'Bác sĩ' },
+  ]
 }) => {
+  // Lấy ngày hiện tại và format thành YYYY-MM-DD
+  const today = new Date().toISOString().split('T')[0];
+  
   const [formData, setFormData] = useState({
     tenNhanKhau: '',
+    cccd: '',
+    ngaySinh: '',
+    gioiTinh: '',
+    ngheNghiep: '',
     quanHeVoiChuHo: '',
-    ngayThem: ''
+    ngayThem: today
   });
+  const [search, setSearch] = useState('');
+  const [showDropdown, setShowDropdown] = useState(false);
+
+  const filteredResidents = residents.filter(r =>
+    r.name.toLowerCase().includes(search.toLowerCase()) ||
+    (r.cccd && r.cccd.toLowerCase().includes(search.toLowerCase()))
+  );
+
+  const handleSelectResident = (resident: { id: string; name: string; cccd: string; ngaySinh: string; gioiTinh: string; ngheNghiep: string }) => {
+    setFormData(prev => ({
+      ...prev,
+      tenNhanKhau: resident.name,
+      cccd: resident.cccd,
+      ngaySinh: resident.ngaySinh,
+      gioiTinh: resident.gioiTinh,
+      ngheNghiep: resident.ngheNghiep
+    }));
+    setSearch(resident.name + ` - ${resident.cccd}`);
+    setShowDropdown(false);
+  };
 
   const handleInputChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
@@ -31,6 +73,10 @@ const AddMemberPopup: React.FC<AddMemberPopupProps> = ({
       ...prev,
       [name]: value
     }));
+    if (name === 'tenNhanKhau') {
+      setSearch(value);
+      setShowDropdown(true);
+    }
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -75,40 +121,54 @@ const AddMemberPopup: React.FC<AddMemberPopupProps> = ({
             <label className="block text-sm font-semibold text-gray-700 mb-1">
               Nhân khẩu <span className="text-red-500">*</span>
             </label>
-            <select
-              name="tenNhanKhau"
-              value={formData.tenNhanKhau}
-              onChange={handleInputChange}
-              className="block w-full rounded-xl border border-gray-300 px-4 py-2 text-[15px] shadow-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none appearance-none"
-              required
-            >
-              <option value="">Chọn nhân khẩu</option>
-              {residents.map(r => (
-                <option key={r.id} value={r.name}>
-                  {r.name}
-                </option>
-              ))}
-            </select>
+            <div className="relative">
+              <input
+                name="tenNhanKhau"
+                value={search}
+                onChange={e => {
+                  setSearch(e.target.value);
+                  setShowDropdown(true);
+                  setFormData(prev => ({ ...prev, tenNhanKhau: '', cccd: '', ngaySinh: '', gioiTinh: '', ngheNghiep: '' }));
+                }}
+                onFocus={() => setShowDropdown(true)}
+                onBlur={() => setTimeout(() => setShowDropdown(false), 150)}
+                autoComplete="off"
+                placeholder="Nhập tên hoặc CCCD"
+                className="block w-full rounded-xl border border-gray-300 px-4 py-2 text-[15px] shadow-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none"
+                required
+              />
+              {showDropdown && search && (
+                <div className="absolute z-10 left-0 right-0 bg-white border border-gray-200 rounded-md shadow max-h-56 overflow-y-auto">
+                  {filteredResidents.length === 0 && (
+                    <div className="p-2 text-gray-500">Không tìm thấy nhân khẩu</div>
+                  )}
+                  {filteredResidents.slice(0, 5).map(r => (
+                    <div
+                      key={r.id}
+                      className="p-2 cursor-pointer hover:bg-blue-100"
+                      onClick={() => handleSelectResident(r)}
+                    >
+                      <span className="font-medium">{r.name}</span>
+                      <span className="ml-2 text-gray-500 text-xs">({r.cccd})</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
 
           <div>
             <label className="block text-sm font-semibold text-gray-700 mb-1">
               Quan hệ với chủ hộ <span className="text-red-500">*</span>
             </label>
-            <select
+            <input
               name="quanHeVoiChuHo"
               value={formData.quanHeVoiChuHo}
               onChange={handleInputChange}
-              className="block w-full rounded-xl border border-gray-300 px-4 py-2 text-[15px] shadow-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none appearance-none"
+              placeholder="Nhập quan hệ với chủ hộ"
+              className="block w-full rounded-xl border border-gray-300 px-4 py-2 text-[15px] shadow-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none"
               required
-            >
-              <option value="">Chọn quan hệ</option>
-              <option value="Con">Con</option>
-              <option value="Vợ/Chồng">Vợ/Chồng</option>
-              <option value="Cha/Mẹ">Cha/Mẹ</option>
-              <option value="Anh/Chị/Em">Anh/Chị/Em</option>
-              <option value="Khác">Khác</option>
-            </select>
+            />
           </div>
 
           <div>

@@ -4,6 +4,7 @@ import AddEditDotThuPhiPopup from '../components/AddEditDotThuPhiPopup'; // Impo
 import EditDotThuPhiPopup from '../components/EditDotThuPhiPopup'; // Import Edit popup
 import AddEditFeePopup from '../components/AddEditFeePopup'; // Import Add/Edit Fee popup
 import { FEE_TYPES } from '../components/AddEditFeePopup';
+import DetailFeePopup from '../components/DetailFeePopup';
 
 // Định nghĩa type mới cho khoản thu và batch
 interface HouseholdFee {
@@ -75,6 +76,132 @@ const sampleBatches: Batch[] = [
             HK003: { amount: 210000, auto: true },
             HK004: { amount: 1270000, auto: true },
             HK005: { amount: 1340000, auto: true }
+          }
+        },
+        {
+          id: 'K003',
+          type: 'PHI_BAO_TRI',
+          tenKhoan: 'Phí bảo trì',
+          chiTiet: 'Bảo trì hệ thống tháng 5',
+          batBuoc: 'Bắt buộc',
+          householdFees: {
+            HK001: { amount: 50000, auto: true },
+            HK002: { amount: 70000, auto: true },
+            HK003: { amount: 60000, auto: true },
+            HK004: { amount: 80000, auto: true },
+            HK005: { amount: 90000, auto: true }
+          }
+        },
+        {
+          id: 'K004',
+          type: 'PHI_DIEN',
+          tenKhoan: 'Phí điện',
+          chiTiet: 'Tiền điện tháng 5',
+          batBuoc: 'Bắt buộc',
+          householdFees: {
+            HK001: { amount: 350000, auto: true },
+            HK002: { amount: 420000, auto: true },
+            HK003: { amount: 390000, auto: true },
+            HK004: { amount: 410000, auto: true },
+            HK005: { amount: 370000, auto: true }
+          }
+        },
+        {
+          id: 'K005',
+          type: 'PHI_NUOC',
+          tenKhoan: 'Phí nước',
+          chiTiet: 'Tiền nước tháng 5',
+          batBuoc: 'Bắt buộc',
+          householdFees: {
+            HK001: { amount: 120000, auto: true },
+            HK002: { amount: 150000, auto: true },
+            HK003: { amount: 130000, auto: true },
+            HK004: { amount: 140000, auto: true },
+            HK005: { amount: 125000, auto: true }
+          }
+        },
+        {
+          id: 'K006',
+          type: 'PHI_VE_SINH',
+          tenKhoan: 'Phí vệ sinh',
+          chiTiet: 'Vệ sinh tháng 5',
+          batBuoc: 'Bắt buộc',
+          householdFees: {
+            HK001: { amount: 30000, auto: true },
+            HK002: { amount: 35000, auto: true },
+            HK003: { amount: 32000, auto: true },
+            HK004: { amount: 34000, auto: true },
+            HK005: { amount: 31000, auto: true }
+          }
+        },
+        {
+          id: 'K007',
+          type: 'PHI_AN_NINH',
+          tenKhoan: 'Phí an ninh',
+          chiTiet: 'An ninh tháng 5',
+          batBuoc: 'Bắt buộc',
+          householdFees: {
+            HK001: { amount: 40000, auto: true },
+            HK002: { amount: 45000, auto: true },
+            HK003: { amount: 42000, auto: true },
+            HK004: { amount: 43000, auto: true },
+            HK005: { amount: 41000, auto: true }
+          }
+        },
+        {
+          id: 'K008',
+          type: 'PHI_THANG_MAY',
+          tenKhoan: 'Phí thang máy',
+          chiTiet: 'Thang máy tháng 5',
+          batBuoc: 'Bắt buộc',
+          householdFees: {
+            HK001: { amount: 60000, auto: true },
+            HK002: { amount: 65000, auto: true },
+            HK003: { amount: 62000, auto: true },
+            HK004: { amount: 64000, auto: true },
+            HK005: { amount: 61000, auto: true }
+          }
+        },
+        {
+          id: 'K009',
+          type: 'PHI_BAO_TRI_XE',
+          tenKhoan: 'Phí bảo trì xe',
+          chiTiet: 'Bảo trì xe tháng 5',
+          batBuoc: 'Không bắt buộc',
+          householdFees: {
+            HK001: { amount: 20000, auto: true },
+            HK002: { amount: 25000, auto: true },
+            HK003: { amount: 22000, auto: true },
+            HK004: { amount: 24000, auto: true },
+            HK005: { amount: 21000, auto: true }
+          }
+        },
+        {
+          id: 'K010',
+          type: 'PHI_DONG_GOP',
+          tenKhoan: 'Phí đóng góp cộng đồng',
+          chiTiet: 'Đóng góp cộng đồng tháng 5',
+          batBuoc: 'Không bắt buộc',
+          householdFees: {
+            HK001: { amount: 50000, auto: true },
+            HK002: { amount: 0, auto: true },
+            HK003: { amount: 0, auto: true },
+            HK004: { amount: 0, auto: true },
+            HK005: { amount: 0, auto: true }
+          }
+        },
+        {
+          id: 'K011',
+          type: 'PHI_TU_NGUYEN',
+          tenKhoan: 'Phí tự nguyện',
+          chiTiet: 'Tự nguyện tháng 5',
+          batBuoc: 'Không bắt buộc',
+          householdFees: {
+            HK001: { amount: 0, auto: true },
+            HK002: { amount: 100000, auto: true },
+            HK003: { amount: 0, auto: true },
+            HK004: { amount: 0, auto: true },
+            HK005: { amount: 0, auto: true }
           }
         }
       ]
@@ -171,6 +298,8 @@ const sampleBatches: Batch[] = [
   }
 ];
 
+export { sampleBatches };
+
 const QuanLyDotThuPhi: React.FC = () => {
   const [isAddPopupOpen, setIsAddPopupOpen] = useState(false); // State for Add popup
   const [isEditPopupOpen, setIsEditPopupOpen] = useState(false); // State for Edit popup
@@ -187,6 +316,8 @@ const QuanLyDotThuPhi: React.FC = () => {
   const [selectedFee, setSelectedFee] = useState<any | null>(null); // Khoản thu được chọn để sửa/xóa
   const [activeBatchForFee, setActiveBatchForFee] = useState<any | null>(null); // Đợt thu đang được thao tác với khoản thu
   const [addFeeError, setAddFeeError] = useState<string | null>(null);
+  const [isDetailFeePopupOpen, setIsDetailFeePopupOpen] = useState(false);
+  const [selectedDetailFee, setSelectedDetailFee] = useState<any | null>(null);
 
   // Hàm kiểm tra và cập nhật trạng thái đợt thu
   const updateBatchStatus = (batch: any) => {
@@ -411,6 +542,15 @@ const QuanLyDotThuPhi: React.FC = () => {
     closeEditPopup();
   };
 
+  const openDetailFeePopup = (fee: any) => {
+    setSelectedDetailFee(fee);
+    setIsDetailFeePopupOpen(true);
+  };
+  const closeDetailFeePopup = () => {
+    setIsDetailFeePopupOpen(false);
+    setSelectedDetailFee(null);
+  };
+
   return (
     <>
       <Layout role="ketoan">
@@ -573,6 +713,12 @@ const QuanLyDotThuPhi: React.FC = () => {
                                           </td>
                                           <td className="px-4 py-3 text-sm text-gray-500">
                                             <div className="flex space-x-3">
+                                              <button onClick={() => openDetailFeePopup(fee)} className="text-green-600 hover:text-green-800" title="Xem chi tiết">
+                                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.477 0 8.268 2.943 9.542 7-1.274 4.057-5.065 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                                </svg>
+                                              </button>
                                               <button onClick={(e) => openEditFeePopup(fee, batch, e)} className="text-indigo-600 hover:text-indigo-900" title="Chỉnh sửa">
                                                 <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
                                               </button>
@@ -698,6 +844,13 @@ const QuanLyDotThuPhi: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* Popup chi tiết khoản thu */}
+      <DetailFeePopup
+        isOpen={isDetailFeePopupOpen}
+        onClose={closeDetailFeePopup}
+        fee={selectedDetailFee}
+      />
     </>
   );
 };

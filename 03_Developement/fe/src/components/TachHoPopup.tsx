@@ -18,6 +18,14 @@ const TachHoPopup: React.FC<TachHoPopupProps> = ({ isOpen, onClose, selectedResi
   const [newHouseholdAddress, setNewHouseholdAddress] = useState('');
   const [isCreatingNewHousehold, setIsCreatingNewHousehold] = useState(false);
   const [reason, setReason] = useState('');
+  const [householdSearch, setHouseholdSearch] = useState('');
+  const [newSoHoKhau, setNewSoHoKhau] = useState('');
+  const [newSoNha, setNewSoNha] = useState('');
+  const [newDuong, setNewDuong] = useState('');
+  const [newPhuong, setNewPhuong] = useState('');
+  const [newQuan, setNewQuan] = useState('');
+  const [newThanhPho, setNewThanhPho] = useState('');
+  const [newNgayLamHoKhau, setNewNgayLamHoKhau] = useState('');
 
   // Sample data cho danh sách hộ gia đình có sẵn
   const existingHouseholds = [
@@ -26,6 +34,12 @@ const TachHoPopup: React.FC<TachHoPopupProps> = ({ isOpen, onClose, selectedResi
     { id: 'HO003', address: 'Chung cư B - Tầng 3 - Căn 304', chuHo: 'Lê Văn Đức' },
     { id: 'HO004', address: 'Chung cư B - Tầng 8 - Căn 801', chuHo: 'Phạm Thị Mai' },
   ];
+
+  const filteredHouseholds = existingHouseholds.filter(h =>
+    h.address.toLowerCase().includes(householdSearch.toLowerCase()) ||
+    h.chuHo.toLowerCase().includes(householdSearch.toLowerCase()) ||
+    h.id.toLowerCase().includes(householdSearch.toLowerCase())
+  );
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -56,6 +70,14 @@ const TachHoPopup: React.FC<TachHoPopupProps> = ({ isOpen, onClose, selectedResi
     setNewHouseholdAddress('');
     setIsCreatingNewHousehold(false);
     setReason('');
+    setHouseholdSearch('');
+    setNewSoHoKhau('');
+    setNewSoNha('');
+    setNewDuong('');
+    setNewPhuong('');
+    setNewQuan('');
+    setNewThanhPho('');
+    setNewNgayLamHoKhau('');
   };
 
   const handleClose = () => {
@@ -66,23 +88,10 @@ const TachHoPopup: React.FC<TachHoPopupProps> = ({ isOpen, onClose, selectedResi
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-        {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-gray-200">
-          <h2 className="text-xl font-bold text-gray-800">Tách hộ - Chuyển nhân khẩu</h2>
-          <button
-            onClick={handleClose}
-            className="text-gray-400 hover:text-gray-600 transition-colors"
-          >
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-        </div>
-
-        {/* Content */}
-        <form onSubmit={handleSubmit} className="p-6 space-y-6">
+    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+      <div className="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-2xl max-h-[90vh] overflow-y-auto relative">
+        <h2 className="text-2xl font-bold mb-4">Tách hộ - Chuyển nhân khẩu</h2>
+        <form onSubmit={handleSubmit} className="space-y-6">
           {/* Thông tin nhân khẩu được chọn */}
           {selectedResident && (
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
@@ -111,14 +120,12 @@ const TachHoPopup: React.FC<TachHoPopupProps> = ({ isOpen, onClose, selectedResi
               </div>
             </div>
           )}
-
           {/* Lựa chọn hộ đích */}
           <div className="space-y-4">
             <h3 className="font-semibold text-gray-800">Chọn hộ gia đình đích:</h3>
-            
             {/* Radio buttons để chọn giữa hộ có sẵn hoặc tạo mới */}
             <div className="space-y-3">
-              <label className="flex items-center space-x-3">
+              <label className="flex items-center gap-3">
                 <input
                   type="radio"
                   name="householdType"
@@ -128,8 +135,7 @@ const TachHoPopup: React.FC<TachHoPopupProps> = ({ isOpen, onClose, selectedResi
                 />
                 <span className="text-gray-700">Chuyển vào hộ gia đình có sẵn</span>
               </label>
-              
-              <label className="flex items-center space-x-3">
+              <label className="flex items-center gap-3">
                 <input
                   type="radio"
                   name="householdType"
@@ -140,77 +146,107 @@ const TachHoPopup: React.FC<TachHoPopupProps> = ({ isOpen, onClose, selectedResi
                 <span className="text-gray-700">Tạo hộ gia đình mới</span>
               </label>
             </div>
-
             {/* Dropdown cho hộ có sẵn */}
             {!isCreatingNewHousehold && (
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Chọn hộ gia đình:
-                </label>
-                <select
-                  value={selectedHousehold}
-                  onChange={(e) => setSelectedHousehold(e.target.value)}
-                  className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  required={!isCreatingNewHousehold}
-                >
-                  <option value="">-- Chọn hộ gia đình --</option>
-                  {existingHouseholds.map((household) => (
-                    <option key={household.id} value={household.id}>
-                      {household.address} - Chủ hộ: {household.chuHo}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            )}
-
-            {/* Input cho hộ mới */}
-            {isCreatingNewHousehold && (
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Địa chỉ hộ gia đình mới:
-                </label>
+              <div className="relative">
+                <label className="block text-sm font-semibold text-gray-700 mb-1">Tìm hộ gia đình:</label>
                 <input
                   type="text"
-                  value={newHouseholdAddress}
-                  onChange={(e) => setNewHouseholdAddress(e.target.value)}
-                  placeholder="Ví dụ: Chung cư C - Tầng 10 - Căn 1001"
-                  className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  required={isCreatingNewHousehold}
+                  value={selectedHousehold
+                    ? existingHouseholds.find(h => h.id === selectedHousehold)?.address + ' - Chủ hộ: ' + existingHouseholds.find(h => h.id === selectedHousehold)?.chuHo
+                    : householdSearch}
+                  onChange={e => {
+                    setHouseholdSearch(e.target.value);
+                    setSelectedHousehold('');
+                  }}
+                  placeholder="Nhập địa chỉ, chủ hộ hoặc mã hộ khẩu"
+                  className="block w-full rounded-xl border border-gray-300 px-4 py-2 text-[15px] shadow-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none mb-2"
+                  autoComplete="off"
+                  onFocus={() => setSelectedHousehold('')}
                 />
-                <p className="text-sm text-gray-500 mt-1">
-                  Lưu ý: Nhân khẩu sẽ trở thành chủ hộ của hộ gia đình mới
-                </p>
+                {householdSearch && !selectedHousehold && (
+                  <div className="absolute z-10 left-0 right-0 bg-white border border-gray-200 rounded-md shadow max-h-56 overflow-y-auto">
+                    {filteredHouseholds.length === 0 && (
+                      <div className="p-2 text-gray-500">Không tìm thấy hộ phù hợp</div>
+                    )}
+                    {filteredHouseholds.slice(0, 5).map(household => (
+                      <div
+                        key={household.id}
+                        className="p-2 cursor-pointer hover:bg-blue-100"
+                        onClick={() => {
+                          setSelectedHousehold(household.id);
+                          setHouseholdSearch('');
+                        }}
+                      >
+                        {household.address} - Chủ hộ: {household.chuHo}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+            {/* Input cho hộ mới */}
+            {isCreatingNewHousehold && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-1">Số hộ khẩu <span className="text-red-500">*</span></label>
+                  <input type="text" className="block w-full rounded-xl border border-gray-300 px-4 py-2 text-[15px] shadow-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none" value={newSoHoKhau} onChange={e => setNewSoHoKhau(e.target.value)} required />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-1">Chủ hộ <span className="text-red-500">*</span></label>
+                  <input type="text" className="block w-full rounded-xl border border-gray-300 px-4 py-2 text-[15px] shadow-sm bg-gray-100" value={selectedResident?.hoTen || ''} readOnly />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-1">Số nhà <span className="text-red-500">*</span></label>
+                  <input type="text" className="block w-full rounded-xl border border-gray-300 px-4 py-2 text-[15px] shadow-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none" value={newSoNha} onChange={e => setNewSoNha(e.target.value)} required />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-1">Đường <span className="text-red-500">*</span></label>
+                  <input type="text" className="block w-full rounded-xl border border-gray-300 px-4 py-2 text-[15px] shadow-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none" value={newDuong} onChange={e => setNewDuong(e.target.value)} required />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-1">Phường <span className="text-red-500">*</span></label>
+                  <input type="text" className="block w-full rounded-xl border border-gray-300 px-4 py-2 text-[15px] shadow-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none" value={newPhuong} onChange={e => setNewPhuong(e.target.value)} required />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-1">Quận <span className="text-red-500">*</span></label>
+                  <input type="text" className="block w-full rounded-xl border border-gray-300 px-4 py-2 text-[15px] shadow-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none" value={newQuan} onChange={e => setNewQuan(e.target.value)} required />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-1">Thành phố <span className="text-red-500">*</span></label>
+                  <input type="text" className="block w-full rounded-xl border border-gray-300 px-4 py-2 text-[15px] shadow-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none" value={newThanhPho} onChange={e => setNewThanhPho(e.target.value)} required />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-1">Ngày làm hộ khẩu <span className="text-red-500">*</span></label>
+                  <input type="date" className="block w-full rounded-xl border border-gray-300 px-4 py-2 text-[15px] shadow-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none" value={newNgayLamHoKhau} onChange={e => setNewNgayLamHoKhau(e.target.value)} required />
+                </div>
               </div>
             )}
           </div>
-
           {/* Lý do tách hộ */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Lý do tách hộ:
-            </label>
+            <label className="block text-sm font-semibold text-gray-700 mb-1">Lý do tách hộ:</label>
             <textarea
               value={reason}
               onChange={(e) => setReason(e.target.value)}
               placeholder="Nhập lý do tách hộ..."
               rows={3}
-              className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="block w-full rounded-xl border border-gray-300 px-4 py-2 text-[15px] shadow-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none"
               required
             />
           </div>
-
           {/* Buttons */}
-          <div className="flex justify-end space-x-3 pt-4 border-t border-gray-200">
+          <div className="flex justify-end gap-4 mt-8">
             <button
               type="button"
               onClick={handleClose}
-              className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 transition-colors"
+              className="px-5 py-2 border border-gray-300 rounded-xl text-gray-700 font-semibold bg-white hover:bg-gray-50 shadow-sm"
             >
               Hủy
             </button>
             <button
               type="submit"
-              className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+              className="px-5 py-2 bg-blue-500 text-white rounded-xl font-semibold shadow hover:bg-blue-600 transition"
             >
               Xác nhận tách hộ
             </button>

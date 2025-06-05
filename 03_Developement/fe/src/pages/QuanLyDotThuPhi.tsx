@@ -1,9 +1,8 @@
 import React, { useState } from 'react';
-import Layout from '../components/Layout'; // Import Layout component
-import AddEditDotThuPhiPopup from '../components/AddEditDotThuPhiPopup'; // Import Add popup
-import EditDotThuPhiPopup from '../components/EditDotThuPhiPopup'; // Import Edit popup
-import AddEditFeePopup from '../components/AddEditFeePopup'; // Import Add/Edit Fee popup
-import { FEE_TYPES } from '../components/AddEditFeePopup';
+import Layout from '../components/Layout';
+import AddEditDotThuPhiPopup from '../components/AddEditDotThuPhiPopup';
+import EditDotThuPhiPopup from '../components/EditDotThuPhiPopup';
+import AddEditFeePopup, { FEE_TYPES } from '../components/AddEditFeePopup';
 import DetailFeePopup from '../components/DetailFeePopup';
 
 // Định nghĩa type mới cho khoản thu và batch

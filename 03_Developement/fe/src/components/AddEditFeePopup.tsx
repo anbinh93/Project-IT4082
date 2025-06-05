@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 
 // Fee type interfaces
 interface BaseFeeType {
@@ -379,12 +379,10 @@ const AddEditFeePopup: React.FC<AddEditFeePopupProps> = ({
   };
 
   // Total fee amount across all households
-  const totalFeeAmount = useMemo(() => {
-    return Object.values(householdFees).reduce(
-      (sum, { amount }) => sum + amount, 
-      0
-    );
-  }, [householdFees]);
+  const totalFeeAmount = Object.values(householdFees).reduce(
+    (sum, { amount }) => sum + amount, 
+    0
+  );
 
   // Helper xác định loại phí import file
   const isImportFeeType = feeType === 'PHI_DIEN' || feeType === 'PHI_NUOC' || feeType === 'PHI_INTERNET';

@@ -31,12 +31,6 @@ module.exports = {
       comment: 'Trạng thái phòng: occupied, vacant, maintenance'
     });
 
-    await queryInterface.addColumn('phong', 'giaThue', {
-      type: Sequelize.DECIMAL(12, 2),
-      allowNull: true,
-      comment: 'Giá thuê hàng tháng'
-    });
-
     await queryInterface.addColumn('phong', 'ngayVaoO', {
       type: Sequelize.DATE,
       allowNull: true,
@@ -73,7 +67,6 @@ module.exports = {
     await queryInterface.removeColumn('phong', 'tang');
     await queryInterface.removeColumn('phong', 'loaiPhong');
     await queryInterface.removeColumn('phong', 'trangThai');
-    await queryInterface.removeColumn('phong', 'giaThue');
     await queryInterface.removeColumn('phong', 'ngayVaoO');
 
     // Rename table back

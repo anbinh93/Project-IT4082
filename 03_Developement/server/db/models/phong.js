@@ -48,12 +48,6 @@ module.exports = (sequelize, DataTypes) => {
       allowNull: true,
       comment: 'Loại phòng'
     },
-    giaThue: {
-      type: DataTypes.DECIMAL(12, 2),
-      allowNull: true,
-      defaultValue: 0.00,
-      comment: 'Tiền thuê hàng tháng (VND)'
-    },
     trangThai: {
       type: DataTypes.STRING,
       allowNull: false,

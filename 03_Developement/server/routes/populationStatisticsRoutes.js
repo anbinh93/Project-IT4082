@@ -1,12 +1,11 @@
 const express = require('express');
 const router = express.Router();
 const populationStatisticsController = require('../controllers/populationStatisticsController');
-const { verifyToken } = require('../middleware/auth');
-const { checkRole } = require('../middleware/roleCheck');
+const { verifyToken, verifyRole } = require('../middlewares/authMiddleware');
 
 // Middleware cho tất cả các routes
 router.use(verifyToken);
-router.use(checkRole(['admin', 'manager', 'accountant']));
+router.use(verifyRole(['admin', 'manager', 'accountant']));
 
 /**
  * Population Statistics Routes

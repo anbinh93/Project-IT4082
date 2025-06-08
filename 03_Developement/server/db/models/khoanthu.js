@@ -5,26 +5,34 @@ module.exports = (sequelize, DataTypes) => {
   class KhoanThu extends Model {
     static associate(models) {
       KhoanThu.hasMany(models.NopPhi, {
-        foreignKey: 'khoanthu_id',
+        foreignKey: 'khoanThuId',
         as: 'nopPhi'
+      });
+      KhoanThu.belongsToMany(models.DotThu, {
+        through: 'DotThu_KhoanThu',
+        foreignKey: 'khoanThuId',
+        otherKey: 'dotThuId',
+        as: 'dotThu'
       });
     }
   }
   KhoanThu.init({
-    ngaytao: {
-      type: DataTypes.DATE,
+    id: {
+      type: DataTypes.INTEGER,
+      primaryKey: true,
+      autoIncrement: true,
       allowNull: false
     },
-    thoihan: DataTypes.DATE,
-    tenkhoanthu: {
+    tenKhoanThu: {
       type: DataTypes.STRING,
       allowNull: false
     },
-    batbuoc: {
+    batBuoc: {
       type: DataTypes.BOOLEAN,
+      allowNull: false,
       defaultValue: false
     },
-    ghichu: DataTypes.TEXT
+    ghiChu: DataTypes.TEXT
   }, {
     sequelize,
     modelName: 'KhoanThu',

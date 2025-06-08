@@ -5,30 +5,48 @@ module.exports = (sequelize, DataTypes) => {
   class HoKhau extends Model {
     static associate(models) {
       HoKhau.belongsTo(models.NhanKhau, {
-        foreignKey: 'chuho',
-        as: 'chuHo'
+        foreignKey: 'chuHo',
+        as: 'chuHoInfo'
       });
       HoKhau.hasMany(models.ThanhVienHoKhau, {
-        foreignKey: 'hokhau_id',
+        foreignKey: 'hoKhauId',
+        sourceKey: 'soHoKhau',
         as: 'thanhVien'
       });
       HoKhau.hasMany(models.LichSuThayDoiHoKhau, {
-        foreignKey: 'hokhau_id',
+        foreignKey: 'hoKhauId',
+        sourceKey: 'soHoKhau',
         as: 'lichSuThayDoi'
       });
       HoKhau.hasMany(models.NopPhi, {
-        foreignKey: 'hokhau_id',
+        foreignKey: 'hoKhauId',
+        sourceKey: 'soHoKhau',
         as: 'nopPhi'
+      });
+      HoKhau.hasMany(models.PhuongTien, {
+        foreignKey: 'hoKhauId',
+        sourceKey: 'soHoKhau',
+        as: 'phuongTien'
+      });
+      HoKhau.hasOne(models.Phong, {
+        foreignKey: 'hoKhauId',
+        sourceKey: 'soHoKhau',
+        as: 'phong'
+      });
+      HoKhau.hasMany(models.QuanLyXe, {
+        foreignKey: 'hoKhauId',
+        sourceKey: 'soHoKhau',
+        as: 'quanLyXes'
       });
     }
   }
   HoKhau.init({
-    sohokhau: {
+    soHoKhau: {
       type: DataTypes.INTEGER,
       primaryKey: true,
       autoIncrement: true
     },
-    chuho: {
+    chuHo: {
       type: DataTypes.INTEGER,
       allowNull: false,
       unique: true,
@@ -37,12 +55,12 @@ module.exports = (sequelize, DataTypes) => {
         key: 'id'
       }
     },
-    sonha: DataTypes.STRING,
+    soNha: DataTypes.STRING,
     duong: DataTypes.STRING,
     phuong: DataTypes.STRING,
     quan: DataTypes.STRING,
-    thanhpho: DataTypes.STRING,
-    ngaylamhokhau: DataTypes.DATE
+    thanhPho: DataTypes.STRING,
+    ngayLamHoKhau: DataTypes.DATE
   }, {
     sequelize,
     modelName: 'HoKhau',

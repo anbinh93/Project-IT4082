@@ -5,17 +5,24 @@ module.exports = (sequelize, DataTypes) => {
   class LichSuThayDoiHoKhau extends Model {
     static associate(models) {
       LichSuThayDoiHoKhau.belongsTo(models.NhanKhau, {
-        foreignKey: 'nhankhau_id',
+        foreignKey: 'nhanKhauId',
         as: 'nhanKhau'
       });
       LichSuThayDoiHoKhau.belongsTo(models.HoKhau, {
-        foreignKey: 'hokhau_id',
+        foreignKey: 'hoKhauId',
+        targetKey: 'soHoKhau',
         as: 'hoKhau'
       });
     }
   }
   LichSuThayDoiHoKhau.init({
-    nhankhau_id: {
+    id: {
+      type: DataTypes.INTEGER,
+      primaryKey: true,
+      autoIncrement: true,
+      allowNull: false
+    },
+    nhanKhauId: {
       type: DataTypes.INTEGER,
       allowNull: false,
       references: {
@@ -23,21 +30,21 @@ module.exports = (sequelize, DataTypes) => {
         key: 'id'
       }
     },
-    hokhau_id: {
+    hoKhauId: {
       type: DataTypes.INTEGER,
       allowNull: false,
       references: {
         model: 'hokhau',
-        key: 'sohokhau'
+        key: 'soHoKhau'
       }
     },
-    loaithaydoi: {
+    loaiThayDoi: {
       type: DataTypes.INTEGER,
       allowNull: false
     },
-    thoigian: {
+    thoiGian: {
       type: DataTypes.DATE,
-      allowNull: false
+      allowNull: true
     }
   }, {
     sequelize,

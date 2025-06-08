@@ -1,0 +1,16 @@
+{
+  "name": "04_testing",
+  "version": "1.0.0",
+  "description": "### 📁 **Testing Documents**",
+  "main": "integration-test-script.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "axios": "^1.9.0",
+    "puppeteer": "^24.10.0"
+  }
+}

@@ -5,7 +5,10 @@ module.exports = (sequelize, DataTypes) => {
   class DotThu extends Model {
     static associate(models) {
       DotThu.belongsToMany(models.KhoanThu, {
-        through: 'DotThu_KhoanThu',
+        through: {
+          model: models.DotThu_KhoanThu,
+          unique: false
+        },
         foreignKey: 'dotThuId',
         otherKey: 'khoanThuId',
         as: 'khoanThu'

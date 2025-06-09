@@ -33,10 +33,6 @@ module.exports = (sequelize, DataTypes) => {
         model: 'khoanthu',
         key: 'id'
       }
-    },
-    soTien: {
-      type: DataTypes.DECIMAL(15, 2),
-      allowNull: false
     }
   }, {
     sequelize,

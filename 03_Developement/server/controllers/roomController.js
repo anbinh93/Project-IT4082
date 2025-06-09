@@ -81,14 +81,14 @@ const roomController = {
         include: [
           {
             model: HoKhau,
-            as: 'hokhau',
+            as: 'hoKhau',
             required: false,
-            attributes: ['sohokhau', 'sonha', 'duong', 'phuong', 'quan', 'ngaylamhokhau'],
+            attributes: ['soHoKhau', 'soNha', 'duong', 'phuong', 'quan', 'ngayLamHoKhau'],
             include: [
               {
                 model: NhanKhau,
-                as: 'chuHo',
-                attributes: ['id', 'hoten', 'cccd', 'cccd', 'ngaysinh']
+                as: 'chuHoInfo',
+                attributes: ['id', 'hoTen', 'cccd', 'ngaySinh']
               }
             ]
           }
@@ -120,20 +120,18 @@ const roomController = {
   async createRoom(req, res) {
     try {
       const {
-        sophong,
+        soPhong,
         tang,
-        dientich,
-        dongia,
-        hokhau_id,
-        ngaybatdau,
-        ngayketthuc,
-        trangthai = 'trong',
-        ghichu
+        dienTich,
+        hoKhauId,
+        ngayVaoO,
+        trangThai = 'Trống',
+        loaiPhong
       } = req.body;
 
       // Kiểm tra số phòng đã tồn tại
       const existingRoom = await Phong.findOne({
-        where: { sophong }
+        where: { soPhong }
       });
 
       if (existingRoom) {
@@ -144,8 +142,10 @@ const roomController = {
       }
 
       // Kiểm tra hộ khẩu có tồn tại (nếu có)
-      if (hokhau_id) {
-        const hokhau = await HoKhau.findByPk(hokhau_id);
+      if (hoKhauId) {
+        const hokhau = await HoKhau.findOne({
+          where: { soHoKhau: hoKhauId }
+        });
         if (!hokhau) {
           return res.status(400).json({
             success: false,
@@ -155,15 +155,13 @@ const roomController = {
       }
 
       const room = await Phong.create({
-        sophong,
+        soPhong,
         tang,
-        dientich,
-        dongia,
-        hokhau_id,
-        ngaybatdau,
-        ngayketthuc,
-        trangthai,
-        ghichu
+        dienTich,
+        hoKhauId,
+        ngayVaoO,
+        trangThai,
+        loaiPhong
       });
 
       // Lấy thông tin phòng vừa tạo với include
@@ -171,14 +169,14 @@ const roomController = {
         include: [
           {
             model: HoKhau,
-            as: 'hokhau',
+            as: 'hoKhau',
             required: false,
-            attributes: ['sohokhau', 'sonha', 'duong'],
+            attributes: ['soHoKhau', 'soNha', 'duong'],
             include: [
               {
                 model: NhanKhau,
-                as: 'chuHo',
-                attributes: ['id', 'hoten', 'cccd']
+                as: 'chuHoInfo',
+                attributes: ['id', 'hoTen', 'cccd']
               }
             ]
           }
@@ -205,15 +203,13 @@ const roomController = {
     try {
       const { id } = req.params;
       const {
-        sophong,
+        soPhong,
         tang,
-        dientich,
-        dongia,
-        hokhau_id,
-        ngaybatdau,
-        ngayketthuc,
-        trangthai,
-        ghichu
+        dienTich,
+        hoKhauId,
+        ngayVaoO,
+        trangThai,
+        loaiPhong
       } = req.body;
 
       const room = await Phong.findByPk(id);
@@ -225,10 +221,10 @@ const roomController = {
       }
 
       // Kiểm tra số phòng đã tồn tại (nếu thay đổi)
-      if (sophong && sophong !== room.sophong) {
+      if (soPhong && soPhong !== room.soPhong) {
         const existingRoom = await Phong.findOne({
           where: { 
-            sophong,
+            soPhong,
             id: { [Op.ne]: id }
           }
         });
@@ -242,8 +238,10 @@ const roomController = {
       }
 
       // Kiểm tra hộ khẩu có tồn tại (nếu có)
-      if (hokhau_id) {
-        const hokhau = await HoKhau.findByPk(hokhau_id);
+      if (hoKhauId) {
+        const hokhau = await HoKhau.findOne({
+          where: { soHoKhau: hoKhauId }
+        });
         if (!hokhau) {
           return res.status(400).json({
             success: false,
@@ -253,15 +251,13 @@ const roomController = {
       }
 
       await room.update({
-        sophong,
+        soPhong,
         tang,
-        dientich,
-        dongia,
-        hokhau_id,
-        ngaybatdau,
-        ngayketthuc,
-        trangthai,
-        ghichu
+        dienTich,
+        hoKhauId,
+        ngayVaoO,
+        trangThai,
+        loaiPhong
       });
 
       // Lấy thông tin phòng sau khi cập nhật
@@ -269,14 +265,14 @@ const roomController = {
         include: [
           {
             model: HoKhau,
-            as: 'hokhau',
+            as: 'hoKhau',
             required: false,
-            attributes: ['sohokhau', 'sonha', 'duong'],
+            attributes: ['soHoKhau', 'soNha', 'duong'],
             include: [
               {
                 model: NhanKhau,
-                as: 'chuHo',
-                attributes: ['id', 'hoten', 'cccd']
+                as: 'chuHoInfo',
+                attributes: ['id', 'hoTen', 'cccd']
               }
             ]
           }
@@ -312,7 +308,7 @@ const roomController = {
       }
 
       // Kiểm tra phòng có đang được thuê không
-      if (room.trangthai === 'da_thue' && room.hokhau_id) {
+      if (room.trangThai === 'Đã thuê' && room.hoKhauId) {
         return res.status(400).json({
           success: false,
           message: 'Không thể xóa phòng đang được thuê'
@@ -339,7 +335,7 @@ const roomController = {
   async assignRoomToHousehold(req, res) {
     try {
       const { id } = req.params;
-      const { hokhau_id, ngaybatdau, ngayketthuc } = req.body;
+      const { hoKhauId, ngayVaoO } = req.body;
 
       const room = await Phong.findByPk(id);
       if (!room) {
@@ -349,15 +345,17 @@ const roomController = {
         });
       }
 
-      if (room.trangthai !== 'trong') {
+      if (room.trangThai !== 'Trống') {
         return res.status(400).json({
           success: false,
           message: 'Phòng không ở trạng thái trống'
         });
       }
 
-      // Kiểm tra hộ khẩu có tồn tại
-      const hokhau = await HoKhau.findByPk(hokhau_id);
+      // Kiểm tra hộ khẩu có tồn tại (sử dụng soHoKhau là primary key)
+      const hokhau = await HoKhau.findOne({
+        where: { soHoKhau: hoKhauId }
+      });
       if (!hokhau) {
         return res.status(400).json({
           success: false,
@@ -365,25 +363,11 @@ const roomController = {
         });
       }
 
-      // Kiểm tra hộ khẩu đã có phòng chưa
-      if (hokhau.phong_id) {
-        return res.status(400).json({
-          success: false,
-          message: 'Hộ khẩu đã có phòng'
-        });
-      }
-
       // Cập nhật phòng
       await room.update({
-        hokhau_id,
-        ngaybatdau: ngaybatdau || new Date(),
-        ngayketthuc,
-        trangthai: 'da_thue'
-      });
-
-      // Cập nhật hộ khẩu
-      await hokhau.update({
-        phong_id: room.id
+        hoKhauId,
+        ngayVaoO: ngayVaoO || new Date(),
+        trangThai: 'Đã thuê'
       });
 
       // Lấy thông tin phòng sau khi cập nhật
@@ -391,13 +375,13 @@ const roomController = {
         include: [
           {
             model: HoKhau,
-            as: 'hokhau',
-            attributes: ['sohokhau', 'sonha', 'duong'],
+            as: 'hoKhau',
+            attributes: ['soHoKhau', 'soNha', 'duong'],
             include: [
               {
                 model: NhanKhau,
-                as: 'chuHo',
-                attributes: ['id', 'hoten', 'cccd']
+                as: 'chuHoInfo',
+                attributes: ['id', 'hoTen', 'cccd']
               }
             ]
           }
@@ -428,7 +412,7 @@ const roomController = {
         include: [
           {
             model: HoKhau,
-            as: 'hokhau'
+            as: 'hoKhau'
           }
         ]
       });
@@ -440,26 +424,18 @@ const roomController = {
         });
       }
 
-      if (room.trangthai !== 'da_thue') {
+      if (room.trangThai !== 'Đã thuê') {
         return res.status(400).json({
           success: false,
           message: 'Phòng không ở trạng thái đã thuê'
         });
       }
 
-      // Cập nhật hộ khẩu (nếu có)
-      if (room.hokhau) {
-        await room.hokhau.update({
-          phong_id: null
-        });
-      }
-
       // Cập nhật phòng
       await room.update({
-        hokhau_id: null,
-        ngaybatdau: null,
-        ngayketthuc: null,
-        trangthai: 'trong'
+        hoKhauId: null,
+        ngayVaoO: null,
+        trangThai: 'Trống'
       });
 
       res.json({
@@ -481,13 +457,13 @@ const roomController = {
     try {
       const stats = await Phong.findAll({
         attributes: [
-          'trangthai',
+          'trangThai',
           'tang',
           [require('sequelize').fn('COUNT', require('sequelize').col('id')), 'count'],
-          [require('sequelize').fn('AVG', require('sequelize').col('dongia')), 'avgPrice'],
-          [require('sequelize').fn('SUM', require('sequelize').col('dientich')), 'totalArea']
+          [require('sequelize').fn('AVG', require('sequelize').col('dienTich')), 'avgArea'],
+          [require('sequelize').fn('SUM', require('sequelize').col('dienTich')), 'totalArea']
         ],
-        group: ['trangthai', 'tang'],
+        group: ['trangThai', 'tang'],
         order: [['tang', 'ASC']],
         raw: true
       });
@@ -495,10 +471,10 @@ const roomController = {
       // Tổng hợp theo trạng thái
       const statusStats = await Phong.findAll({
         attributes: [
-          'trangthai',
+          'trangThai',
           [require('sequelize').fn('COUNT', require('sequelize').col('id')), 'count']
         ],
-        group: ['trangthai'],
+        group: ['trangThai'],
         raw: true
       });
 
@@ -524,10 +500,10 @@ const roomController = {
     try {
       const availableRooms = await Phong.findAll({
         where: {
-          trangthai: 'trong'
+          trangThai: 'Trống'
         },
-        attributes: ['id', 'sophong', 'tang', 'dientich', 'dongia'],
-        order: [['tang', 'ASC'], ['sophong', 'ASC']]
+        attributes: ['id', 'soPhong', 'tang', 'dienTich', 'loaiPhong'],
+        order: [['tang', 'ASC'], ['soPhong', 'ASC']]
       });
 
       res.json({

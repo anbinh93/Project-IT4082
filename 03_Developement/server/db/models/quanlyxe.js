@@ -11,11 +11,11 @@ module.exports = (sequelize, DataTypes) => {
         as: 'hoKhau'
       });
 
-      // Many QuanLyXe belongs to one PhuongTien
-      QuanLyXe.belongsTo(models.PhuongTien, {
-        foreignKey: 'phuongTienId',
+      // Many QuanLyXe belongs to one LoaiXe
+      QuanLyXe.belongsTo(models.LoaiXe, {
+        foreignKey: 'loaiXeId',
         targetKey: 'id',
-        as: 'phuongTien'
+        as: 'loaiXe'
       });
     }
   }
@@ -26,14 +26,6 @@ module.exports = (sequelize, DataTypes) => {
       primaryKey: true,
       autoIncrement: true
     },
-    phuongTienId: {
-      type: DataTypes.INTEGER,
-      allowNull: false,
-      references: {
-        model: 'phuongtien',
-        key: 'id'
-      }
-    },
     hoKhauId: {
       type: DataTypes.INTEGER,
       allowNull: false,
@@ -42,26 +34,32 @@ module.exports = (sequelize, DataTypes) => {
         key: 'soHoKhau'
       }
     },
+    loaiXeId: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      references: {
+        model: 'loaixe',
+        key: 'id'
+      }
+    },
+    bienSo: {
+      type: DataTypes.STRING(20),
+      allowNull: false,
+      unique: true
+    },
     ngayBatDau: {
       type: DataTypes.DATE,
-      allowNull: false
+      allowNull: true
     },
     ngayKetThuc: {
       type: DataTypes.DATE,
       allowNull: true
     },
-    trangThaiDangKy: {
+    trangThai: {
       type: DataTypes.STRING,
-      allowNull: false
-    },
-    phiDaTra: {
-      type: DataTypes.DECIMAL(10, 2),
       allowNull: false,
-      defaultValue: 0.00
-    },
-    lanCapNhatCuoi: {
-      type: DataTypes.DATE,
-      allowNull: true
+      defaultValue: 'ACTIVE',
+      comment: 'Trạng thái của xe'
     },
     ghiChu: {
       type: DataTypes.TEXT,
@@ -71,17 +69,21 @@ module.exports = (sequelize, DataTypes) => {
     sequelize,
     modelName: 'QuanLyXe',
     tableName: 'quanlyxe',
-    timestamps: true,
+    timestamps: false, // No timestamps needed
     paranoid: false,
     indexes: [
       {
         fields: ['hoKhauId']
       },
       {
-        fields: ['phuongTienId']
+        fields: ['loaiXeId']
       },
       {
-        fields: ['trangThaiDangKy']
+        fields: ['bienSo'],
+        unique: true
+      },
+      {
+        fields: ['trangThai']
       },
       {
         fields: ['ngayBatDau']

@@ -4,10 +4,10 @@ const { Model } = require('sequelize');
 module.exports = (sequelize, DataTypes) => {
   class LoaiXe extends Model {
     static associate(models) {
-      // One LoaiXe has many PhuongTien
-      LoaiXe.hasMany(models.PhuongTien, {
+      // One LoaiXe has many QuanLyXe
+      LoaiXe.hasMany(models.QuanLyXe, {
         foreignKey: 'loaiXeId',
-        as: 'phuongTiens'
+        as: 'quanLyXes'
       });
     }
   }
@@ -19,29 +19,33 @@ module.exports = (sequelize, DataTypes) => {
       autoIncrement: true
     },
     tenLoaiXe: {
-      type: DataTypes.STRING(100),
+      type: DataTypes.STRING(50),
       allowNull: false,
-      unique: true
+      unique: true,
+      comment: 'Tên loại xe: Xe máy, Ô tô, Xe đạp điện, etc.'
     },
-    phiThang: {
+    phiThue: {
       type: DataTypes.DECIMAL(10, 2),
       allowNull: false,
-      defaultValue: 0.00
+      defaultValue: 0,
+      comment: 'Phí thuê hàng tháng cho loại xe này'
     },
     moTa: {
       type: DataTypes.TEXT,
-      allowNull: true
+      allowNull: true,
+      comment: 'Mô tả chi tiết về loại xe'
     },
     trangThai: {
       type: DataTypes.BOOLEAN,
       allowNull: false,
-      defaultValue: true
+      defaultValue: true,
+      comment: 'Trạng thái hoạt động của loại xe'
     }
   }, {
     sequelize,
     modelName: 'LoaiXe',
     tableName: 'loaixe',
-    timestamps: true,
+    timestamps: false, // No timestamps needed
     paranoid: false,
     freezeTableName: true,
     indexes: [

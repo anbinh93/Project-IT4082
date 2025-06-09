@@ -266,7 +266,7 @@ class RoomService {
             attributes: [
                 'loaiPhong',
                 [fn('COUNT', col('id')), 'count'],
-                [fn('AVG', col('giaThue')), 'avgPrice']
+                [fn('AVG', col('dienTich')), 'avgSize']
             ],
             group: ['loaiPhong'],
             raw: true

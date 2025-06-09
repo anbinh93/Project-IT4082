@@ -22,12 +22,14 @@ module.exports = (sequelize, DataTypes) => {
     soPhong: {
       type: DataTypes.INTEGER,
       allowNull: false,
-      unique: true
+      unique: true,
+      field: 'soPhong'
     },
     hoKhauId: {
       type: DataTypes.INTEGER,
       allowNull: true,
       unique: true,
+      field: 'hoKhauId',  // This maps to the hoKhauId column
       references: {
         model: 'hokhau',
         key: 'soHoKhau'
@@ -36,27 +38,32 @@ module.exports = (sequelize, DataTypes) => {
     dienTich: {
       type: DataTypes.DECIMAL(10, 2),
       allowNull: true,
+      field: 'dienTich',
       comment: 'Diện tích phòng (m²)'
     },
     tang: {
       type: DataTypes.INTEGER,
       allowNull: true,
+      field: 'tang',
       comment: 'Tầng của phòng'
     },
     loaiPhong: {
       type: DataTypes.STRING,
       allowNull: true,
+      field: 'loaiPhong',
       comment: 'Loại phòng'
     },
     trangThai: {
       type: DataTypes.STRING,
       allowNull: false,
       defaultValue: 'vacant',
+      field: 'trangThai',
       comment: 'Trạng thái phòng'
     },
     ngayVaoO: {
       type: DataTypes.DATE,
       allowNull: true,
+      field: 'ngayVaoO',
       comment: 'Ngày bắt đầu thuê'
     }
   }, {
@@ -65,6 +72,7 @@ module.exports = (sequelize, DataTypes) => {
     tableName: 'phong',
     timestamps: true,
     paranoid: false,
+    underscored: false,  // Use camelCase field names
     indexes: [
       {
         unique: true,

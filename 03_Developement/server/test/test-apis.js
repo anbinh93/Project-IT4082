@@ -6,7 +6,7 @@ let authToken = '';
 
 // Test user credentials (should exist from seeders)
 const testUser = {
-    username: 'admin',
+    username: 'testadmin',
     password: 'admin123'
 };
 

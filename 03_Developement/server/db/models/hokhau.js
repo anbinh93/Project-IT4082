@@ -23,10 +23,10 @@ module.exports = (sequelize, DataTypes) => {
         sourceKey: 'soHoKhau',
         as: 'nopPhi'
       });
-      HoKhau.hasMany(models.PhuongTien, {
+      HoKhau.hasMany(models.QuanLyXe, {
         foreignKey: 'hoKhauId',
         sourceKey: 'soHoKhau',
-        as: 'phuongTien'
+        as: 'quanLyXe'
       });
       HoKhau.hasOne(models.Phong, {
         foreignKey: 'hoKhauId',

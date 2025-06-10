@@ -2,18 +2,18 @@
 const { Model } = require('sequelize');
 
 module.exports = (sequelize, DataTypes) => {
-  class CanHo extends Model {
+  class Canho extends Model {
     static associate(models) {
-      // One CanHo belongs to one NhanKhau (chu ho)
-      CanHo.belongsTo(models.NhanKhau, {
-        foreignKey: 'chuHoId',
-        targetKey: 'id',
-        as: 'chuHo'
+      // Canho belongs to HoKhau
+      Canho.belongsTo(models.HoKhau, {
+        foreignKey: 'hoKhauId',
+        targetKey: 'soHoKhau',
+        as: 'hoKhau'
       });
     }
   }
 
-  CanHo.init({
+  Canho.init({
     id: {
       type: DataTypes.INTEGER,
       primaryKey: true,
@@ -21,33 +21,27 @@ module.exports = (sequelize, DataTypes) => {
     },
     soPhong: {
       type: DataTypes.INTEGER,
-      allowNull: false
+      allowNull: false,
+      unique: true
     },
-    chuHoId: {
+    hoKhauId: {
       type: DataTypes.INTEGER,
       allowNull: true,
       unique: true,
       references: {
-        model: 'nhankhau',
-        key: 'id'
+        model: 'HoKhau',
+        key: 'soHoKhau'
       }
+    },
+    dienTich: {
+      type: DataTypes.INTEGER,
+      allowNull: true
     }
   }, {
     sequelize,
-    modelName: 'CanHo',
-    tableName: 'canho',
-    timestamps: true,
-    paranoid: false,
-    indexes: [
-      {
-        fields: ['soPhong']
-      },
-      {
-        fields: ['chuHoId'],
-        unique: true
-      }
-    ]
+    modelName: 'Canho',
+    tableName: 'Canho'
   });
 
-  return CanHo;
+  return Canho;
 };

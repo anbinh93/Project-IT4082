@@ -28,15 +28,11 @@ module.exports = (sequelize, DataTypes) => {
         sourceKey: 'soHoKhau',
         as: 'quanLyXe'
       });
-      HoKhau.hasOne(models.Phong, {
+      // HoKhau has one Canho
+      HoKhau.hasOne(models.Canho, {
         foreignKey: 'hoKhauId',
         sourceKey: 'soHoKhau',
-        as: 'phong'
-      });
-      HoKhau.hasMany(models.QuanLyXe, {
-        foreignKey: 'hoKhauId',
-        sourceKey: 'soHoKhau',
-        as: 'quanLyXes'
+        as: 'canho'
       });
     }
   }
@@ -60,11 +56,14 @@ module.exports = (sequelize, DataTypes) => {
     phuong: DataTypes.STRING,
     quan: DataTypes.STRING,
     thanhPho: DataTypes.STRING,
-    ngayLamHoKhau: DataTypes.DATE
+    ngayLamHoKhau: {
+      type: DataTypes.DATE,
+      allowNull: false
+    }
   }, {
     sequelize,
     modelName: 'HoKhau',
-    tableName: 'hokhau'
+    tableName: 'HoKhau'
   });
   return HoKhau;
 }; 

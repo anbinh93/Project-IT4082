@@ -18,42 +18,23 @@ module.exports = (sequelize, DataTypes) => {
       primaryKey: true,
       autoIncrement: true
     },
-    tenLoaiXe: {
-      type: DataTypes.STRING(50),
+    ten: {
+      type: DataTypes.STRING,
       allowNull: false,
-      unique: true,
-      comment: 'Tên loại xe: Xe máy, Ô tô, Xe đạp điện, etc.'
+      unique: true
     },
     phiThue: {
-      type: DataTypes.DECIMAL(10, 2),
-      allowNull: false,
-      defaultValue: 0,
-      comment: 'Phí thuê hàng tháng cho loại xe này'
+      type: DataTypes.INTEGER,
+      allowNull: false
     },
     moTa: {
-      type: DataTypes.TEXT,
-      allowNull: true,
-      comment: 'Mô tả chi tiết về loại xe'
-    },
-    trangThai: {
-      type: DataTypes.BOOLEAN,
-      allowNull: false,
-      defaultValue: true,
-      comment: 'Trạng thái hoạt động của loại xe'
+      type: DataTypes.STRING,
+      allowNull: true
     }
   }, {
     sequelize,
     modelName: 'LoaiXe',
-    tableName: 'loaixe',
-    timestamps: false, // No timestamps needed
-    paranoid: false,
-    freezeTableName: true,
-    indexes: [
-      {
-        unique: true,
-        fields: ['tenLoaiXe']
-      }
-    ]
+    tableName: 'LoaiXe'
   });
 
   return LoaiXe;

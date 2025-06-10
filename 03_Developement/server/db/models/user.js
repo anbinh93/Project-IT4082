@@ -15,6 +15,11 @@ module.exports = (sequelize, DataTypes) => {
     }
   }
   User.init({
+    id: {
+      type: DataTypes.INTEGER,
+      primaryKey: true,
+      autoIncrement: true
+    },
     username: {
       type: DataTypes.STRING,
       allowNull: false,
@@ -26,12 +31,15 @@ module.exports = (sequelize, DataTypes) => {
     },
     role: {
       type: DataTypes.STRING,
-      allowNull: false
+      allowNull: false,
+      validate: {
+        isIn: [['accountant', 'manager']] // kế toán, tổ trưởng
+      }
     }
   }, {
     sequelize,
     modelName: 'User',
-    tableName: 'users'
+    tableName: 'Users'
   });
   return User;
 };

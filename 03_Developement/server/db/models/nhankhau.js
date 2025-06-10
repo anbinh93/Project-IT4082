@@ -4,29 +4,25 @@ const { Model } = require('sequelize');
 module.exports = (sequelize, DataTypes) => {
   class NhanKhau extends Model {
     static associate(models) {
-      // NhanKhau belongs to HoKhau
-      NhanKhau.belongsTo(models.HoKhau, {
-        foreignKey: 'hoKhauId',
-        targetKey: 'soHoKhau',
-        as: 'hoKhau'
-      });
-      
       // NhanKhau can be chuHo of a HoKhau
       NhanKhau.hasOne(models.HoKhau, {
         foreignKey: 'chuHo',
         as: 'hoKhauChuHo'
       });
       
+      // NhanKhau has many TamTruTamVang
       NhanKhau.hasMany(models.TamTruTamVang, {
         foreignKey: 'nhanKhauId',
         as: 'tamTruTamVang'
       });
       
+      // NhanKhau has one ThanhVienHoKhau
       NhanKhau.hasOne(models.ThanhVienHoKhau, {
         foreignKey: 'nhanKhauId',
         as: 'thanhVienHoKhau'
       });
       
+      // NhanKhau has many LichSuThayDoiHoKhau
       NhanKhau.hasMany(models.LichSuThayDoiHoKhau, {
         foreignKey: 'nhanKhauId',
         as: 'lichSuThayDoi'
@@ -60,20 +56,18 @@ module.exports = (sequelize, DataTypes) => {
     },
     ngayCap: DataTypes.DATE,
     noiCap: DataTypes.STRING,
-    ngheNghiep: DataTypes.STRING,
-    hoKhauId: {
-      type: DataTypes.INTEGER,
-      allowNull: true,
-      references: {
-        model: 'hokhau',
-        key: 'soHoKhau'
-      }
+    ngheNghiep: {
+      type: DataTypes.STRING,
+      allowNull: true
     },
-    ghiChu: DataTypes.TEXT
+    ghiChu: {
+      type: DataTypes.TEXT,
+      allowNull: true
+    }
   }, {
     sequelize,
     modelName: 'NhanKhau',
-    tableName: 'nhankhau'
+    tableName: 'NhanKhau'
   });
   return NhanKhau;
 }; 

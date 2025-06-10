@@ -4,10 +4,13 @@ const { Model } = require('sequelize');
 module.exports = (sequelize, DataTypes) => {
   class ThanhVienHoKhau extends Model {
     static associate(models) {
+      // ThanhVienHoKhau belongs to NhanKhau
       ThanhVienHoKhau.belongsTo(models.NhanKhau, {
         foreignKey: 'nhanKhauId',
         as: 'nhanKhau'
       });
+      
+      // ThanhVienHoKhau belongs to HoKhau
       ThanhVienHoKhau.belongsTo(models.HoKhau, {
         foreignKey: 'hoKhauId',
         targetKey: 'soHoKhau',
@@ -39,11 +42,17 @@ module.exports = (sequelize, DataTypes) => {
       type: DataTypes.DATE,
       allowNull: true
     },
-    quanHeVoiChuHo: DataTypes.STRING
+    quanHeVoiChuHo: {
+      type: DataTypes.STRING,
+      allowNull: false,
+      validate: {
+        isIn: [['vợ/chồng', 'con', 'bố/mẹ', 'khác', 'chủ hộ']]
+      }
+    }
   }, {
     sequelize,
     modelName: 'ThanhVienHoKhau',
-    tableName: 'thanhvienhokhau'
+    tableName: 'ThanhVienHoKhau'
   });
   return ThanhVienHoKhau;
 }; 

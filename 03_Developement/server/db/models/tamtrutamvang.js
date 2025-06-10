@@ -27,7 +27,10 @@ module.exports = (sequelize, DataTypes) => {
     },
     trangThai: {
       type: DataTypes.STRING,
-      allowNull: false
+      allowNull: false,
+      validate: {
+        isIn: [['đang tạm trú', 'đã kết thúc', 'tạm vắng']]
+      }
     },
     diaChi: DataTypes.STRING,
     thoiGian: DataTypes.DATE,
@@ -35,7 +38,7 @@ module.exports = (sequelize, DataTypes) => {
   }, {
     sequelize,
     modelName: 'TamTruTamVang',
-    tableName: 'tamtrutamvang'
+    tableName: 'TamTruTamVang'
   });
   return TamTruTamVang;
 }; 

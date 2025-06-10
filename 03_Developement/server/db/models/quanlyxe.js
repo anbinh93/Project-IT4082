@@ -49,7 +49,7 @@ module.exports = (sequelize, DataTypes) => {
     },
     ngayBatDau: {
       type: DataTypes.DATE,
-      allowNull: true
+      allowNull: false
     },
     ngayKetThuc: {
       type: DataTypes.DATE,
@@ -57,38 +57,12 @@ module.exports = (sequelize, DataTypes) => {
     },
     trangThai: {
       type: DataTypes.STRING,
-      allowNull: false,
-      defaultValue: 'ACTIVE',
-      comment: 'Trạng thái của xe'
-    },
-    ghiChu: {
-      type: DataTypes.TEXT,
-      allowNull: true
+      allowNull: false
     }
   }, {
     sequelize,
     modelName: 'QuanLyXe',
-    tableName: 'quanlyxe',
-    timestamps: false, // No timestamps needed
-    paranoid: false,
-    indexes: [
-      {
-        fields: ['hoKhauId']
-      },
-      {
-        fields: ['loaiXeId']
-      },
-      {
-        fields: ['bienSo'],
-        unique: true
-      },
-      {
-        fields: ['trangThai']
-      },
-      {
-        fields: ['ngayBatDau']
-      }
-    ]
+    tableName: 'QuanLyXe'
   });
 
   return QuanLyXe;

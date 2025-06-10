@@ -1,4 +1,17 @@
-const db = require('../db/models');            
+const db = require('../db/models');   
+
+const convertToConstantCase = (inputString) => { 
+  if (!inputString) {
+    return '';
+  }
+  return inputString
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/đ/g, 'd')
+    .replace(/\s+/g, '_')
+    .toUpperCase();
+};
 
 exports.getDotThu = async (req, res) => {
     try {
@@ -45,7 +58,7 @@ exports.getDotThu = async (req, res) => {
 
                         return {
                             id: kt.id, // Plain ID for khoanThu
-                            type: kt.tenKhoanThu.replace(/\s+/g, '_').toUpperCase(),
+                            type: convertToConstantCase(kt.tenKhoanThu),
                             tenKhoan: kt.tenKhoanThu,
                             chiTiet: kt.ghiChu,
                             batBuoc: kt.batBuoc ? 'Bắt buộc' : 'Không bắt buộc',
@@ -141,12 +154,52 @@ exports.getKhoanThu = async (req, res) => {
         const khoanthu = await db.KhoanThu.findAll({
             include: [{
                 model: db.NopPhi,
-                as: 'nopPhi'
+                as: 'nopPhi',
+                include: [{
+                    model: db.HoKhau,
+                    as: 'hoKhau',
+                    include: [{
+                        model: db.NhanKhau,
+                        as: 'chuHoInfo',
+                        attributes: ['hoTen']
+                    }]
+                }]
             }],
         });
-        return res.status(200).json(khoanthu);
+
+        const formattedKhoanThu = khoanthu.map(kt => {
+            // Check if all households have paid
+            const allPaid = kt.nopPhi.length > 0 && 
+                           kt.nopPhi.every(np => np.trangThai === true);
+
+            return {
+                id: kt.id,
+                ngayTao: new Date(kt.createdAt).toLocaleDateString('vi-VN'),
+                thoiHan: new Date(kt.thoiHan).toLocaleDateString('vi-VN'),
+                tenKhoan: kt.tenKhoanThu,
+                loaiKhoan: convertToConstantCase(kt.tenKhoanThu),
+                batBuoc: kt.batBuoc,
+                ghiChu: kt.ghiChu,
+                trangThai: allPaid ? 'Đã thu xong' : 'Đang thu',
+                hoKhauList: kt.nopPhi.map(np => ({
+                    maHo: np.hoKhau.soHoKhau,
+                    chuHo: np.hoKhau.chuHoInfo?.hoTen || 'Không có thông tin',
+                    trangThai: np.trangThai ? 'Đã nộp' : 'Chưa nộp',
+                    ngayNop: np.ngayNop ? new Date(np.ngayNop).toLocaleDateString('vi-VN') : undefined,
+                    soTien: Number(np.soTien),
+                    nguoiNop: np.nguoiNop
+                })),
+                isExpanded: false,
+                hoKhauFilterOption: 'Tất cả'
+            };
+        });
+
+        return res.status(200).json(formattedKhoanThu);
     } catch (error) {
-        return res.status(500).json({ message: error.message });
+        return res.status(500).json({ 
+            message: 'Lỗi khi lấy danh sách khoản thu',
+            error: error.message 
+        });
     }
 };
 
@@ -181,7 +234,6 @@ exports.createKhoanThu = async (req, res) => {
         if (!dotThu) {
             return res.status(404).json({ message: 'Không tìm thấy đợt thu' });
         }
-
         // Start transaction
         const result = await db.sequelize.transaction(async (t) => {
             // Create KhoanThu
@@ -197,9 +249,36 @@ exports.createKhoanThu = async (req, res) => {
                 khoanThuId: khoanThu.id
             }, { transaction: t });
 
-            // Create NopPhi records for each hoKhau
+            // Validate and create NopPhi records for each hoKhau
             if (hoKhauList && hoKhauList.length > 0) {
-                const nopPhiRecords = hoKhauList.map(item => ({
+                // Validate all households first
+                const validHouseholds = await Promise.all(
+                    hoKhauList.map(async (item) => {
+                        const household = await db.HoKhau.findOne({
+                            where: { soHoKhau: item.hoKhauId },
+                            include: [{
+                                model: db.NhanKhau,
+                                as: 'chuHoInfo',
+                                attributes: ['hoTen'],
+                                required: true
+                            }],
+                            transaction: t
+                        });
+
+                        if (!household || !household.chuHoInfo) {
+                            throw new Error(`Không tìm thấy thông tin chủ hộ cho hộ khẩu ${item.hoKhauId}`);
+                        }
+
+                        return {
+                            ...item,
+                            isValid: true,
+                            household
+                        };
+                    })
+                );
+
+                // If all validations pass, create NopPhi records
+                const nopPhiRecords = validHouseholds.map(item => ({
                     hoKhauId: item.hoKhauId,
                     khoanThuId: khoanThu.id,
                     soTien: item.soTien || 0,
@@ -437,5 +516,87 @@ exports.getKhoanThuChuaNop = async (req, res) => {
 
     } catch (error) {
         return res.status(500).json({ message: error.message });
+    }
+};
+
+const getVehiclesCountForHousehold = async (hoKhauId, db) => {
+
+    const vehicles = await db.QuanLyXe.findAll({
+        where: {
+            hoKhauId: hoKhauId,
+            trangThai: 'Đang sử dụng' 
+        },
+        include: [{
+            model: db.LoaiXe,
+            as: 'loaiXe',
+            attributes: [['ten', 'tenLoai']],
+            required: false 
+        }],
+        attributes: ['id', 'loaiXeId'] 
+    });
+
+    return {
+        motorbikes: vehicles.filter(v => {
+            const tenLoaiValue = v.loaiXe?.dataValues?.tenLoai; 
+            return tenLoaiValue && tenLoaiValue.toLowerCase().includes('máy');
+        }).length || 0,
+        cars: vehicles.filter(v => {
+            const tenLoaiValue = v.loaiXe?.dataValues?.tenLoai;
+            return tenLoaiValue && tenLoaiValue.toLowerCase().includes('ô tô');
+        }).length || 0
+    };
+};
+
+exports.getAllHouseholds = async (req, res) => {
+    try {
+        // Bước 1: Lấy danh sách hộ khẩu và thông tin căn hộ (không bao gồm xe)
+        const households = await db.HoKhau.findAll({
+            attributes: [
+                ['soHoKhau', 'id']
+            ],
+            include: [
+                {
+                    model: db.NhanKhau,
+                    as: 'chuHoInfo',
+                    attributes: ['hoTen'],
+                    required: true
+                },
+                {
+                    model: db.Canho,
+                    as: 'canho',
+                    attributes: ['dienTich'],
+                    required: false
+                }
+            ],
+            order: [['soHoKhau', 'ASC']],
+            raw: false
+        });
+        
+        // Bước 2: Tạo một mảng các Promise để lấy số lượng xe cho từng hộ khẩu một cách đồng thời
+        const formattedHouseholdsPromises = households.map(async h => {
+            const canhoInfo = h.canho;
+            const vehiclesCount = await getVehiclesCountForHousehold(h.get('id'), db);
+        
+            const ownerName = h.chuHoInfo ? h.chuHoInfo.hoTen : 'Không có thông tin';
+            
+            return {
+                id: h.get('id'),
+                owner: ownerName, 
+                area: canhoInfo ? parseFloat(canhoInfo.dienTich) : 0,
+                vehicles: vehiclesCount
+            };
+        });
+
+        // Bước 3: Đợi tất cả các Promise hoàn thành và nhận được dữ liệu cuối cùng
+        const formattedHouseholds = await Promise.all(formattedHouseholdsPromises);
+
+        return res.status(200).json(formattedHouseholds);
+
+    } catch (error) {
+        console.error('Error in getAllHouseholds:', error);
+        return res.status(500).json({
+            message: 'Có lỗi xảy ra khi lấy danh sách hộ khẩu',
+            error: error.message
+        });
     }
 };

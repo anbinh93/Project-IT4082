@@ -1,15 +1,33 @@
 import React, { useState, useEffect } from 'react';
+import axios from 'axios';
 
 interface EditDotThuPhiPopupProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave?: (data: { maDot: string; tenDot: string; ngayTao: string; hanThu: string }) => void;
+  onSave?: (data: { maDot: number; tenDot: string; ngayTao: string; hanThu: string }) => void;
   batch?: any | null;
 }
 
-const EditDotThuPhiPopup: React.FC<EditDotThuPhiPopupProps> = ({ isOpen, onClose, onSave, batch }) => {
+const formatDateForInput = (dateString: string) => {
+  // Convert from DD/MM/YYYY to YYYY-MM-DD
+  const [day, month, year] = dateString.split('/');
+  return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+};
+
+const formatDateForDisplay = (dateString: string) => {
+  // Convert from YYYY-MM-DD to DD/MM/YYYY
+  const [year, month, day] = dateString.split('-');
+  return `${day}/${month}/${year}`;
+};
+
+const EditDotThuPhiPopup: React.FC<EditDotThuPhiPopupProps> = ({ 
+  isOpen, 
+  onClose, 
+  onSave, 
+  batch 
+}) => {
   const today = new Date().toISOString().slice(0, 10);
-  const [maDot, setMaDot] = useState('');
+  const [maDot, setMaDot] = useState<number>(0);
   const [tenDot, setTenDot] = useState('');
   const [ngayTao, setNgayTao] = useState(today);
   const [hanThu, setHanThu] = useState('');
@@ -17,36 +35,13 @@ const EditDotThuPhiPopup: React.FC<EditDotThuPhiPopupProps> = ({ isOpen, onClose
   const [showConfirmClose, setShowConfirmClose] = useState(false);
   const [showConfirmSave, setShowConfirmSave] = useState(false);
   const [pendingAction, setPendingAction] = useState<'close' | 'save' | null>(null);
-
-  // Hàm chuyển đổi định dạng ngày từ dd/mm/yyyy sang yyyy-mm-dd
-  const formatDateForInput = (dateString: string): string => {
-    if (!dateString) return '';
-    
-    // Kiểm tra xem đã đúng định dạng yyyy-mm-dd chưa
-    if (/^\d{4}-\d{2}-\d{2}$/.test(dateString)) return dateString;
-    
-    // Chuyển từ dd/mm/yyyy sang yyyy-mm-dd
-    const parts = dateString.split('/');
-    if (parts.length !== 3) return '';
-    
-    return `${parts[2]}-${parts[1]}-${parts[0]}`;
-  };
-
-  // Hàm chuyển đổi từ yyyy-mm-dd sang dd/mm/yyyy cho khi lưu
-  const formatDateForSave = (dateString: string): string => {
-    if (!dateString) return '';
-    
-    // Chuyển từ yyyy-mm-dd sang dd/mm/yyyy
-    const parts = dateString.split('-');
-    if (parts.length !== 3) return dateString;
-    
-    return `${parts[2]}/${parts[1]}/${parts[0]}`;
-  };
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [apiError, setApiError] = useState<string | null>(null);
 
   // Cập nhật form khi có dữ liệu ban đầu
   useEffect(() => {
     if (batch) {
-      setMaDot(batch.maDot || '');
+      setMaDot(Number(batch.maDot) || 0);
       setTenDot(batch.tenDot || '');
       setNgayTao(formatDateForInput(batch.ngayTao) || today);
       setHanThu(formatDateForInput(batch.hanCuoi) || '');
@@ -57,15 +52,16 @@ const EditDotThuPhiPopup: React.FC<EditDotThuPhiPopupProps> = ({ isOpen, onClose
 
   // Kiểm tra form có thay đổi không
   const isDirty = batch && (
-    maDot !== batch.maDot || 
+    maDot !== Number(batch.maDot) || 
     tenDot !== batch.tenDot || 
-    formatDateForSave(ngayTao) !== batch.ngayTao || 
-    formatDateForSave(hanThu) !== batch.hanCuoi
+    formatDateForDisplay(ngayTao) !== batch.ngayTao || 
+    formatDateForDisplay(hanThu) !== batch.hanCuoi
   );
 
   const validate = () => {
     const newErrors: typeof errors = {};
-    if (!maDot.trim()) newErrors.maDot = 'Vui lòng nhập mã đợt';
+    if (!maDot) newErrors.maDot = 'Vui lòng nhập mã đợt';
+    if (maDot < 0) newErrors.maDot = 'Mã đợt phải là số nguyên dương';
     if (!tenDot.trim()) newErrors.tenDot = 'Vui lòng nhập tên đợt thu';
     if (!ngayTao) newErrors.ngayTao = 'Vui lòng chọn ngày tạo';
     if (!hanThu) newErrors.hanThu = 'Vui lòng chọn hạn thu';
@@ -87,7 +83,7 @@ const EditDotThuPhiPopup: React.FC<EditDotThuPhiPopupProps> = ({ isOpen, onClose
   // Đóng thật sự
   const handleClose = () => {
     setErrors({});
-    setMaDot('');
+    setMaDot(0);
     setTenDot('');
     setNgayTao(today);
     setHanThu('');
@@ -105,14 +101,33 @@ const EditDotThuPhiPopup: React.FC<EditDotThuPhiPopupProps> = ({ isOpen, onClose
   };
 
   // Lưu thật sự
-  const handleSaveConfirmed = () => {
-    if (onSave) onSave({ 
-      maDot, 
-      tenDot, 
-      ngayTao: formatDateForSave(ngayTao), 
-      hanThu: formatDateForSave(hanThu) 
-    });
-    handleClose();
+  const handleSaveConfirmed = async () => {
+    try {
+      setIsSubmitting(true);
+      setApiError(null);
+
+      const response = await axios.put(`http://localhost:8001/api/accountant/dotthu/${batch.maDot}`, {
+        maDot,
+        tenDotThu: tenDot,
+        ngayTao: new Date(ngayTao).toISOString(),
+        thoiHan: new Date(hanThu).toISOString()
+      });
+
+      if (response.data) {
+        if (onSave) onSave({ 
+          maDot, 
+          tenDot, 
+          ngayTao: formatDateForDisplay(ngayTao), 
+          hanThu: formatDateForDisplay(hanThu) 
+        });
+        handleClose();
+      }
+    } catch (error: any) {
+      setApiError(error.response?.data?.message || 'Có lỗi xảy ra khi cập nhật đợt thu');
+      console.error('Error updating batch:', error);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   // Xử lý click ra ngoài popup
@@ -140,10 +155,15 @@ const EditDotThuPhiPopup: React.FC<EditDotThuPhiPopupProps> = ({ isOpen, onClose
             <label className="block text-sm font-medium text-gray-700 mb-1">Mã đợt <span className="text-red-500">*</span></label>
             <input
               type="text"
-              className={`mt-1 block w-full px-3 py-2 border ${errors.maDot ? 'border-red-500' : 'border-gray-300'} rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm`}
-              placeholder="Ví dụ: D004"
-              value={maDot}
-              onChange={e => setMaDot(e.target.value)}
+              pattern="\d*"
+              inputMode="numeric"
+              className={`mt-1 block w-full px-3 py-2 border ${errors.maDot ? 'border-red-500' : 'border-gray-300'} rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none`}
+              placeholder="Ví dụ: 4"
+              value={maDot || ''}
+              onChange={e => {
+                const value = e.target.value.replace(/\D/g, '');
+                setMaDot(value ? parseInt(value) : 0);
+              }}
             />
             {errors.maDot && <p className="text-xs text-red-500 mt-1">{errors.maDot}</p>}
           </div>
@@ -178,18 +198,28 @@ const EditDotThuPhiPopup: React.FC<EditDotThuPhiPopupProps> = ({ isOpen, onClose
             />
             {errors.hanThu && <p className="text-xs text-red-500 mt-1">{errors.hanThu}</p>}
           </div>
+
+          {/* Hiển thị lỗi API nếu có */}
+          {apiError && (
+            <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-md">
+              <p className="text-sm text-red-600">{apiError}</p>
+            </div>
+          )}
+
           <div className="flex gap-4">
             <button
-              className="flex-1 px-4 py-3 bg-gray-500 text-white text-base font-semibold rounded-md shadow-sm hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition-all"
+              className="flex-1 px-4 py-3 bg-gray-500 text-white text-base font-semibold rounded-md shadow-sm hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition-all disabled:opacity-50"
               onClick={handleRequestClose}
+              disabled={isSubmitting}
             >
               Hủy
             </button>
             <button
-              className="flex-1 px-4 py-3 bg-blue-500 text-white text-base font-semibold rounded-md shadow-sm hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-all"
+              className="flex-1 px-4 py-3 bg-blue-500 text-white text-base font-semibold rounded-md shadow-sm hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-all disabled:opacity-50"
               onClick={handleSave}
+              disabled={isSubmitting}
             >
-              Lưu
+              {isSubmitting ? 'Đang lưu...' : 'Lưu'}
             </button>
           </div>
         </div>
@@ -235,4 +265,4 @@ const EditDotThuPhiPopup: React.FC<EditDotThuPhiPopupProps> = ({ isOpen, onClose
   );
 };
 
-export default EditDotThuPhiPopup; 
+export default EditDotThuPhiPopup;

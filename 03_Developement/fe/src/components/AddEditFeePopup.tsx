@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import axios from 'axios';
 
-// Fee type interfaces
+// Fee type interfaces (unchanged)
 interface BaseFeeType {
   id: string;
   name: string;
@@ -40,17 +41,17 @@ interface VoluntaryFee extends BaseFeeType {
 
 type FeeType = AreaBasedFee | VehicleBasedFee | ImportableFee | VoluntaryFee;
 
-// Fee type definitions
+// Fee type definitions (unchanged)
 export const FEE_TYPES: Record<string, FeeType> = {
-  PHI_DICH_VU: {
-    id: 'PHI_DICH_VU',
+  PHI_DICH_VU_CHUNG_CU: {
+    id: 'PHI_DICH_VU_CHUNG_CU',
     name: 'Phí dịch vụ chung cư',
     rate: 10000, // VND/m²
     mandatory: true,
     calculateByArea: true,
   },
-  PHI_QUAN_LY: {
-    id: 'PHI_QUAN_LY',
+  PHI_QUAN_LY_CHUNG_CU: {
+    id: 'PHI_QUAN_LY_CHUNG_CU',
     name: 'Phí quản lý chung cư',
     rate: 7000, // VND/m²
     mandatory: true,
@@ -90,39 +91,16 @@ export const FEE_TYPES: Record<string, FeeType> = {
   }
 };
 
-// Sample household data
-const SAMPLE_HOUSEHOLDS = [
-  { 
-    id: 'HK001', 
-    owner: 'Nguyễn Văn A',
-    area: 75.5, // m²
-    vehicles: { motorbikes: 2, cars: 0 }
-  },
-  { 
-    id: 'HK002', 
-    owner: 'Trần Thị B',
-    area: 100.2, // m²
-    vehicles: { motorbikes: 1, cars: 1 }
-  },
-  { 
-    id: 'HK003', 
-    owner: 'Lê Văn C',
-    area: 60.0, // m²
-    vehicles: { motorbikes: 3, cars: 0 }
-  },
-  { 
-    id: 'HK004', 
-    owner: 'Phạm Thị D',
-    area: 120.5, // m²
-    vehicles: { motorbikes: 1, cars: 1 }
-  },
-  { 
-    id: 'HK005', 
-    owner: 'Hoàng Văn E',
-    area: 85.0, // m²
-    vehicles: { motorbikes: 2, cars: 1 }
-  }
-];
+// Household interface based on your provided sample (unchanged)
+interface Household {
+  id: string;
+  owner: string;
+  area: number;
+  vehicles: {
+    motorbikes: number;
+    cars: number;
+  };
+}
 
 interface AddEditFeePopupProps {
   isOpen: boolean;
@@ -130,14 +108,16 @@ interface AddEditFeePopupProps {
   onSave?: (data: any) => void;
   initialData?: any;
   title?: string;
+  batchId: number;
 }
 
-const AddEditFeePopup: React.FC<AddEditFeePopupProps> = ({ 
-  isOpen, 
-  onClose, 
+const AddEditFeePopup: React.FC<AddEditFeePopupProps> = ({
+  isOpen,
+  onClose,
   onSave,
   initialData,
-  title = 'Thêm khoản thu'
+  title = 'Thêm khoản thu',
+  batchId
 }) => {
   const [feeType, setFeeType] = useState('');
   const [chiTiet, setChiTiet] = useState('');
@@ -152,41 +132,38 @@ const AddEditFeePopup: React.FC<AddEditFeePopupProps> = ({
   const [pendingAction, setPendingAction] = useState<'close' | 'save' | null>(null);
   const [importedFileName, setImportedFileName] = useState<string | null>(null);
 
-  // Determine if this is edit mode
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [apiError, setApiError] = useState<string | null>(null);
+  const [households, setHouseholds] = useState<Household[]>([]);
+  const [isLoadingHouseholds, setIsLoadingHouseholds] = useState(false);
+
   const isEditMode = Boolean(initialData);
 
-  // Get the currently selected fee type object
   const selectedFeeType = FEE_TYPES[feeType as keyof typeof FEE_TYPES];
-  
-  // Flag for showing household fee list
-  const showHouseholdList = selectedFeeType && 
-    (selectedFeeType.calculateByArea || selectedFeeType.calculateByVehicle);
-  
-  // Flag for showing file import
+
+  const showHouseholdList = selectedFeeType &&
+    (selectedFeeType.calculateByArea || selectedFeeType.calculateByVehicle || selectedFeeType.importable);
+
   const showFileImport = selectedFeeType?.importable;
 
-  // Flag for showing description field (always true except for voluntary contributions)
   const showDescription = !selectedFeeType?.voluntary;
-  
-  // Định dạng số tiền (dấu phẩy)
+
   const formatCurrency = (value: number): string => {
-    if (!value) return '';
+    if (value === null || value === undefined) return '';
     return new Intl.NumberFormat('vi-VN').format(value);
   };
 
-  // Chỉ lấy số, format lại khi nhập
   const formatInputValue = (value: string): string => {
     const numeric = value.replace(/[^\d]/g, '');
     if (!numeric) return '';
     return new Intl.NumberFormat('vi-VN').format(Number(numeric));
   };
 
-  // Tính lại số tiền từng hộ khi chọn loại phí
-  const calculateHouseholdFees = (type: string) => {
+  const calculateHouseholdFees = (type: string, householdsData: Household[]) => {
     const feeTypeObj = FEE_TYPES[type as keyof typeof FEE_TYPES];
     if (!feeTypeObj) return {};
     const newFees: typeof householdFees = {};
-    SAMPLE_HOUSEHOLDS.forEach(household => {
+    householdsData.forEach(household => {
       let amount = 0;
       if ('calculateByArea' in feeTypeObj && feeTypeObj.calculateByArea) {
         amount = Math.round(household.area * feeTypeObj.rate);
@@ -195,43 +172,98 @@ const AddEditFeePopup: React.FC<AddEditFeePopupProps> = ({
       } else if ('voluntary' in feeTypeObj && feeTypeObj.voluntary) {
         amount = 0;
       }
-      newFees[household.id] = { amount, auto: true };
+
+      if (amount > 0) {
+        newFees[household.id] = { amount, auto: true, owner: household.owner };
+      }
     });
     return newFees;
   };
 
-  // Khi đổi loại phí
+  const hasAnyMotorbikes = useMemo(() => {
+    return households.some(h => h.vehicles?.motorbikes > 0);
+  }, [households]);
+
+  const hasAnyCars = useMemo(() => {
+    return households.some(h => h.vehicles?.cars > 0);
+  }, [households]);
+
+
+  useEffect(() => {
+    const fetchHouseholds = async () => {
+      if (isOpen) {
+        setIsLoadingHouseholds(true);
+        setApiError(null);
+        try {
+          const response = await axios.get('http://localhost:8001/api/accountant/households');
+          setHouseholds(response.data);
+        } catch (error: any) {
+          setApiError(error.response?.data?.message || 'Có lỗi xảy ra khi tải danh sách hộ khẩu');
+          console.error('Error fetching households:', error);
+          setHouseholds([]);
+        } finally {
+          setIsLoadingHouseholds(false);
+        }
+      }
+    };
+    fetchHouseholds();
+  }, [isOpen]);
+
+  useEffect(() => {
+    if (initialData) {
+      setFeeType(initialData.type || '');
+      setChiTiet(initialData.chiTiet || '');
+
+      if (initialData.householdFees) {
+        setHouseholdFees(initialData.householdFees);
+      } else if (initialData.type && households.length > 0) {
+        setHouseholdFees(calculateHouseholdFees(initialData.type, households));
+      }
+      if (initialData.importedFileName) setImportedFileName(initialData.importedFileName);
+    } else {
+      setFeeType('');
+      setChiTiet('');
+      setHouseholdFees({});
+      setFile(null);
+      setFileError('');
+      setImportedFileName(null);
+    }
+  }, [initialData, isOpen, households]);
+
   const handleFeeTypeChange = (newType: string) => {
     setFeeType(newType);
-    // Phân biệt loại phí import file và loại phí tự động
-    if (newType === 'PHI_DIEN' || newType === 'PHI_NUOC' || newType === 'PHI_INTERNET') {
+    const feeTypeObj = FEE_TYPES[newType];
+
+    if (feeTypeObj?.importable) {
       setHouseholdFees({});
       setFile(null);
       setImportedFileName(null);
-    } else if (newType) {
-      setHouseholdFees(calculateHouseholdFees(newType));
+    }
+    else if ((feeTypeObj?.calculateByArea || feeTypeObj?.calculateByVehicle) && households.length > 0) {
+      setHouseholdFees(calculateHouseholdFees(newType, households));
       setFile(null);
       setImportedFileName(null);
-    } else {
+    }
+    else {
       setHouseholdFees({});
       setFile(null);
       setImportedFileName(null);
     }
   };
 
-  // Khi sửa số tiền từng hộ
   const handleAmountChange = (householdId: string, value: string) => {
     const numeric = value.replace(/[^\d]/g, '');
+    const amount = parseInt(numeric) || 0;
     setHouseholdFees(prev => ({
       ...prev,
       [householdId]: {
-        amount: parseInt(numeric) || 0,
+        ...prev[householdId],
+        amount: amount,
         auto: false
       }
     }));
   };
 
-  // Handle file selection for import
   const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
     if (!files || files.length === 0) {
@@ -239,7 +271,6 @@ const AddEditFeePopup: React.FC<AddEditFeePopupProps> = ({
       return;
     }
     const selectedFile = files[0];
-    // Check if file is Excel
     if (!selectedFile.name.endsWith('.xlsx') && !selectedFile.name.endsWith('.xls') && !selectedFile.name.endsWith('.csv')) {
       setFileError('Vui lòng chọn file Excel (.xlsx, .xls) hoặc CSV (.csv)');
       setFile(null);
@@ -248,34 +279,34 @@ const AddEditFeePopup: React.FC<AddEditFeePopupProps> = ({
     setFileError('');
     setFile(selectedFile);
     setImportedFileName(selectedFile.name);
-    // Đọc file thực tế
     try {
       let text = '';
       if (selectedFile.name.endsWith('.csv')) {
         text = await selectedFile.text();
       } else {
-        // Đọc file excel bằng SheetJS nếu có (giả lập ở đây)
         text = await selectedFile.text();
       }
-      // Parse CSV
       const lines = text.split(/\r?\n/).filter(line => line.trim() !== '');
-      if (lines.length < 2) throw new Error('File phải có ít nhất 1 dòng dữ liệu');
+      if (lines.length < 2) throw new Error('File phải có ít nhất 1 dòng dữ liệu (tiêu đề + 1 hàng dữ liệu)');
       const header = lines[0].split(',').map(s => s.trim().toLowerCase());
-      const idxMaHo = header.findIndex(h => h.includes('mã hộ'));
-      const idxOwner = header.findIndex(h => h.includes('chủ hộ'));
-      const idxAmount = header.findIndex(h => h.includes('số tiền'));
+      const idxMaHo = header.findIndex(h => h.includes('mã hộ') || h.includes('ma ho') || h === 'id');
+      const idxOwner = header.findIndex(h => h.includes('chủ hộ') || h.includes('chu ho') || h === 'owner');
+      const idxAmount = header.findIndex(h => h.includes('số tiền') || h.includes('so tien') || h === 'amount');
       if (idxMaHo === -1 || idxOwner === -1 || idxAmount === -1) throw new Error('File phải có đủ 3 cột: Mã hộ, Chủ hộ, Số tiền');
+
       const importedFees: typeof householdFees = {};
       for (let i = 1; i < lines.length; ++i) {
         const cols = lines[i].split(',');
-        if (cols.length < 3) continue;
+        if (cols.length < Math.max(idxMaHo, idxOwner, idxAmount) + 1) continue;
         const maHo = cols[idxMaHo].trim();
         const owner = cols[idxOwner].trim();
         const amount = parseInt(cols[idxAmount].replace(/[^\d]/g, '')) || 0;
-        if (!maHo || !owner) continue;
-        importedFees[maHo] = { amount, auto: false, owner };
+
+        if (amount > 0) {
+          importedFees[maHo] = { amount, auto: false, owner };
+        }
       }
-      if (Object.keys(importedFees).length === 0) throw new Error('Không có dữ liệu hợp lệ trong file');
+      if (Object.keys(importedFees).length === 0) throw new Error('Không có dữ liệu hợp lệ trong file hoặc tất cả số tiền là 0.');
       setHouseholdFees(importedFees);
       setFileError('');
     } catch (err: any) {
@@ -283,45 +314,21 @@ const AddEditFeePopup: React.FC<AddEditFeePopupProps> = ({
     }
   };
 
-  // Update form when initialData changes
-  useEffect(() => {
-    if (initialData) {
-      setFeeType(initialData.type || '');
-      setChiTiet(initialData.chiTiet || '');
-      
-      // If we have household fees in initial data, use them
-      if (initialData.householdFees) {
-        setHouseholdFees(initialData.householdFees);
-      } else if (initialData.type) {
-        // Otherwise calculate them based on fee type
-        setHouseholdFees(calculateHouseholdFees(initialData.type));
-      }
-      if (initialData.importedFileName) setImportedFileName(initialData.importedFileName);
-    } else {
-      // Reset form for new fee
-      setFeeType('');
-      setChiTiet('');
-      setHouseholdFees({});
-      setFile(null);
-      setFileError('');
-      setImportedFileName(null);
-    }
-  }, [initialData, isOpen]);
+  const isDirty = feeType !== '' || chiTiet !== '' || Object.keys(householdFees).length > 0 || file !== null || (initialData && (initialData.type !== feeType || initialData.chiTiet !== chiTiet || JSON.stringify(initialData.householdFees) !== JSON.stringify(householdFees)));
 
-  // Check if form is dirty
-  const isDirty = feeType !== '' || chiTiet !== '' || Object.keys(householdFees).length > 0 || file !== null;
-
-  // Xác thực form
   const validate = () => {
     const newErrors: typeof errors = {};
     if (!feeType) newErrors.feeType = 'Vui lòng chọn loại phí';
     if (selectedFeeType && 'voluntary' in selectedFeeType && selectedFeeType.voluntary && !chiTiet.trim()) newErrors.chiTiet = 'Vui lòng nhập mô tả cho khoản đóng góp';
-    if ((showHouseholdList || showFileImport) && Object.keys(householdFees).length === 0) newErrors.householdFees = 'Vui lòng nhập số tiền cho các hộ';
+
+    const hasValidHouseholdFees = Object.values(householdFees).some(h => h.amount > 0);
+    if ((showHouseholdList || showFileImport) && !hasValidHouseholdFees) {
+      newErrors.householdFees = 'Vui lòng nhập số tiền lớn hơn 0 cho ít nhất một hộ.';
+    }
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
-  // Đóng popup (có xác nhận nếu có thay đổi)
   const handleRequestClose = () => {
     if (isDirty) {
       setShowConfirmClose(true);
@@ -331,7 +338,6 @@ const AddEditFeePopup: React.FC<AddEditFeePopupProps> = ({
     }
   };
 
-  // Close popup
   const handleClose = () => {
     setErrors({});
     setFeeType('');
@@ -346,45 +352,102 @@ const AddEditFeePopup: React.FC<AddEditFeePopupProps> = ({
     onClose();
   };
 
-  // Save confirmation
   const handleSave = () => {
     if (!validate()) return;
     setShowConfirmSave(true);
     setPendingAction('save');
   };
 
-  // Save data
-  const handleSaveConfirmed = () => {
-    if (onSave) {
+  const handleSaveConfirmed = async () => {
+    try {
+      setIsSubmitting(true);
+      setApiError(null);
+
       const feeTypeObj = FEE_TYPES[feeType as keyof typeof FEE_TYPES];
-      const data = {
-        type: feeType,
-        tenKhoan: feeTypeObj?.name || '',
-        chiTiet: chiTiet,
-        batBuoc: feeTypeObj?.mandatory ? 'Bắt buộc' : 'Không bắt buộc',
-        householdFees,
-        importedFileName: importedFileName || undefined
+
+      const hoKhauList = Object.entries(householdFees)
+        .filter(([, data]) => data.amount > 0)
+        .map(([hoKhauId, data]) => ({
+          hoKhauId: hoKhauId,
+          owner: data.owner || '',
+          soTien: data.amount
+        }));
+
+      if (hoKhauList.length === 0 && (selectedFeeType?.calculateByArea || selectedFeeType?.calculateByVehicle || selectedFeeType?.importable)) {
+        setApiError('Không có khoản thu nào có số tiền lớn hơn 0 để lưu.');
+        setIsSubmitting(false);
+        return;
+      }
+
+      const requestData = {
+        dotThuId: batchId,
+        tenKhoanThu: feeTypeObj?.name || '',
+        batBuoc: feeTypeObj?.mandatory || false,
+        ghiChu: chiTiet,
+        hoKhauList
       };
-      onSave(data);
+
+      const response = await axios.post(
+        `http://localhost:8001/api/accountant/khoanthu`,
+        requestData
+      );
+
+      if (response.data) {
+        const formattedData = {
+          id: response.data.id,
+          type: feeType,
+          tenKhoan: response.data.tenKhoanThu,
+          chiTiet: response.data.ghiChu,
+          batBuoc: response.data.batBuoc ? 'Bắt buộc' : 'Không bắt buộc',
+          householdFees: response.data.nopPhi.reduce((acc: any, nopPhi: any) => {
+            if (Number(nopPhi.soTien) > 0) {
+              acc[nopPhi.hoKhau.id] = {
+                amount: Number(nopPhi.soTien),
+                auto: true,
+                owner: nopPhi.hoKhau.owner
+              };
+            }
+            return acc;
+          }, {})
+        };
+
+        if (onSave) onSave(formattedData);
+        handleClose();
+      }
+    } catch (error: any) {
+      setApiError(error.response?.data?.message || 'Có lỗi xảy ra khi thêm khoản thu');
+      console.error('Error adding fee:', error);
+    } finally {
+      setIsSubmitting(false);
     }
-    handleClose();
   };
-  
+
   const handleOverlayClick = (e: React.MouseEvent<HTMLDivElement>) => {
     if (e.target === e.currentTarget) handleRequestClose();
   };
 
-  // Total fee amount across all households
   const totalFeeAmount = useMemo(() => {
     return Object.values(householdFees).reduce(
-      (sum, { amount }) => sum + amount, 
+      (sum, { amount }) => sum + amount,
       0
     );
   }, [householdFees]);
 
-  // Helper xác định loại phí import file
-  const isImportFeeType = feeType === 'PHI_DIEN' || feeType === 'PHI_NUOC' || feeType === 'PHI_INTERNET';
-  const isAutoFeeType = !isImportFeeType;
+  const isImportFeeType = selectedFeeType?.importable;
+  const isAutoFeeType = !isImportFeeType && (selectedFeeType?.calculateByArea || selectedFeeType?.calculateByVehicle);
+
+  // NEW: Filter households before mapping
+  const householdsToDisplay = useMemo(() => {
+    if (selectedFeeType && 'calculateByVehicle' in selectedFeeType && selectedFeeType.calculateByVehicle) {
+      // If it's a vehicle-based fee, filter out households with no vehicles
+      return households.filter(household => 
+        household.vehicles.motorbikes > 0 || household.vehicles.cars > 0
+      );
+    }
+    // Otherwise, display all households
+    return households;
+  }, [households, selectedFeeType]);
+
 
   return (
     <>
@@ -408,13 +471,21 @@ const AddEditFeePopup: React.FC<AddEditFeePopupProps> = ({
               <textarea className={`mt-1 block w-full px-3 py-2 border ${errors.chiTiet ? 'border-red-500' : 'border-gray-300'} rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm`} placeholder={selectedFeeType && 'voluntary' in selectedFeeType && selectedFeeType.voluntary ? "Nhập mô tả chi tiết về mục đích đóng góp..." : "Mô tả chi tiết về khoản thu..."} rows={3} value={chiTiet} onChange={e => setChiTiet(e.target.value)} />
               {errors.chiTiet && <p className="text-xs text-red-500 mt-1">{errors.chiTiet}</p>}
             </div>
-            {/* Loại phí import file: chỉ hiển thị hướng dẫn và nút chọn file nếu chưa có householdFees */}
-            {isImportFeeType && !Object.keys(householdFees).length && (
+            {/* Display loading state for households */}
+            {isLoadingHouseholds && (
+              <div className="text-center text-gray-500 my-4">Đang tải danh sách hộ khẩu...</div>
+            )}
+            {apiError && !isLoadingHouseholds && (
+              <p className="text-sm text-red-500 my-4">{apiError}</p>
+            )}
+
+            {/* Loại phí import file: chỉ hiển thị hướng dẫn và nút chọn file nếu chưa có householdFees hoặc nếu có nhưng đang trong chế độ edit và muốn đổi file */}
+            {isImportFeeType && (!Object.keys(householdFees).length || file === null) && (
               <div className="mb-6 p-4 border border-dashed border-gray-300 rounded-lg">
                 <h4 className="font-medium text-gray-700 mb-2">Import dữ liệu từ Excel/CSV</h4>
                 <p className="text-sm text-gray-500 mb-3">
                   Định dạng file mẫu:<br/>
-                  <b>Cột 1</b>: Mã hộ (ví dụ: HK001, HK002, ...)<br/>
+                  <b>Cột 1</b>: Mã hộ (ví dụ: HK001, HK002, ... hoặc ID như '1', '2')<br/>
                   <b>Cột 2</b>: Chủ hộ (ví dụ: Nguyễn Văn A, ...)<br/>
                   <b>Cột 3</b>: Số tiền (chỉ số, không có chữ VND, ví dụ: 150000)<br/>
                 </p>
@@ -429,7 +500,7 @@ const AddEditFeePopup: React.FC<AddEditFeePopupProps> = ({
             {isImportFeeType && Object.keys(householdFees).length > 0 && (
               <div className="mb-6">
                 <div className="flex items-center gap-4 mb-2">
-                  <span className="text-sm text-gray-700">File đã chọn: <b>{importedFileName}</b></span>
+                  <span className="text-sm text-gray-700">File đã chọn: <b>{importedFileName || 'Chưa có file'}</b></span>
                   <label>
                     <input type="file" accept=".xlsx,.xls,.csv" className="hidden" onChange={handleFileChange} />
                     <span className="ml-2 px-3 py-1 bg-blue-100 text-blue-700 rounded cursor-pointer hover:bg-blue-200 transition">Đổi file</span>
@@ -441,52 +512,37 @@ const AddEditFeePopup: React.FC<AddEditFeePopupProps> = ({
                       <tr>
                         <th className="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Mã hộ</th>
                         <th className="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Chủ hộ</th>
-                        {selectedFeeType && 'calculateByArea' in selectedFeeType && selectedFeeType.calculateByArea && (
-                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Diện tích (m²)</th>
-                        )}
-                        {selectedFeeType && 'calculateByVehicle' in selectedFeeType && selectedFeeType.calculateByVehicle && (
-                          <>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Xe máy</th>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Ô tô</th>
-                          </>
-                        )}
                         <th className="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Số tiền (VND)</th>
                       </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200">
-                      {Object.entries(householdFees).map(([maHo, h]) => (
-                        <tr key={maHo}>
-                          <td className="px-4 py-2 text-sm text-gray-900">{maHo}</td>
-                          <td className="px-4 py-2 text-sm text-gray-900">{h.owner || ''}</td>
-                          {selectedFeeType && 'calculateByArea' in selectedFeeType && selectedFeeType.calculateByArea && (
-                            <td className="px-4 py-2 text-sm text-gray-900">{SAMPLE_HOUSEHOLDS.find(hh => hh.id === maHo)?.area || ''}</td>
-                          )}
-                          {selectedFeeType && 'calculateByVehicle' in selectedFeeType && selectedFeeType.calculateByVehicle && (
-                            <>
-                              <td className="px-4 py-2 text-sm text-gray-900">{SAMPLE_HOUSEHOLDS.find(hh => hh.id === maHo)?.vehicles.motorbikes || ''}</td>
-                              <td className="px-4 py-2 text-sm text-gray-900">{SAMPLE_HOUSEHOLDS.find(hh => hh.id === maHo)?.vehicles.cars || ''}</td>
-                            </>
-                          )}
-                          <td className="px-4 py-2 text-sm">
-                            <input
-                              type="text"
-                              className="block w-28 px-2 py-1 border border-gray-300 rounded-md shadow-sm text-sm focus:ring-blue-500 focus:border-blue-500 text-right transition-all hover:border-blue-400 focus:bg-blue-50"
-                              placeholder="0"
-                              value={h.amount ? formatCurrency(h.amount) : ''}
-                              onChange={e => setHouseholdFees(prev => ({ ...prev, [maHo]: { ...prev[maHo], amount: parseInt(e.target.value.replace(/[^\d]/g, '')) || 0, auto: false } }))}
-                              inputMode="numeric"
-                            />
-                          </td>
-                        </tr>
-                      ))}
+                      {Object.entries(householdFees).map(([maHo, h]) => {
+                          const householdDetails = households.find(hh => hh.id === maHo);
+                          return (
+                            <tr key={maHo}>
+                              <td className="px-4 py-2 text-sm text-gray-900">{maHo}</td>
+                              <td className="px-4 py-2 text-sm text-gray-900">{h.owner || householdDetails?.owner || ''}</td>
+                              <td className="px-4 py-2 text-sm">
+                                <input
+                                  type="text"
+                                  className="block w-28 px-2 py-1 border border-gray-300 rounded-md shadow-sm text-sm focus:ring-blue-500 focus:border-blue-500 text-right transition-all hover:border-blue-400 focus:bg-blue-50"
+                                  placeholder="0"
+                                  value={h.amount !== undefined && h.amount !== null ? formatCurrency(h.amount) : ''}
+                                  onChange={e => setHouseholdFees(prev => ({ ...prev, [maHo]: { ...prev[maHo], amount: parseInt(e.target.value.replace(/[^\d]/g, '')) || 0, auto: false } }))}
+                                  inputMode="numeric"
+                                />
+                              </td>
+                            </tr>
+                          );
+                      })}
                     </tbody>
                   </table>
                 </div>
-                {fileError && (<p className="text-xs text-red-500 mt-2">{fileError}</p>)}
+                {errors.householdFees && <p className="text-xs text-red-500 mt-2">{errors.householdFees}</p>}
               </div>
             )}
             {/* Loại phí tự động: luôn hiển thị bảng danh sách hộ và số tiền tự động, không liên quan file */}
-            {isAutoFeeType && showHouseholdList && (
+            {isAutoFeeType && households.length > 0 && (
               <div className="mb-6">
                 <div className="flex justify-between items-center mb-2">
                   <h4 className="font-medium text-gray-700">Số tiền theo hộ</h4>
@@ -503,15 +559,16 @@ const AddEditFeePopup: React.FC<AddEditFeePopupProps> = ({
                         )}
                         {selectedFeeType && 'calculateByVehicle' in selectedFeeType && selectedFeeType.calculateByVehicle && (
                           <>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Xe máy</th>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Ô tô</th>
+                            {hasAnyMotorbikes && <th className="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Xe máy</th>}
+                            {hasAnyCars && <th className="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Ô tô</th>}
                           </>
                         )}
                         <th className="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Số tiền (VND)</th>
                       </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200">
-                      {SAMPLE_HOUSEHOLDS.map(household => (
+                      {/* Using filteredHouseholds here */}
+                      {householdsToDisplay.map(household => (
                         <tr key={household.id}>
                           <td className="px-4 py-2 text-sm text-gray-900">{household.id}</td>
                           <td className="px-4 py-2 text-sm text-gray-900">{household.owner}</td>
@@ -520,8 +577,8 @@ const AddEditFeePopup: React.FC<AddEditFeePopupProps> = ({
                           )}
                           {selectedFeeType && 'calculateByVehicle' in selectedFeeType && selectedFeeType.calculateByVehicle && (
                             <>
-                              <td className="px-4 py-2 text-sm text-gray-900">{household.vehicles.motorbikes}</td>
-                              <td className="px-4 py-2 text-sm text-gray-900">{household.vehicles.cars}</td>
+                              {hasAnyMotorbikes && <td className="px-4 py-2 text-sm text-gray-900">{household.vehicles.motorbikes}</td>}
+                              {hasAnyCars && <td className="px-4 py-2 text-sm text-gray-900">{household.vehicles.cars}</td>}
                             </>
                           )}
                           <td className="px-4 py-2 text-sm">
@@ -529,7 +586,7 @@ const AddEditFeePopup: React.FC<AddEditFeePopupProps> = ({
                               type="text"
                               className="block w-28 px-2 py-1 border border-gray-300 rounded-md shadow-sm text-sm focus:ring-blue-500 focus:border-blue-500 text-right transition-all hover:border-blue-400 focus:bg-blue-50"
                               placeholder="0"
-                              value={householdFees[household.id]?.amount ? formatCurrency(householdFees[household.id].amount) : ''}
+                              value={householdFees[household.id]?.amount !== undefined && householdFees[household.id]?.amount !== null ? formatCurrency(householdFees[household.id].amount) : ''}
                               onChange={e => handleAmountChange(household.id, e.target.value)}
                               inputMode="numeric"
                             />
@@ -544,8 +601,11 @@ const AddEditFeePopup: React.FC<AddEditFeePopupProps> = ({
             )}
             <div className="flex gap-4 mt-4">
               <button className="flex-1 px-4 py-3 bg-gray-500 text-white text-base font-semibold rounded-md shadow-sm hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition-all" onClick={handleRequestClose}>Hủy</button>
-              <button className="flex-1 px-4 py-3 bg-blue-500 text-white text-base font-semibold rounded-md shadow-sm hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-all" onClick={handleSave}>Lưu</button>
+              <button className="flex-1 px-4 py-3 bg-blue-500 text-white text-base font-semibold rounded-md shadow-sm hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-all" onClick={handleSave} disabled={isSubmitting}>
+                {isSubmitting ? 'Đang lưu...' : 'Lưu'}
+              </button>
             </div>
+            {apiError && <p className="mt-4 text-sm text-red-500">{apiError}</p>}
           </div>
         </div>
       )}
@@ -579,4 +639,4 @@ const AddEditFeePopup: React.FC<AddEditFeePopupProps> = ({
   );
 };
 
-export default AddEditFeePopup; 
+export default AddEditFeePopup;

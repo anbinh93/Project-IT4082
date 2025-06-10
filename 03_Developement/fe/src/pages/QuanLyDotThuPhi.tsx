@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Layout from '../components/Layout'; // Import Layout component
 import AddEditDotThuPhiPopup from '../components/AddEditDotThuPhiPopup'; // Import Add popup
 import EditDotThuPhiPopup from '../components/EditDotThuPhiPopup'; // Import Edit popup
 import AddEditFeePopup from '../components/AddEditFeePopup'; // Import Add/Edit Fee popup
 import { FEE_TYPES } from '../components/AddEditFeePopup';
+import axios from 'axios';
 
 // Định nghĩa type mới cho khoản thu và batch
 interface HouseholdFee {
@@ -35,141 +36,155 @@ interface Batch {
   isExpanded: boolean;
 }
 
-// Sample data for payment batches (dùng cấu trúc mới cho khoản thu)
-const sampleBatches: Batch[] = [
-  {
-    maDot: 'D001',
-    tenDot: 'Tháng 05/2025',
-    ngayTao: '01/05/2025',
-    hanCuoi: '31/05/2025',
-    trangThai: 'Đang mở',
-    details: {
-      maDot: 'D001',
-      tenDot: 'Tháng 05/2025',
-      ngayTao: '01/05/2025',
-      hanCuoi: '31/05/2025',
-      khoanThu: [
-        {
-          id: 'K001',
-          type: 'PHI_DICH_VU',
-          tenKhoan: 'Phí dịch vụ chung cư',
-          chiTiet: 'Phí dịch vụ tháng 5',
-          batBuoc: 'Bắt buộc',
-          householdFees: {
-            HK001: { amount: 755000, auto: true },
-            HK002: { amount: 1002000, auto: true },
-            HK003: { amount: 600000, auto: true },
-            HK004: { amount: 1205000, auto: true },
-            HK005: { amount: 850000, auto: true }
-          }
-        },
-        {
-          id: 'K002',
-          type: 'PHI_GUI_XE',
-          tenKhoan: 'Phí gửi xe',
-          chiTiet: 'Phí gửi xe tháng 5',
-          batBuoc: 'Bắt buộc',
-          householdFees: {
-            HK001: { amount: 140000, auto: true },
-            HK002: { amount: 1270000, auto: true },
-            HK003: { amount: 210000, auto: true },
-            HK004: { amount: 1270000, auto: true },
-            HK005: { amount: 1340000, auto: true }
-          }
-        }
-      ]
-    },
-    isExpanded: false
-  },
-  {
-    maDot: 'D002',
-    tenDot: 'Tháng 04/2025',
-    ngayTao: '01/04/2025',
-    hanCuoi: '30/04/2025',
-    trangThai: 'Đã đóng',
-    details: {
-      maDot: 'D002',
-      tenDot: 'Tháng 04/2025',
-      ngayTao: '01/04/2025',
-      hanCuoi: '30/04/2025',
-      khoanThu: [
-        {
-          id: 'K004',
-          type: 'PHI_DICH_VU',
-          tenKhoan: 'Phí dịch vụ chung cư',
-          chiTiet: 'Phí dịch vụ tháng 4',
-          batBuoc: 'Bắt buộc',
-          householdFees: {
-            HK001: { amount: 700000, auto: true },
-            HK002: { amount: 950000, auto: true },
-            HK003: { amount: 600000, auto: true },
-            HK004: { amount: 1200000, auto: true },
-            HK005: { amount: 800000, auto: true }
-          }
-        },
-        {
-          id: 'K005',
-          type: 'PHI_GUI_XE',
-          tenKhoan: 'Phí gửi xe',
-          chiTiet: 'Phí gửi xe tháng 4',
-          batBuoc: 'Bắt buộc',
-          householdFees: {
-            HK001: { amount: 70000, auto: true },
-            HK002: { amount: 1270000, auto: true },
-            HK003: { amount: 210000, auto: true },
-            HK004: { amount: 1270000, auto: true },
-            HK005: { amount: 1340000, auto: true }
-          }
-        }
-      ]
-    },
-    isExpanded: false
-  },
-  {
-    maDot: 'D003',
-    tenDot: 'Quý I /2025',
-    ngayTao: '01/01/2025',
-    hanCuoi: '31/03/2025',
-    trangThai: 'Đã đóng',
-    details: {
-      maDot: 'D003',
-      tenDot: 'Quý I /2025',
-      ngayTao: '01/01/2025',
-      hanCuoi: '31/03/2025',
-      khoanThu: [
-        {
-          id: 'K006',
-          type: 'PHI_QUAN_LY',
-          tenKhoan: 'Phí quản lý',
-          chiTiet: 'Phí quản lý quý',
-          batBuoc: 'Bắt buộc',
-          householdFees: {
-            HK001: { amount: 400000, auto: true },
-            HK002: { amount: 700000, auto: true },
-            HK003: { amount: 300000, auto: true },
-            HK004: { amount: 900000, auto: true },
-            HK005: { amount: 500000, auto: true }
-          }
-        },
-        {
-          id: 'K007',
-          type: 'KHOAN_DONG_GOP',
-          tenKhoan: 'Phí sửa chữa chung',
-          chiTiet: 'Sửa chữa cơ sở vật chất',
-          batBuoc: 'Không bắt buộc',
-          householdFees: {
-            HK001: { amount: 100000, auto: true },
-            HK002: { amount: 200000, auto: true },
-            HK003: { amount: 0, auto: true },
-            HK004: { amount: 0, auto: true },
-            HK005: { amount: 0, auto: true }
-          }
-        }
-      ]
-    },
-    isExpanded: false
-  }
-];
+// // Sample data for payment batches (dùng cấu trúc mới cho khoản thu)
+// const sampleBatches: Batch[] = [
+//   {
+//     maDot: 'D001',
+//     tenDot: 'Tháng 05/2025',
+//     ngayTao: '01/05/2025',
+//     hanCuoi: '31/05/2025',
+//     trangThai: 'Đang mở',
+//     details: {
+//       maDot: 'D001',
+//       tenDot: 'Tháng 05/2025',
+//       ngayTao: '01/05/2025',
+//       hanCuoi: '31/05/2025',
+//       khoanThu: [
+//         {
+//           id: 'K001',
+//           type: 'PHI_DICH_VU',
+//           tenKhoan: 'Phí dịch vụ chung cư',
+//           chiTiet: 'Phí dịch vụ tháng 5',
+//           batBuoc: 'Bắt buộc',
+//           householdFees: {
+//             HK001: { amount: 755000, auto: true },
+//             HK002: { amount: 1002000, auto: true },
+//             HK003: { amount: 600000, auto: true },
+//             HK004: { amount: 1205000, auto: true },
+//             HK005: { amount: 850000, auto: true }
+//           }
+//         },
+//         {
+//           id: 'K002',
+//           type: 'PHI_GUI_XE',
+//           tenKhoan: 'Phí gửi xe',
+//           chiTiet: 'Phí gửi xe tháng 5',
+//           batBuoc: 'Bắt buộc',
+//           householdFees: {
+//             HK001: { amount: 140000, auto: true },
+//             HK002: { amount: 1270000, auto: true },
+//             HK003: { amount: 210000, auto: true },
+//             HK004: { amount: 1270000, auto: true },
+//             HK005: { amount: 1340000, auto: true }
+//           }
+//         }
+//       ]
+//     },
+//     isExpanded: false
+//   },
+//   {
+//     maDot: 'D002',
+//     tenDot: 'Tháng 04/2025',
+//     ngayTao: '01/04/2025',
+//     hanCuoi: '30/04/2025',
+//     trangThai: 'Đã đóng',
+//     details: {
+//       maDot: 'D002',
+//       tenDot: 'Tháng 04/2025',
+//       ngayTao: '01/04/2025',
+//       hanCuoi: '30/04/2025',
+//       khoanThu: [
+//         {
+//           id: 'K004',
+//           type: 'PHI_DICH_VU',
+//           tenKhoan: 'Phí dịch vụ chung cư',
+//           chiTiet: 'Phí dịch vụ tháng 4',
+//           batBuoc: 'Bắt buộc',
+//           householdFees: {
+//             HK001: { amount: 700000, auto: true },
+//             HK002: { amount: 950000, auto: true },
+//             HK003: { amount: 600000, auto: true },
+//             HK004: { amount: 1200000, auto: true },
+//             HK005: { amount: 800000, auto: true }
+//           }
+//         },
+//         {
+//           id: 'K005',
+//           type: 'PHI_GUI_XE',
+//           tenKhoan: 'Phí gửi xe',
+//           chiTiet: 'Phí gửi xe tháng 4',
+//           batBuoc: 'Bắt buộc',
+//           householdFees: {
+//             HK001: { amount: 70000, auto: true },
+//             HK002: { amount: 1270000, auto: true },
+//             HK003: { amount: 210000, auto: true },
+//             HK004: { amount: 1270000, auto: true },
+//             HK005: { amount: 1340000, auto: true }
+//           }
+//         }
+//       ]
+//     },
+//     isExpanded: false
+//   },
+//   {
+//     maDot: 'D003',
+//     tenDot: 'Quý I /2025',
+//     ngayTao: '01/01/2025',
+//     hanCuoi: '31/03/2025',
+//     trangThai: 'Đã đóng',
+//     details: {
+//       maDot: 'D003',
+//       tenDot: 'Quý I /2025',
+//       ngayTao: '01/01/2025',
+//       hanCuoi: '31/03/2025',
+//       khoanThu: [
+//         {
+//           id: 'K006',
+//           type: 'PHI_QUAN_LY',
+//           tenKhoan: 'Phí quản lý',
+//           chiTiet: 'Phí quản lý quý',
+//           batBuoc: 'Bắt buộc',
+//           householdFees: {
+//             HK001: { amount: 400000, auto: true },
+//             HK002: { amount: 700000, auto: true },
+//             HK003: { amount: 300000, auto: true },
+//             HK004: { amount: 900000, auto: true },
+//             HK005: { amount: 500000, auto: true }
+//           }
+//         },
+//         {
+//           id: 'K007',
+//           type: 'KHOAN_DONG_GOP',
+//           tenKhoan: 'Phí sửa chữa chung',
+//           chiTiet: 'Sửa chữa cơ sở vật chất',
+//           batBuoc: 'Không bắt buộc',
+//           householdFees: {
+//             HK001: { amount: 100000, auto: true },
+//             HK002: { amount: 200000, auto: true },
+//             HK003: { amount: 0, auto: true },
+//             HK004: { amount: 0, auto: true },
+//             HK005: { amount: 0, auto: true }
+//           }
+//         }
+//       ]
+//     },
+//     isExpanded: false
+//   }
+// ];
+
+// Add this interface near your other interfaces
+interface AddDotThuData {
+  tenDot: string;
+  ngayTao: string;
+  hanThu: string;
+}
+
+// Update the props type for AddEditDotThuPhiPopup
+interface AddEditDotThuPhiPopupProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onSave: (data: AddDotThuData) => void;
+}
 
 const QuanLyDotThuPhi: React.FC = () => {
   const [isAddPopupOpen, setIsAddPopupOpen] = useState(false); // State for Add popup
@@ -177,24 +192,30 @@ const QuanLyDotThuPhi: React.FC = () => {
   const [selectedBatch, setSelectedBatch] = useState<any | null>(null); // State for selected batch details
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState('Tất cả');
-  const [batches, setBatches] = useState<Batch[]>(sampleBatches); // State for all batches
+  const [batches, setBatches] = useState<Batch[]>([]); // State for all batches
   
   // Thêm các state mới
   const [isDeleteBatchConfirmOpen, setIsDeleteBatchConfirmOpen] = useState(false); // Xác nhận xóa đợt thu
   const [isAddFeePopupOpen, setIsAddFeePopupOpen] = useState(false); // Thêm khoản thu
-  const [isEditFeePopupOpen, setIsEditFeePopupOpen] = useState(false); // Sửa khoản thu
+  const [isEditFeePopup, setIsEditFeePopup] = useState(false); // Sửa khoản thu
   const [isDeleteFeeConfirmOpen, setIsDeleteFeeConfirmOpen] = useState(false); // Xác nhận xóa khoản thu
   const [selectedFee, setSelectedFee] = useState<any | null>(null); // Khoản thu được chọn để sửa/xóa
   const [activeBatchForFee, setActiveBatchForFee] = useState<any | null>(null); // Đợt thu đang được thao tác với khoản thu
   const [addFeeError, setAddFeeError] = useState<string | null>(null);
 
+  // Thêm state cho loading và error
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+
   // Hàm kiểm tra và cập nhật trạng thái đợt thu
   const updateBatchStatus = (batch: any) => {
-    const today = new Date().toISOString().slice(0, 10);
-    const hanCuoi = batch.hanCuoi;
+    const today = new Date();
+    // Convert hanCuoi from DD/MM/YYYY to Date object
+    const [day, month, year] = batch.hanCuoi.split('/');
+    const hanCuoiDate = new Date(year, month - 1, day); // month is 0-based
     
-    // Nếu ngày hiện tại > hạn cuối và đang mở thì chuyển sang đã đóng
-    if (today > hanCuoi && batch.trangThai === 'Đang mở') {
+    // Compare Date objects
+    if (today > hanCuoiDate && batch.trangThai === 'Đang mở') {
       return { ...batch, trangThai: 'Đã đóng' };
     }
     
@@ -243,10 +264,23 @@ const QuanLyDotThuPhi: React.FC = () => {
     setIsDeleteBatchConfirmOpen(false);
     setSelectedBatch(null);
   };
-  const handleDeleteBatch = () => {
-    if (selectedBatch) {
+  const handleDeleteBatch = async () => {
+    if (!selectedBatch) return;
+
+    try {
+      setIsDeleting(true);
+      setDeleteError(null);
+
+      await axios.delete(`http://localhost:8001/api/accountant/dotthu/${selectedBatch.maDot}`);
+      
+      // Cập nhật state sau khi xóa thành công
       setBatches(prev => prev.filter(batch => batch.maDot !== selectedBatch.maDot));
       closeDeleteBatchConfirm();
+    } catch (error: any) {
+      setDeleteError(error.response?.data?.message || 'Có lỗi xảy ra khi xóa đợt thu');
+      console.error('Error deleting batch:', error);
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -266,25 +300,20 @@ const QuanLyDotThuPhi: React.FC = () => {
     setIsAddFeePopupOpen(false);
   };
   const handleAddFee = (newFee: any) => {
-    if (activeBatchForFee) {
-      const feeId = `K${Math.floor(Math.random() * 1000).toString().padStart(3, '0')}`;
-      const updatedFee = { id: feeId, ...newFee };
-      setBatches(prev => prev.map(batch => {
-        if (batch.maDot === activeBatchForFee.maDot) {
-          const updatedBatch = {
-            ...batch,
-            details: {
-              ...batch.details,
-              khoanThu: [...batch.details.khoanThu, updatedFee]
-            }
-          };
-          setSelectedBatch(updatedBatch);
-          return updatedBatch;
-        }
-        return batch;
-      }));
-      closeAddFeePopup();
-    }
+    // Update local state after successful API call from AddEditFeePopup
+    setBatches(prev => prev.map(batch => {
+      if (batch.maDot === activeBatchForFee?.maDot) {
+        return {
+          ...batch,
+          details: {
+            ...batch.details,
+            khoanThu: [...batch.details.khoanThu, newFee]
+          }
+        };
+      }
+      return batch;
+    }));
+    closeAddFeePopup();
   };
 
   // Sửa khoản thu
@@ -292,10 +321,10 @@ const QuanLyDotThuPhi: React.FC = () => {
     e.stopPropagation();
     setSelectedFee(fee);
     setActiveBatchForFee(batch);
-    setIsEditFeePopupOpen(true);
+    setIsEditFeePopup(true);
   };
   const closeEditFeePopup = () => {
-    setIsEditFeePopupOpen(false);
+    setIsEditFeePopup(false);
     setSelectedFee(null);
   };
   const handleEditFee = (updatedFee: any) => {
@@ -356,28 +385,40 @@ const QuanLyDotThuPhi: React.FC = () => {
   };
 
   // Thêm đợt thu mới vào danh sách
-  const handleAddBatch = (data: { maDot: string; tenDot: string; ngayTao: string; hanThu: string }) => {
-    const today = new Date().toISOString().slice(0, 10);
-    const trangThai = data.hanThu >= today ? 'Đang mở' : 'Đã đóng';
-    
-    setBatches(prev => [
-      {
-        maDot: data.maDot,
-        tenDot: data.tenDot,
-        ngayTao: data.ngayTao,
-        hanCuoi: data.hanThu,
-        trangThai: trangThai,
-        details: {
-          maDot: data.maDot,
-          tenDot: data.tenDot,
-          ngayTao: data.ngayTao,
-          hanCuoi: data.hanThu,
-          khoanThu: []
-        },
-        isExpanded: false
-      },
-      ...prev
-    ]);
+  const handleAddBatch = async (data: { tenDot: string; ngayTao: string; hanThu: string }) => {
+    try {
+      const response = await axios.post('http://localhost:8001/api/accountant/dotthu', {
+        tenDotThu: data.tenDot,
+        ngayTao: new Date(data.ngayTao).toISOString(),
+        thoiHan: new Date(data.hanThu).toISOString()
+      });
+
+      if (response.data) {
+        // Update local state with the response from backend
+        const newBatch = {
+          maDot: response.data.id,
+          tenDot: response.data.tenDotThu,
+          ngayTao: new Date(response.data.ngayTao).toLocaleDateString('vi-VN'),
+          hanCuoi: new Date(response.data.thoiHan).toLocaleDateString('vi-VN'),
+          trangThai: new Date(response.data.thoiHan) > new Date() ? 'Đang mở' : 'Đã đóng',
+          details: {
+            maDot: response.data.id,
+            tenDot: response.data.tenDotThu,
+            ngayTao: new Date(response.data.ngayTao).toLocaleDateString('vi-VN'),
+            hanCuoi: new Date(response.data.thoiHan).toLocaleDateString('vi-VN'),
+            khoanThu: []
+          },
+          isExpanded: false
+        };
+
+        setBatches(prev => [newBatch, ...prev]);
+        closeAddPopup();
+      }
+    } catch (error: any) {
+      console.error('Error adding batch:', error);
+      // Show error message to user
+      alert(error.response?.data?.message || 'Có lỗi xảy ra khi tạo đợt thu');
+    }
   };
 
   // Cập nhật thông tin đợt thu
@@ -410,6 +451,20 @@ const QuanLyDotThuPhi: React.FC = () => {
     
     closeEditPopup();
   };
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const response = await axios.get('http://localhost:8001/api/accountant/dotthu');
+        if (response.data) {
+          setBatches(response.data);
+        }
+      } catch (error) {
+        console.error('Error fetching batches:', error);
+      }
+    };
+    fetchData();
+  }, []);
 
   return (
     <>
@@ -561,11 +616,10 @@ const QuanLyDotThuPhi: React.FC = () => {
                                   </thead>
                                   <tbody className="bg-white divide-y divide-gray-200">
                                     {batch.details.khoanThu.map((fee: any) => {
-                                      const feeType = FEE_TYPES[fee.type];
                                       const total = fee.householdFees ? Object.values(fee.householdFees).reduce((sum: number, h: any) => sum + (h.amount || 0), 0) : 0;
                                       return (
                                         <tr key={fee.id} className="hover:bg-gray-50">
-                                          <td className="px-4 py-3 text-sm text-gray-900 font-medium">{feeType?.name || ''}</td>
+                                          <td className="px-4 py-3 text-sm text-gray-900 font-medium">{fee.tenKhoan}</td>
                                           <td className="px-4 py-3 text-sm text-gray-700">{fee.chiTiet}</td>
                                           <td className="px-4 py-3 text-sm text-blue-700 font-semibold">{total.toLocaleString('vi-VN')} VND</td>
                                           <td className="px-4 py-3 text-sm">
@@ -617,11 +671,12 @@ const QuanLyDotThuPhi: React.FC = () => {
         onClose={closeAddFeePopup}
         onSave={handleAddFee}
         title="Thêm khoản thu"
+        batchId={activeBatchForFee?.maDot}
       />
 
       {/* Popup sửa khoản thu */}
       <AddEditFeePopup 
-        isOpen={isEditFeePopupOpen}
+        isOpen={isEditFeePopup}
         onClose={closeEditFeePopup}
         onSave={handleEditFee}
         initialData={selectedFee}
@@ -630,25 +685,34 @@ const QuanLyDotThuPhi: React.FC = () => {
       
       {/* Popup xác nhận xóa đợt thu */}
       {isDeleteBatchConfirmOpen && selectedBatch && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50" onClick={closeDeleteBatchConfirm}>
-          <div className="bg-white rounded-lg shadow-xl p-6 max-w-sm w-full relative" onClick={e => e.stopPropagation()}>
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-xl p-6 max-w-sm w-full relative">
             <h3 className="text-lg font-semibold text-gray-900 mb-3">Xác nhận xóa</h3>
             <p className="text-gray-700 mb-6">
               Bạn có chắc chắn muốn xóa đợt thu <span className="font-bold text-red-600">"{selectedBatch.tenDot}"</span> không? <br/>
               <span className="text-sm text-gray-500">Thao tác này không thể hoàn tác.</span>
             </p>
+
+            {deleteError && (
+              <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-md">
+                <p className="text-sm text-red-600">{deleteError}</p>
+              </div>
+            )}
+
             <div className="flex justify-end gap-3">
               <button
-                className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-100 font-medium"
+                className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-100 font-medium disabled:opacity-50"
                 onClick={closeDeleteBatchConfirm}
+                disabled={isDeleting}
               >
                 Hủy
               </button>
               <button
-                className="px-4 py-2 bg-red-500 text-white rounded-md hover:bg-red-600 font-medium"
+                className="px-4 py-2 bg-red-500 text-white rounded-md hover:bg-red-600 font-medium disabled:opacity-50"
                 onClick={handleDeleteBatch}
+                disabled={isDeleting}
               >
-                Xóa
+                {isDeleting ? 'Đang xóa...' : 'Xóa'}
               </button>
             </div>
           </div>
@@ -702,4 +766,4 @@ const QuanLyDotThuPhi: React.FC = () => {
   );
 };
 
-export default QuanLyDotThuPhi; 
+export default QuanLyDotThuPhi;

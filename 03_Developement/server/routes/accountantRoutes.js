@@ -26,4 +26,6 @@ router.post('/nopphi', accountantController.confirmPayment);
 router.get('/chuanop/khoanthu/:khoanthu_id', accountantController.getChuaNopPhi);
 router.get('/chuanop/hokhau/:hokhau_id', accountantController.getKhoanThuChuaNop);
 
+router.get('/households', accountantController.getAllHouseholds);
+
 module.exports = router;

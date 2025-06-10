@@ -537,11 +537,11 @@ module.exports = {
       },
       nguoiNop: {
         type: Sequelize.STRING,
-        allowNull: false
+        allowNull: true
       },
       ngayNop: {
         type: Sequelize.DATE,
-        allowNull: false
+        allowNull: true
       },
       trangThai: {
         type: Sequelize.BOOLEAN,

@@ -362,14 +362,13 @@ const AddEditFeePopup: React.FC<AddEditFeePopupProps> = ({
     try {
       setIsSubmitting(true);
       setApiError(null);
-
       const feeTypeObj = FEE_TYPES[feeType as keyof typeof FEE_TYPES];
 
       const hoKhauList = Object.entries(householdFees)
         .filter(([, data]) => data.amount > 0)
         .map(([hoKhauId, data]) => ({
           hoKhauId: hoKhauId,
-          owner: data.owner || '',
+          owner: data.owner || '', // Assuming owner is still needed by backend for some reason, or can be removed
           soTien: data.amount
         }));
 
@@ -382,17 +381,35 @@ const AddEditFeePopup: React.FC<AddEditFeePopupProps> = ({
       const requestData = {
         dotThuId: batchId,
         tenKhoanThu: feeTypeObj?.name || '',
-        batBuoc: feeTypeObj?.mandatory || false,
+        batBuoc: feeTypeObj?.mandatory || false, // Should be boolean
         ghiChu: chiTiet,
-        hoKhauList
+        hoKhauList // This list of households with amounts
       };
 
-      const response = await axios.post(
-        `http://localhost:8001/api/accountant/khoanthu`,
-        requestData
-      );
+      let response;
+      if (isEditMode) {
+        // --- CHẾ ĐỘ CHỈNH SỬA (PUT Request) ---
+        if (!initialData || !initialData.id) {
+          setApiError('Không tìm thấy ID khoản thu để cập nhật.');
+          setIsSubmitting(false);
+          return;
+        }
+        response = await axios.put(
+          `http://localhost:8001/api/accountant/khoanthu/${initialData.id}`, // Endpoint PUT cần ID
+          requestData
+        );
+      } else {
+        // --- CHẾ ĐỘ THÊM MỚI (POST Request) ---
+        response = await axios.post(
+          `http://localhost:8001/api/accountant/khoanthu`,
+          requestData
+        );
+      }
 
       if (response.data) {
+        // Debug log to check response structure
+        console.log('Raw response:', response.data);
+
         const formattedData = {
           id: response.data.id,
           type: feeType,
@@ -400,23 +417,45 @@ const AddEditFeePopup: React.FC<AddEditFeePopupProps> = ({
           chiTiet: response.data.ghiChu,
           batBuoc: response.data.batBuoc ? 'Bắt buộc' : 'Không bắt buộc',
           householdFees: response.data.nopPhi.reduce((acc: any, nopPhi: any) => {
+            // Debug log for each nopPhi record
+            console.log('Processing nopPhi:', nopPhi);
+            
             if (Number(nopPhi.soTien) > 0) {
-              acc[nopPhi.hoKhau.id] = {
-                amount: Number(nopPhi.soTien),
-                auto: true,
-                owner: nopPhi.hoKhau.owner
-              };
+              // Get hoKhauId directly from nopPhi
+              const hoKhauId = nopPhi.hoKhauId || (nopPhi.hoKhau?.soHoKhau);
+              
+              if (hoKhauId) {
+                // Get household info from state or response
+                const householdInfo = households.find(h => h.id === String(hoKhauId));
+                const hoKhauData = nopPhi.hoKhau;
+
+                acc[hoKhauId] = {
+                  amount: Number(nopPhi.soTien),
+                  auto: selectedFeeType?.calculateByArea || selectedFeeType?.calculateByVehicle || false,
+                  owner: householdInfo?.owner || 
+                        hoKhauData?.chuHoInfo?.hoTen ||
+                        'Không có thông tin'
+                };
+              }
             }
             return acc;
           }, {})
         };
 
+        // Add importedFileName if it exists
+        if (selectedFeeType?.importable && importedFileName) {
+          formattedData.importedFileName = importedFileName;
+        }
+
+        // Debug log final formatted data
+        console.log('Formatted data:', formattedData);
+
         if (onSave) onSave(formattedData);
         handleClose();
       }
     } catch (error: any) {
-      setApiError(error.response?.data?.message || 'Có lỗi xảy ra khi thêm khoản thu');
-      console.error('Error adding fee:', error);
+      setApiError(error.response?.data?.message || 'Có lỗi xảy ra khi lưu khoản thu');
+      console.error('Error saving fee:', error);
     } finally {
       setIsSubmitting(false);
     }
@@ -480,7 +519,7 @@ const AddEditFeePopup: React.FC<AddEditFeePopupProps> = ({
             )}
 
             {/* Loại phí import file: chỉ hiển thị hướng dẫn và nút chọn file nếu chưa có householdFees hoặc nếu có nhưng đang trong chế độ edit và muốn đổi file */}
-            {isImportFeeType && (!Object.keys(householdFees).length || file === null) && (
+            {isImportFeeType && !Object.keys(householdFees).length && (
               <div className="mb-6 p-4 border border-dashed border-gray-300 rounded-lg">
                 <h4 className="font-medium text-gray-700 mb-2">Import dữ liệu từ Excel/CSV</h4>
                 <p className="text-sm text-gray-500 mb-3">
@@ -517,23 +556,34 @@ const AddEditFeePopup: React.FC<AddEditFeePopupProps> = ({
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200">
                       {Object.entries(householdFees).map(([maHo, h]) => {
-                          const householdDetails = households.find(hh => hh.id === maHo);
-                          return (
-                            <tr key={maHo}>
-                              <td className="px-4 py-2 text-sm text-gray-900">{maHo}</td>
-                              <td className="px-4 py-2 text-sm text-gray-900">{h.owner || householdDetails?.owner || ''}</td>
-                              <td className="px-4 py-2 text-sm">
-                                <input
-                                  type="text"
-                                  className="block w-28 px-2 py-1 border border-gray-300 rounded-md shadow-sm text-sm focus:ring-blue-500 focus:border-blue-500 text-right transition-all hover:border-blue-400 focus:bg-blue-50"
-                                  placeholder="0"
-                                  value={h.amount !== undefined && h.amount !== null ? formatCurrency(h.amount) : ''}
-                                  onChange={e => setHouseholdFees(prev => ({ ...prev, [maHo]: { ...prev[maHo], amount: parseInt(e.target.value.replace(/[^\d]/g, '')) || 0, auto: false } }))}
-                                  inputMode="numeric"
-                                />
-                              </td>
-                            </tr>
-                          );
+                        // Try to get owner from multiple sources
+                        const householdDetails = households.find(hh => hh.id === maHo);
+                        const ownerName = h.owner || householdDetails?.owner || h.chuHo || 'Không có thông tin';
+                        
+                        return (
+                          <tr key={maHo}>
+                            <td className="px-4 py-2 text-sm text-gray-900">{maHo}</td>
+                            <td className="px-4 py-2 text-sm text-gray-900">{ownerName}</td>
+                            <td className="px-4 py-2 text-sm">
+                              <input
+                                type="text"
+                                className="block w-28 px-2 py-1 border border-gray-300 rounded-md shadow-sm text-sm focus:ring-blue-500 focus:border-blue-500 text-right transition-all hover:border-blue-400 focus:bg-blue-50"
+                                placeholder="0"
+                                value={h.amount !== undefined ? formatCurrency(h.amount) : ''}
+                                onChange={e => setHouseholdFees(prev => ({ 
+                                  ...prev, 
+                                  [maHo]: { 
+                                    ...prev[maHo], 
+                                    amount: parseInt(e.target.value.replace(/[^\d]/g, '')) || 0,
+                                    auto: false,
+                                    owner: ownerName // Keep the owner information
+                                  } 
+                                }))}
+                                inputMode="numeric"
+                              />
+                            </td>
+                          </tr>
+                        );
                       })}
                     </tbody>
                   </table>

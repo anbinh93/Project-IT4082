@@ -1,41 +1,22 @@
 import React, { useState, useEffect } from 'react';
 
-// Dữ liệu mẫu
+// Dữ liệu mẫu (Giữ nguyên để hàm filteredHoKhau và filteredKhoanThu vẫn hoạt động)
 const sampleKhoanThu = [
-  { id: 'KT001', tenKhoan: 'Phí dịch vụ', soTien: '200,000 VND', trangThai: 'Đang thu' },
-  { id: 'KT002', tenKhoan: 'Phí bảo trì', soTien: '100,000 VND', trangThai: 'Đã thu xong' },
-  { id: 'KT003', tenKhoan: 'Phí quản lý', soTien: '150,000 VND', trangThai: 'Đã thu xong' },
-  { id: 'KT004', tenKhoan: 'Phí gửi xe', soTien: '120,000 VND', trangThai: 'Đang thu' },
-  { id: 'KT005', tenKhoan: 'Bảo hiểm chung cư', soTien: '50,000 VND', trangThai: 'Đang thu' }
+  { id: '1', tenKhoan: 'Phí dịch vụ', trangThai: 'Đang thu'}, 
+  { id: '2', tenKhoan: 'Phí bảo trì', trangThai: 'Đã thu xong' },
+  { id: '3', tenKhoan: 'Phí quản lý', trangThai: 'Đã thu xong' },
+  { id: '4', tenKhoan: 'Phí gửi xe', trangThai: 'Đang thu' },
+  { id: '5', tenKhoan: 'Bảo hiểm chung cư', trangThai: 'Đang thu' }
 ];
 
 const sampleHoKhau = [
   { 
-    maHo: 'HK001', 
+    maHo: '1', 
     chuHo: 'Nguyễn Văn A',
-    thanhVien: [
-      { id: 'TV001', ten: 'Nguyễn Văn A', quanHe: 'Chủ hộ' },
-      { id: 'TV002', ten: 'Nguyễn Thị B', quanHe: 'Vợ' },
-      { id: 'TV003', ten: 'Nguyễn Văn C', quanHe: 'Con' }
-    ]
   },
   { 
-    maHo: 'HK002', 
+    maHo: '2', 
     chuHo: 'Trần Thị B',
-    thanhVien: [
-      { id: 'TV004', ten: 'Trần Thị B', quanHe: 'Chủ hộ' },
-      { id: 'TV005', ten: 'Lý Văn D', quanHe: 'Chồng' }
-    ]
-  },
-  { 
-    maHo: 'HK003', 
-    chuHo: 'Lê Văn C',
-    thanhVien: [
-      { id: 'TV006', ten: 'Lê Văn C', quanHe: 'Chủ hộ' },
-      { id: 'TV007', ten: 'Lê Thị D', quanHe: 'Vợ' },
-      { id: 'TV008', ten: 'Lê Văn E', quanHe: 'Con' },
-      { id: 'TV009', ten: 'Lê Thị F', quanHe: 'Con' }
-    ]
   }
 ];
 
@@ -63,7 +44,7 @@ const NopPhiPopup: React.FC<NopPhiPopupProps> = ({
     return `${parts[2]}/${parts[1]}/${parts[0]}`;
   };
 
-  // Format ngày từ dd/mm/yyyy sang yyyy-mm-dd
+  // Format ngày từ dd/mm/yyyy sang YYYY-mm-dd
   const parseDate = (date: string): string => {
     if (!date) return '';
     const parts = date.split('/');
@@ -73,11 +54,12 @@ const NopPhiPopup: React.FC<NopPhiPopupProps> = ({
 
   const [khoanThuId, setKhoanThuId] = useState('');
   const [hoKhauId, setHoKhauId] = useState('');
-  const [nguoiNop, setNguoiNop] = useState('');
+  const [nguoiNop, setNguoiNop] = useState(''); // State này giờ sẽ lưu TÊN người nộp
   const [soTien, setSoTien] = useState('');
   const [ngayNop, setNgayNop] = useState(today);
-  const [currentHoKhau, setCurrentHoKhau] = useState<any>(null);
+  const [currentHoKhau, setCurrentHoKhau] = useState<any>(null); // Vẫn giữ để hiển thị chuHo
   const [trangThai, setTrangThai] = useState('Đã nộp');
+  // Error message cho nguoiNop sẽ vẫn dùng, nhưng kiểm tra input thay vì select
   const [errors, setErrors] = useState<{ khoanThuId?: string; hoKhauId?: string; nguoiNop?: string; soTien?: string; ngayNop?: string }>({});
   const [showConfirmClose, setShowConfirmClose] = useState(false);
   const [showConfirmSave, setShowConfirmSave] = useState(false);
@@ -88,19 +70,27 @@ const NopPhiPopup: React.FC<NopPhiPopupProps> = ({
     // Reset form trước khi cập nhật
     setKhoanThuId('');
     setHoKhauId('');
-    setNguoiNop('');
+    setNguoiNop(''); // Reset người nộp
     setSoTien('');
     setNgayNop(today);
     setCurrentHoKhau(null);
     setTrangThai('Đã nộp');
 
     if (selectedFee) {
+      console.log('Selected Fee:', selectedFee);
       setKhoanThuId(selectedFee.id);
       
-      // Cập nhật số tiền nếu khoản thu được chọn
-      const selectedKhoanThu = sampleKhoanThu.find(item => item.id === selectedFee.id);
-      if (selectedKhoanThu) {
-        setSoTien(selectedKhoanThu.soTien);
+      // Cập nhật số tiền nếu khoản thu được chọn (từ sampleKhoanThu)
+      // *Lưu ý*: selectedFee.soTien có thể không tồn tại trong selectedFee nếu nó không phải từ sample
+      const foundFeeInSample = sampleKhoanThu.find(item => item.id === selectedFee.id);
+      if (foundFeeInSample) {
+        setSoTien(new Intl.NumberFormat('vi-VN').format(foundFeeInSample.soTien));
+      } else if (selectedFee.hoKhauList && selectedHoKhau) {
+         // Nếu selectedFee có hoKhauList (từ API) và selectedHoKhau cũng có
+         const hoInSelectedFee = selectedFee.hoKhauList.find((h:any) => h.maHo === selectedHoKhau.maHo);
+         if (hoInSelectedFee && hoInSelectedFee.soTien !== undefined) {
+           setSoTien(new Intl.NumberFormat('vi-VN').format(hoInSelectedFee.soTien));
+         }
       }
     }
     
@@ -115,32 +105,25 @@ const NopPhiPopup: React.FC<NopPhiPopupProps> = ({
         // Nếu đang ở chế độ chỉnh sửa và hộ đã nộp phí
         if (isEditMode && selectedHoKhau.trangThai === 'Đã nộp') {
           setTrangThai('Đã nộp');
-          // Lấy thông tin người nộp
-          const thanhVien = hoKhau.thanhVien.find((item: any) => item.ten === selectedHoKhau.nguoiNop);
-          if (thanhVien) {
-            setNguoiNop(thanhVien.id);
-          } else {
-            // Mặc định chọn chủ hộ nếu không tìm thấy
-            setNguoiNop(hoKhau.thanhVien[0].id);
-          }
+          // Điền tên người nộp từ selectedHoKhau.nguoiNop (nếu có)
+          setNguoiNop(selectedHoKhau.nguoiNop || ''); // Điền thẳng tên
+          
           // Cập nhật số tiền và ngày nộp
-          setSoTien(selectedHoKhau.soTien || '');
+          setSoTien(selectedHoKhau.soTien ? new Intl.NumberFormat('vi-VN').format(selectedHoKhau.soTien) : '');
           setNgayNop(parseDate(selectedHoKhau.ngayNop) || today);
         } else {
-          // Mặc định chọn chủ hộ làm người nộp
-          setNguoiNop(hoKhau.thanhVien[0].id);
+          // Khi tạo mới hoặc chuyển trạng thái, mặc định tên chủ hộ
+          setNguoiNop(hoKhau.chuHo); // Mặc định điền tên chủ hộ
         }
       }
     }
-
+    // Logic cập nhật số tiền khi cả selectedFee và selectedHoKhau được truyền vào
+    // Đây là trường hợp phổ biến khi bạn click vào một dòng hộ khẩu cụ thể
     if (selectedFee && selectedHoKhau) {
-      // Lấy số tiền đúng của hộ khẩu trong khoản thu
-      const ho = selectedFee.hoKhauList?.find((h: any) => h.maHo === selectedHoKhau.maHo);
-      if (ho && ho.soTien !== undefined) {
-        setSoTien(typeof ho.soTien === 'number' ? new Intl.NumberFormat('vi-VN').format(ho.soTien) : ho.soTien);
-      }
-    } else if (selectedFee) {
-      // ... giữ nguyên logic cũ nếu chỉ có selectedFee
+        const ho = selectedFee.hoKhauList?.find((h: any) => h.maHo === selectedHoKhau.maHo);
+        if (ho && ho.soTien !== undefined) {
+            setSoTien(typeof ho.soTien === 'number' ? new Intl.NumberFormat('vi-VN').format(ho.soTien) : ho.soTien);
+        }
     }
   }, [selectedFee, selectedHoKhau, isOpen, today, isEditMode]);
 
@@ -150,27 +133,19 @@ const NopPhiPopup: React.FC<NopPhiPopupProps> = ({
       const hoKhau = sampleHoKhau.find(item => item.maHo === hoKhauId);
       if (hoKhau) {
         setCurrentHoKhau(hoKhau);
-        // Mặc định chọn chủ hộ làm người nộp
-        setNguoiNop(hoKhau.thanhVien[0].id);
+        setNguoiNop(hoKhau.chuHo); // Mặc định điền tên chủ hộ khi chọn hộ khẩu
       }
     } else {
       setCurrentHoKhau(null);
-      setNguoiNop('');
+      setNguoiNop(''); // Reset tên người nộp
     }
   }, [hoKhauId]);
 
   // Format currency input
   const formatCurrency = (value: string) => {
-    // Xóa tất cả ký tự không phải số
     const numericValue = value.replace(/[^\d]/g, '');
-    
-    // Nếu không có giá trị, trả về chuỗi rỗng
     if (!numericValue) return '';
-    
-    // Định dạng số với dấu phân cách hàng nghìn
     const formattedValue = new Intl.NumberFormat('vi-VN').format(parseInt(numericValue));
-    
-    // Thêm đơn vị tiền tệ
     return `${formattedValue} VND`;
   };
 
@@ -187,7 +162,8 @@ const NopPhiPopup: React.FC<NopPhiPopupProps> = ({
     
     // Nếu trạng thái là Đã nộp, kiểm tra các thông tin khác
     if (trangThai === 'Đã nộp') {
-      if (!nguoiNop) newErrors.nguoiNop = 'Vui lòng chọn người nộp';
+      // Kiểm tra trường input người nộp
+      if (!nguoiNop.trim()) newErrors.nguoiNop = 'Vui lòng nhập tên người nộp';
       if (!soTien) newErrors.soTien = 'Vui lòng nhập số tiền';
       if (!ngayNop) newErrors.ngayNop = 'Vui lòng chọn ngày nộp';
     }
@@ -211,7 +187,7 @@ const NopPhiPopup: React.FC<NopPhiPopupProps> = ({
     setErrors({});
     setKhoanThuId('');
     setHoKhauId('');
-    setNguoiNop('');
+    setNguoiNop(''); // Reset người nộp
     setSoTien('');
     setNgayNop(today);
     setCurrentHoKhau(null);
@@ -232,19 +208,15 @@ const NopPhiPopup: React.FC<NopPhiPopupProps> = ({
   // Lưu thật sự
   const handleSaveConfirmed = () => {
     if (onSave) {
-      // Đảm bảo số tiền được định dạng đúng
-      const formattedSoTien = soTien.includes('VND') ? soTien : formatCurrency(soTien);
-      
-      // Tìm thông tin người nộp
-      const nguoiNopInfo = currentHoKhau?.thanhVien.find((item: any) => item.id === nguoiNop);
+      // Đảm bảo số tiền được định dạng đúng (chỉ lấy phần số)
+      const numericSoTien = parseInt(soTien.replace(/[^\d]/g, '')) || 0;
       
       onSave({ 
         khoanThuId,
         hoKhauId,
         trangThai,
-        nguoiNopId: nguoiNop,
-        nguoiNopTen: nguoiNopInfo?.ten || '',
-        soTien: formattedSoTien,
+        nguoiNopTen: nguoiNop.trim(), // Lưu trực tiếp giá trị được nhập vào
+        soTien: numericSoTien,
         ngayNop: formatDate(ngayNop) // Chuyển đổi định dạng ngày sang dd/mm/yyyy
       });
     }
@@ -270,30 +242,25 @@ const NopPhiPopup: React.FC<NopPhiPopupProps> = ({
       return sampleHoKhau;
     }
 
-    // ID của khoản thu đã chọn (từ tham số hoặc từ trạng thái)
-    const currentFeeId = selectedFee ? selectedFee.id : khoanThuId;
+    const currentFee = selectedFee || 
+      (khoanThuId ? { id: khoanThuId, hoKhauList: [] } : null);
+    
+    if (!currentFee) return [];
     
     // Nếu đang ở chế độ chỉnh sửa và đã chọn hộ khẩu, luôn hiển thị hộ đó
     if (isEditMode && selectedHoKhau) {
       const foundHoKhau = sampleHoKhau.find(item => item.maHo === selectedHoKhau.maHo);
       return foundHoKhau ? [foundHoKhau] : [];
     }
-    
-    // Tìm khoản thu được chọn
-    const currentFee = selectedFee || 
-      (khoanThuId ? { id: khoanThuId, hoKhauList: [] } : null);
-    
-    if (!currentFee) return [];
-    
+
     // Lọc các hộ khẩu chưa nộp
     return sampleHoKhau.filter(hoKhau => {
-      // Nếu khoản phí không có danh sách hộ khẩu, hiển thị tất cả
+      // Nếu currentFee không có hoKhauList (ví dụ: selectedFee chưa tải từ API đầy đủ), hiển thị tất cả
       if (!currentFee.hoKhauList) return true;
       
-      // Tìm hộ khẩu trong danh sách của khoản phí
       const hoKhauInList = currentFee.hoKhauList?.find((item: any) => item.maHo === hoKhau.maHo);
       
-      // Nếu hộ khẩu không có trong danh sách hoặc chưa nộp, hiển thị
+      // Nếu hộ khẩu không có trong danh sách của khoản phí HOẶC trạng thái là 'Chưa nộp', thì hiển thị
       return !hoKhauInList || hoKhauInList.trangThai === 'Chưa nộp';
     });
   };
@@ -328,7 +295,7 @@ const NopPhiPopup: React.FC<NopPhiPopupProps> = ({
                 // Cập nhật số tiền khi chọn khoản thu
                 const selectedKhoanThu = sampleKhoanThu.find(item => item.id === e.target.value);
                 if (selectedKhoanThu) {
-                  setSoTien(selectedKhoanThu.soTien);
+                  setSoTien(new Intl.NumberFormat('vi-VN').format(selectedKhoanThu.soTien));
                 }
                 // Reset hộ khẩu đã chọn
                 setHoKhauId('');
@@ -338,7 +305,7 @@ const NopPhiPopup: React.FC<NopPhiPopupProps> = ({
             >
               <option value="">-- Chọn khoản thu --</option>
               {filteredKhoanThu.map(item => (
-                <option key={item.id} value={item.id}>{item.tenKhoan} - {item.soTien}</option>
+                <option key={item.id} value={item.id}>{item.tenKhoan} - {new Intl.NumberFormat('vi-VN').format(item.soTien)} VND</option>
               ))}
             </select>
             {errors.khoanThuId && <p className="text-xs text-red-500 mt-1">{errors.khoanThuId}</p>}
@@ -366,7 +333,33 @@ const NopPhiPopup: React.FC<NopPhiPopupProps> = ({
               <select
                 className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
                 value={trangThai}
-                onChange={e => setTrangThai(e.target.value)}
+                onChange={e => {
+                    setTrangThai(e.target.value);
+                    // Nếu chuyển sang "Chưa nộp", xóa các trường liên quan
+                    if (e.target.value === 'Chưa nộp') {
+                        setNguoiNop('');
+                        setSoTien('');
+                        setNgayNop(today);
+                    } else {
+                        // Nếu chuyển sang "Đã nộp", mặc định điền lại các giá trị (nếu có từ selectedHoKhau hoặc mặc định)
+                        if (selectedHoKhau) {
+                            setSoTien(selectedHoKhau.soTien ? new Intl.NumberFormat('vi-VN').format(selectedHoKhau.soTien) : '');
+                            setNgayNop(parseDate(selectedHoKhau.ngayNop) || today);
+                            setNguoiNop(selectedHoKhau.nguoiNop || currentHoKhau?.chuHo || '');
+                        } else {
+                            // Trường hợp tạo mới, mặc định chủ hộ và ngày hiện tại
+                            setNguoiNop(currentHoKhau?.chuHo || '');
+                            setNgayNop(today);
+                            // Lấy lại số tiền từ selectedFee nếu có
+                            if (selectedFee) {
+                                const ho = selectedFee.hoKhauList?.find((h: any) => h.maHo === hoKhauId);
+                                if (ho && ho.soTien !== undefined) {
+                                    setSoTien(typeof ho.soTien === 'number' ? new Intl.NumberFormat('vi-VN').format(ho.soTien) : ho.soTien);
+                                }
+                            }
+                        }
+                    }
+                }}
               >
                 <option value="Đã nộp">Đã nộp</option>
                 <option value="Chưa nộp">Chưa nộp</option>
@@ -375,21 +368,17 @@ const NopPhiPopup: React.FC<NopPhiPopupProps> = ({
           )}
           
           {/* Các trường thông tin khi đã nộp */}
-          {(trangThai === 'Đã nộp' || !isEditMode) && (
+          {(trangThai === 'Đã nộp' || !isEditMode) && ( // Hiển thị nếu trạng thái là "Đã nộp" HOẶC không phải chế độ chỉnh sửa (tức là tạo mới)
             <>
               <div className="mb-4">
                 <label className="block text-sm font-medium text-gray-700 mb-1">Người nộp <span className="text-red-500">*</span></label>
-                <select
+                <input
+                  type="text"
                   className={`mt-1 block w-full px-3 py-2 border ${errors.nguoiNop ? 'border-red-500' : 'border-gray-300'} rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm`}
                   value={nguoiNop}
                   onChange={e => setNguoiNop(e.target.value)}
-                  disabled={!currentHoKhau}
-                >
-                  <option value="">-- Chọn người nộp --</option>
-                  {currentHoKhau?.thanhVien.map((item: any) => (
-                    <option key={item.id} value={item.id}>{item.ten} ({item.quanHe})</option>
-                  ))}
-                </select>
+                  placeholder="Nhập tên người nộp"
+                />
                 {errors.nguoiNop && <p className="text-xs text-red-500 mt-1">{errors.nguoiNop}</p>}
               </div>
               
@@ -399,7 +388,7 @@ const NopPhiPopup: React.FC<NopPhiPopupProps> = ({
                   type="text"
                   className={`mt-1 block w-full px-3 py-2 border ${errors.soTien ? 'border-red-500' : 'border-gray-300'} rounded-md shadow-sm bg-gray-100 text-gray-700 focus:outline-none sm:text-sm`}
                   value={soTien}
-                  readOnly
+                  readOnly // Vẫn giữ là readOnly
                   tabIndex={-1}
                 />
                 {errors.soTien && <p className="text-xs text-red-500 mt-1">{errors.soTien}</p>}
@@ -478,4 +467,4 @@ const NopPhiPopup: React.FC<NopPhiPopupProps> = ({
   );
 };
 
-export default NopPhiPopup; 
+export default NopPhiPopup;

@@ -319,6 +319,7 @@ const QuanLyDotThuPhi: React.FC = () => {
   // Sửa khoản thu
   const openEditFeePopup = (fee: any, batch: any, e: React.MouseEvent) => {
     e.stopPropagation();
+    console.log('Opening edit fee popup for fee:', fee, 'in batch:', batch);
     setSelectedFee(fee);
     setActiveBatchForFee(batch);
     setIsEditFeePopup(true);

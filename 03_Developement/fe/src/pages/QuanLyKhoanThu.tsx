@@ -2,132 +2,101 @@ import React, { useState, useEffect } from 'react';
 import Layout from '../components/Layout';
 import NopPhiPopup from '../components/NopPhiPopup';
 
-// Dữ liệu mẫu cho các khoản thu
-const sampleFees = [
-  {
-    id: 'KT001',
-    ngayTao: '01/05/2025',
-    thoiHan: '31/05/2025',
-    tenKhoan: 'Phí dịch vụ chung cư',
-    loaiKhoan: 'PHI_DICH_VU',
-    batBuoc: true,
-    ghiChu: 'Phí dịch vụ tháng 5',
-    trangThai: 'Đang thu',
-    hoKhauList: [
-      { maHo: 'HK001', chuHo: 'Nguyễn Văn A', trangThai: 'Đã nộp', ngayNop: '10/05/2025', soTien: 755000, nguoiNop: 'Nguyễn Văn A' },
-      { maHo: 'HK002', chuHo: 'Trần Thị B', trangThai: 'Chưa nộp', soTien: 1002000 },
-      { maHo: 'HK003', chuHo: 'Lê Văn C', trangThai: 'Đã nộp', ngayNop: '12/05/2025', soTien: 600000, nguoiNop: 'Lê Văn C' },
-      { maHo: 'HK004', chuHo: 'Phạm Thị D', trangThai: 'Chưa nộp', soTien: 1205000 },
-      { maHo: 'HK005', chuHo: 'Đỗ Văn E', trangThai: 'Chưa nộp', soTien: 850000 },
-    ],
-    isExpanded: false,
-    hoKhauFilterOption: 'Tất cả'
-  },
-  {
-    id: 'KT002',
-    ngayTao: '01/05/2025',
-    thoiHan: '31/05/2025',
-    tenKhoan: 'Phí gửi xe',
-    loaiKhoan: 'PHI_GUI_XE',
-    batBuoc: true,
-    ghiChu: 'Phí gửi xe tháng 5',
-    trangThai: 'Đang thu',
-    hoKhauList: [
-      { maHo: 'HK001', chuHo: 'Nguyễn Văn A', trangThai: 'Chưa nộp', soTien: 140000 },
-      { maHo: 'HK002', chuHo: 'Trần Thị B', trangThai: 'Đã nộp', ngayNop: '11/05/2025', soTien: 1270000, nguoiNop: 'Trần Thị B' },
-      { maHo: 'HK003', chuHo: 'Lê Văn C', trangThai: 'Chưa nộp', soTien: 210000 },
-      { maHo: 'HK004', chuHo: 'Phạm Thị D', trangThai: 'Chưa nộp', soTien: 1270000 },
-      { maHo: 'HK005', chuHo: 'Đỗ Văn E', trangThai: 'Chưa nộp', soTien: 1340000 },
-    ],
-    isExpanded: false,
-    hoKhauFilterOption: 'Tất cả'
-  },
-  {
-    id: 'KT003',
-    ngayTao: '01/04/2025',
-    thoiHan: '30/04/2025',
-    tenKhoan: 'Phí dịch vụ chung cư',
-    loaiKhoan: 'PHI_DICH_VU',
-    batBuoc: true,
-    ghiChu: 'Phí dịch vụ tháng 4',
-    trangThai: 'Đã thu xong',
-    hoKhauList: [
-      { maHo: 'HK001', chuHo: 'Nguyễn Văn A', trangThai: 'Đã nộp', ngayNop: '10/04/2025', soTien: 700000, nguoiNop: 'Nguyễn Văn A' },
-      { maHo: 'HK002', chuHo: 'Trần Thị B', trangThai: 'Đã nộp', ngayNop: '11/04/2025', soTien: 950000, nguoiNop: 'Trần Thị B' },
-      { maHo: 'HK003', chuHo: 'Lê Văn C', trangThai: 'Đã nộp', ngayNop: '12/04/2025', soTien: 600000, nguoiNop: 'Lê Văn C' },
-      { maHo: 'HK004', chuHo: 'Phạm Thị D', trangThai: 'Đã nộp', ngayNop: '13/04/2025', soTien: 1200000, nguoiNop: 'Phạm Thị D' },
-      { maHo: 'HK005', chuHo: 'Đỗ Văn E', trangThai: 'Đã nộp', ngayNop: '14/04/2025', soTien: 800000, nguoiNop: 'Đỗ Văn E' },
-    ],
-    isExpanded: false,
-    hoKhauFilterOption: 'Tất cả'
-  },
-  {
-    id: 'KT004',
-    ngayTao: '01/04/2025',
-    thoiHan: '30/04/2025',
-    tenKhoan: 'Phí gửi xe',
-    loaiKhoan: 'PHI_GUI_XE',
-    batBuoc: true,
-    ghiChu: 'Phí gửi xe tháng 4',
-    trangThai: 'Đã thu xong',
-    hoKhauList: [
-      { maHo: 'HK001', chuHo: 'Nguyễn Văn A', trangThai: 'Đã nộp', ngayNop: '10/04/2025', soTien: 70000, nguoiNop: 'Nguyễn Văn A' },
-      { maHo: 'HK002', chuHo: 'Trần Thị B', trangThai: 'Đã nộp', ngayNop: '11/04/2025', soTien: 1270000, nguoiNop: 'Trần Thị B' },
-      { maHo: 'HK003', chuHo: 'Lê Văn C', trangThai: 'Đã nộp', ngayNop: '12/04/2025', soTien: 210000, nguoiNop: 'Lê Văn C' },
-      { maHo: 'HK004', chuHo: 'Phạm Thị D', trangThai: 'Đã nộp', ngayNop: '13/04/2025', soTien: 1270000, nguoiNop: 'Phạm Thị D' },
-      { maHo: 'HK005', chuHo: 'Đỗ Văn E', trangThai: 'Đã nộp', ngayNop: '14/04/2025', soTien: 1340000, nguoiNop: 'Đỗ Văn E' },
-    ],
-    isExpanded: false,
-    hoKhauFilterOption: 'Tất cả'
-  },
-  {
-    id: 'KT005',
-    ngayTao: '01/01/2025',
-    thoiHan: '31/03/2025',
-    tenKhoan: 'Phí quản lý',
-    loaiKhoan: 'PHI_QUAN_LY',
-    batBuoc: true,
-    ghiChu: 'Phí quản lý quý',
-    trangThai: 'Đã thu xong',
-    hoKhauList: [
-      { maHo: 'HK001', chuHo: 'Nguyễn Văn A', trangThai: 'Đã nộp', ngayNop: '10/01/2025', soTien: 400000, nguoiNop: 'Nguyễn Văn A' },
-      { maHo: 'HK002', chuHo: 'Trần Thị B', trangThai: 'Đã nộp', ngayNop: '11/01/2025', soTien: 700000, nguoiNop: 'Trần Thị B' },
-      { maHo: 'HK003', chuHo: 'Lê Văn C', trangThai: 'Đã nộp', ngayNop: '12/01/2025', soTien: 300000, nguoiNop: 'Lê Văn C' },
-      { maHo: 'HK004', chuHo: 'Phạm Thị D', trangThai: 'Đã nộp', ngayNop: '13/01/2025', soTien: 900000, nguoiNop: 'Phạm Thị D' },
-      { maHo: 'HK005', chuHo: 'Đỗ Văn E', trangThai: 'Đã nộp', ngayNop: '14/01/2025', soTien: 500000, nguoiNop: 'Đỗ Văn E' },
-    ],
-    isExpanded: false,
-    hoKhauFilterOption: 'Tất cả'
-  },
-  {
-    id: 'KT006',
-    ngayTao: '01/01/2025',
-    thoiHan: '31/03/2025',
-    tenKhoan: 'Phí sửa chữa chung',
-    loaiKhoan: 'KHOAN_DONG_GOP',
-    batBuoc: false,
-    ghiChu: 'Sửa chữa cơ sở vật chất',
-    trangThai: 'Đã thu xong',
-    hoKhauList: [
-      { maHo: 'HK001', chuHo: 'Nguyễn Văn A', trangThai: 'Đã nộp', ngayNop: '10/01/2025', soTien: 100000, nguoiNop: 'Nguyễn Văn A' },
-      { maHo: 'HK002', chuHo: 'Trần Thị B', trangThai: 'Đã nộp', ngayNop: '11/01/2025', soTien: 200000, nguoiNop: 'Trần Thị B' },
-      { maHo: 'HK003', chuHo: 'Lê Văn C', trangThai: 'Đã nộp', ngayNop: '12/01/2025', soTien: 0, nguoiNop: 'Lê Văn C' },
-      { maHo: 'HK004', chuHo: 'Phạm Thị D', trangThai: 'Đã nộp', ngayNop: '13/01/2025', soTien: 0, nguoiNop: 'Phạm Thị D' },
-      { maHo: 'HK005', chuHo: 'Đỗ Văn E', trangThai: 'Đã nộp', ngayNop: '14/01/2025', soTien: 0, nguoiNop: 'Đỗ Văn E' },
-    ],
-    isExpanded: false,
-    hoKhauFilterOption: 'Tất cả'
-  }
-];
-
 const QuanLyKhoanThu: React.FC = () => {
   const [isNopPhiPopupOpen, setIsNopPhiPopupOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterOption, setFilterOption] = useState('Tất cả');
   const [selectedFee, setSelectedFee] = useState<any | null>(null);
   const [selectedHoKhau, setSelectedHoKhau] = useState<any | null>(null);
-  const [fees, setFees] = useState(sampleFees);
+  const [fees, setFees] = useState<any[]>([]);
   const [isEditMode, setIsEditMode] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const fetchFees = async () => {
+    try {
+      setLoading(true);
+      const response = await fetch('http://localhost:8001/api/accountant/khoanthu');
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      
+      const transformedData = data.map((kt: any) => {
+        // Add null checks for hoKhauList
+        const hoKhauList = kt.hoKhauList || [];
+        const allPaid = hoKhauList.length > 0 && 
+                       hoKhauList.every((hk: any) => hk.trangThai === 'Đã nộp');
+
+        return {
+          id: kt.id?.toString() || '',
+          ngayTao: kt.ngayTao || new Date().toLocaleDateString('vi-VN'),
+          thoiHan: kt.thoiHan && kt.thoiHan !== 'Invalid Date' 
+            ? kt.thoiHan 
+            : new Date().toLocaleDateString('vi-VN'),
+          tenKhoan: kt.tenKhoan || '',
+          loaiKhoan: kt.loaiKhoan || '',
+          batBuoc: Boolean(kt.batBuoc),
+          ghiChu: kt.ghiChu || '',
+          trangThai: allPaid ? 'Đã thu xong' : 'Đang thu',
+          hoKhauList: hoKhauList.map((hk: any) => ({
+            maHo: hk.maHo?.toString() || '',
+            chuHo: hk.chuHo || 'Không có thông tin',
+            trangThai: hk.trangThai || 'Chưa nộp',
+            ngayNop: hk.ngayNop || undefined,
+            soTien: Number(hk.soTien || 0),
+            nguoiNop: hk.nguoiNop || undefined
+          })),
+          isExpanded: false,
+          hoKhauFilterOption: 'Tất cả'
+        };
+      });
+
+      setFees(transformedData);
+      setError(null);
+    } catch (error) {
+      setError(error instanceof Error ? error.message : 'Có lỗi xảy ra khi tải dữ liệu');
+      console.error('Error fetching fees:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchFees();
+  }, []);
+
+  // Add loading state handling
+  if (loading) {
+    return (
+      <Layout role="ketoan">
+        <div className="p-4 flex justify-center items-center">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto"></div>
+            <p className="mt-2 text-gray-600">Đang tải dữ liệu...</p>
+          </div>
+        </div>
+      </Layout>
+    );
+  }
+
+  if (error) {
+    return (
+      <Layout role="ketoan">
+        <div className="p-4 text-center">
+          <p className="text-red-500 mb-4">{error}</p>
+          <button 
+            onClick={fetchFees}
+            className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
+          >
+            Thử lại
+          </button>
+        </div>
+      </Layout>
+    );
+  }
 
   // Xử lý mở popup nhập thông tin nộp phí
   const handleOpenPopup = (fee?: any, hoKhau?: any, isEdit: boolean = false) => {
@@ -504,4 +473,4 @@ const QuanLyKhoanThu: React.FC = () => {
   );
 };
 
-export default QuanLyKhoanThu; 
+export default QuanLyKhoanThu;

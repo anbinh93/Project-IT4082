@@ -1,3 +1,4 @@
+const { where } = require('sequelize');
 const db = require('../db/models');   
 
 const convertToConstantCase = (inputString) => { 
@@ -24,7 +25,12 @@ exports.getDotThu = async (req, res) => {
                     as: 'nopPhi',
                     include: [{
                         model: db.HoKhau,
-                        as: 'hoKhau'
+                        as: 'hoKhau',
+                        include: [{
+                            model: db.NhanKhau,
+                            as: 'chuHoInfo',
+                            attributes: ['hoTen']
+                        }]
                     }]
                 }]
             }],
@@ -37,32 +43,41 @@ exports.getDotThu = async (req, res) => {
             const dotData = dot.toJSON();
             
             const result = {
-                maDot: dotData.id, // Plain ID instead of formatted string
+                maDot: dotData.id,
                 tenDot: dotData.tenDotThu,
                 ngayTao: new Date(dotData.ngayTao).toLocaleDateString('vi-VN'),
                 hanCuoi: new Date(dotData.thoiHan).toLocaleDateString('vi-VN'),
                 trangThai: new Date(dotData.thoiHan) > currentDate ? 'Đang mở' : 'Đã đóng',
                 details: {
-                    maDot: dotData.id, // Plain ID in details too
+                    maDot: dotData.id,
                     tenDot: dotData.tenDotThu,
                     ngayTao: new Date(dotData.ngayTao).toLocaleDateString('vi-VN'),
                     hanCuoi: new Date(dotData.thoiHan).toLocaleDateString('vi-VN'),
                     khoanThu: dotData.khoanThu.map(kt => {
                         const householdFees = kt.nopPhi.reduce((acc, np) => {
-                            acc[np.hoKhau.soHoKhau] = { // Plain household ID
+                            acc[np.hoKhau.soHoKhau] = {
                                 amount: Number(np.soTien),
-                                auto: true
+                                auto: true,
+                                // Add household info
+                                hoKhauId: np.hoKhau.soHoKhau,
+                                chuHo: np.hoKhau.chuHoInfo?.hoTen || 'Không có thông tin'
                             };
                             return acc;
                         }, {});
 
                         return {
-                            id: kt.id, // Plain ID for khoanThu
+                            id: kt.id,
                             type: convertToConstantCase(kt.tenKhoanThu),
                             tenKhoan: kt.tenKhoanThu,
                             chiTiet: kt.ghiChu,
                             batBuoc: kt.batBuoc ? 'Bắt buộc' : 'Không bắt buộc',
-                            householdFees
+                            householdFees,
+                            // Add list of all households with their info
+                            hoKhauList: kt.nopPhi.map(np => ({
+                                maHo: np.hoKhau.soHoKhau,
+                                chuHo: np.hoKhau.chuHoInfo?.hoTen || 'Không có thông tin',
+                                soTien: Number(np.soTien)
+                            }))
                         };
                     })
                 },
@@ -152,19 +167,32 @@ exports.deleteDotThu = async (req, res) => {
 exports.getKhoanThu = async (req, res) => {
     try {
         const khoanthu = await db.KhoanThu.findAll({
-            include: [{
-                model: db.NopPhi,
-                as: 'nopPhi',
-                include: [{
-                    model: db.HoKhau,
-                    as: 'hoKhau',
+            include: [
+                {
+                    model: db.NopPhi,
+                    as: 'nopPhi',
+                    where: {
+                        soTien: {
+                            [db.Sequelize.Op.gt]: 0 // Only include records where soTien > 0
+                        }
+                    },
                     include: [{
-                        model: db.NhanKhau,
-                        as: 'chuHoInfo',
-                        attributes: ['hoTen']
+                        model: db.HoKhau,
+                        as: 'hoKhau',
+                        include: [{
+                            model: db.NhanKhau,
+                            as: 'chuHoInfo',
+                            attributes: ['hoTen']
+                        }]
                     }]
-                }]
-            }],
+                },
+                {
+                    model: db.DotThu,
+                    as: 'dotThu',
+                    through: 'DotThu_KhoanThu',
+                    attributes: ['ngayTao', 'thoiHan']
+                }
+            ],
         });
 
         const formattedKhoanThu = khoanthu.map(kt => {
@@ -172,10 +200,15 @@ exports.getKhoanThu = async (req, res) => {
             const allPaid = kt.nopPhi.length > 0 && 
                            kt.nopPhi.every(np => np.trangThai === true);
 
+            // Get dates from DotThu
+            const dotThu = kt.dotThu?.[0]; // Get first DotThu since it's an array
+            const ngayTao = dotThu?.ngayTao;
+            const thoiHan = dotThu?.thoiHan;
+
             return {
                 id: kt.id,
-                ngayTao: new Date(kt.createdAt).toLocaleDateString('vi-VN'),
-                thoiHan: new Date(kt.thoiHan).toLocaleDateString('vi-VN'),
+                ngayTao: ngayTao ? new Date(ngayTao).toLocaleDateString('vi-VN') : '',
+                thoiHan: thoiHan ? new Date(thoiHan).toLocaleDateString('vi-VN') : '',
                 tenKhoan: kt.tenKhoanThu,
                 loaiKhoan: convertToConstantCase(kt.tenKhoanThu),
                 batBuoc: kt.batBuoc,
@@ -321,24 +354,79 @@ exports.createKhoanThu = async (req, res) => {
 exports.updateKhoanThu = async (req, res) => {
     try {
         const { id } = req.params;
-        const { tenkhoanthu, thoihan, batbuoc, ghichu } = req.body;
+        const { tenKhoanThu, batBuoc, ghiChu, hoKhauList } = req.body;
 
-        const khoanthu = await db.KhoanThu.findByPk(id);
-        
-        if (!khoanthu) {
-            return res.status(404).json({ message: 'Không tìm thấy khoản thu' });
-        }
+        // Start transaction
+        const result = await db.sequelize.transaction(async (t) => {
+            // 1. Find and update KhoanThu
+            const khoanthu = await db.KhoanThu.findByPk(id, { transaction: t });
+            if (!khoanthu) {
+                throw new Error('Không tìm thấy khoản thu');
+            }
 
-        await khoanthu.update({
-            tenkhoanthu,
-            thoihan,
-            batbuoc,
-            ghichu
+            // Update khoản thu info
+            await khoanthu.update({
+                tenKhoanThu,
+                batBuoc,
+                ghiChu
+            }, { transaction: t });
+
+            // 2. Update NopPhi records
+            if (hoKhauList && hoKhauList.length > 0) {
+                for (const item of hoKhauList) {
+                    await db.NopPhi.findOrCreate({
+                        where: {
+                            khoanThuId: id,
+                            hoKhauId: item.hoKhauId
+                        },
+                        defaults: {
+                            soTien: item.soTien,
+                            trangThai: false
+                        },
+                        transaction: t
+                    }).then(async ([nopPhi, created]) => {
+                        if (!created) {
+                            // Update existing record
+                            await nopPhi.update({
+                                soTien: item.soTien
+                            }, { transaction: t });
+                        }
+                    });
+                }
+            }
+
+            // 3. Get updated KhoanThu with all associations (same as create)
+            return await db.KhoanThu.findByPk(id, {
+                include: [
+                    {
+                        model: db.DotThu,
+                        as: 'dotThu'
+                    },
+                    {
+                        model: db.NopPhi,
+                        as: 'nopPhi',
+                        include: [{
+                            model: db.HoKhau,
+                            as: 'hoKhau',
+                            include: [{
+                                model: db.NhanKhau,
+                                as: 'chuHoInfo',
+                                attributes: ['hoTen']
+                            }]
+                        }]
+                    }
+                ],
+                transaction: t
+            });
         });
+        console.log('Updated KhoanThu:', result);
+        return res.status(200).json(result);
 
-        return res.status(200).json(khoanthu);
     } catch (error) {
-        return res.status(500).json({ message: error.message });
+        console.error('Error in updateKhoanThu:', error);
+        return res.status(500).json({
+            message: error.message || 'Có lỗi xảy ra khi cập nhật khoản thu'
+        });
     }
 };
 

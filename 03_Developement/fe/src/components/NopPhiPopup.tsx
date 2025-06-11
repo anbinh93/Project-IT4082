@@ -1,24 +1,5 @@
 import React, { useState, useEffect } from 'react';
-
-// Dữ liệu mẫu (Giữ nguyên để hàm filteredHoKhau và filteredKhoanThu vẫn hoạt động)
-const sampleKhoanThu = [
-  { id: '1', tenKhoan: 'Phí dịch vụ', trangThai: 'Đang thu'}, 
-  { id: '2', tenKhoan: 'Phí bảo trì', trangThai: 'Đã thu xong' },
-  { id: '3', tenKhoan: 'Phí quản lý', trangThai: 'Đã thu xong' },
-  { id: '4', tenKhoan: 'Phí gửi xe', trangThai: 'Đang thu' },
-  { id: '5', tenKhoan: 'Bảo hiểm chung cư', trangThai: 'Đang thu' }
-];
-
-const sampleHoKhau = [
-  { 
-    maHo: '1', 
-    chuHo: 'Nguyễn Văn A',
-  },
-  { 
-    maHo: '2', 
-    chuHo: 'Trần Thị B',
-  }
-];
+import axios from 'axios';
 
 interface NopPhiPopupProps {
   isOpen: boolean;
@@ -27,6 +8,28 @@ interface NopPhiPopupProps {
   selectedHoKhau?: any;
   onSave?: (data: any) => void;
   isEditMode?: boolean;
+  availableFees?: Array<{
+    id: string;
+    tenKhoan: string;
+    trangThai: string;
+    soTien: number;
+  }>;
+}
+
+interface Household {
+  id: number;
+  owner: string;
+  area: number;
+  vehicles: {
+    motorbikes: number;
+    cars: number;
+  };
+}
+
+interface Fee {
+  id: string;
+  tenKhoan: string;
+  trangThai: string; 
 }
 
 const NopPhiPopup: React.FC<NopPhiPopupProps> = ({ 
@@ -64,6 +67,12 @@ const NopPhiPopup: React.FC<NopPhiPopupProps> = ({
   const [showConfirmClose, setShowConfirmClose] = useState(false);
   const [showConfirmSave, setShowConfirmSave] = useState(false);
   const [pendingAction, setPendingAction] = useState<'close' | 'save' | null>(null);
+  const [households, setHouseholds] = useState<Household[]>([]);
+  const [khoanThuList, setKhoanThuList] = useState<Fee[]>([]);
+  const [isLoadingHouseholds, setIsLoadingHouseholds] = useState(false);
+  const [apiError, setApiError] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   // Cập nhật dữ liệu khi có khoản thu hoặc hộ khẩu được chọn trước
   useEffect(() => {
@@ -75,46 +84,27 @@ const NopPhiPopup: React.FC<NopPhiPopupProps> = ({
     setNgayNop(today);
     setCurrentHoKhau(null);
     setTrangThai('Đã nộp');
-
     if (selectedFee) {
       console.log('Selected Fee:', selectedFee);
       setKhoanThuId(selectedFee.id);
-      
-      // Cập nhật số tiền nếu khoản thu được chọn (từ sampleKhoanThu)
-      // *Lưu ý*: selectedFee.soTien có thể không tồn tại trong selectedFee nếu nó không phải từ sample
-      const foundFeeInSample = sampleKhoanThu.find(item => item.id === selectedFee.id);
-      if (foundFeeInSample) {
-        setSoTien(new Intl.NumberFormat('vi-VN').format(foundFeeInSample.soTien));
-      } else if (selectedFee.hoKhauList && selectedHoKhau) {
-         // Nếu selectedFee có hoKhauList (từ API) và selectedHoKhau cũng có
-         const hoInSelectedFee = selectedFee.hoKhauList.find((h:any) => h.maHo === selectedHoKhau.maHo);
-         if (hoInSelectedFee && hoInSelectedFee.soTien !== undefined) {
-           setSoTien(new Intl.NumberFormat('vi-VN').format(hoInSelectedFee.soTien));
-         }
-      }
     }
     
     if (selectedHoKhau) {
+      console.log('Selected Ho Khau:', selectedHoKhau);
       setHoKhauId(selectedHoKhau.maHo);
-      
+
       // Tìm và cập nhật thông tin hộ khẩu
-      const hoKhau = sampleHoKhau.find(item => item.maHo === selectedHoKhau.maHo);
-      if (hoKhau) {
-        setCurrentHoKhau(hoKhau);
+      setCurrentHoKhau(selectedHoKhau);
+      
+      // Nếu đang ở chế độ chỉnh sửa và hộ đã nộp phí
+      if (isEditMode && selectedHoKhau.trangThai === 'Đã nộp') {
+        setTrangThai('Đã nộp');
+        // Điền tên người nộp từ selectedHoKhau.nguoiNop (nếu có)
+        setNguoiNop(selectedHoKhau.nguoiNop || ''); // Điền thẳng tên
         
-        // Nếu đang ở chế độ chỉnh sửa và hộ đã nộp phí
-        if (isEditMode && selectedHoKhau.trangThai === 'Đã nộp') {
-          setTrangThai('Đã nộp');
-          // Điền tên người nộp từ selectedHoKhau.nguoiNop (nếu có)
-          setNguoiNop(selectedHoKhau.nguoiNop || ''); // Điền thẳng tên
-          
-          // Cập nhật số tiền và ngày nộp
-          setSoTien(selectedHoKhau.soTien ? new Intl.NumberFormat('vi-VN').format(selectedHoKhau.soTien) : '');
-          setNgayNop(parseDate(selectedHoKhau.ngayNop) || today);
-        } else {
-          // Khi tạo mới hoặc chuyển trạng thái, mặc định tên chủ hộ
-          setNguoiNop(hoKhau.chuHo); // Mặc định điền tên chủ hộ
-        }
+        // Cập nhật số tiền và ngày nộp
+        setSoTien(selectedHoKhau.soTien ? new Intl.NumberFormat('vi-VN').format(selectedHoKhau.soTien) : '');
+        setNgayNop(parseDate(selectedHoKhau.ngayNop) || today);
       }
     }
     // Logic cập nhật số tiền khi cả selectedFee và selectedHoKhau được truyền vào
@@ -130,7 +120,7 @@ const NopPhiPopup: React.FC<NopPhiPopupProps> = ({
   // Cập nhật thông tin hộ khẩu khi hộ khẩu ID thay đổi
   useEffect(() => {
     if (hoKhauId) {
-      const hoKhau = sampleHoKhau.find(item => item.maHo === hoKhauId);
+      const hoKhau = households.find(item => item.id === hoKhauId);
       if (hoKhau) {
         setCurrentHoKhau(hoKhau);
         setNguoiNop(hoKhau.chuHo); // Mặc định điền tên chủ hộ khi chọn hộ khẩu
@@ -140,6 +130,48 @@ const NopPhiPopup: React.FC<NopPhiPopupProps> = ({
       setNguoiNop(''); // Reset tên người nộp
     }
   }, [hoKhauId]);
+
+  // Fetch households from API
+  useEffect(() => {
+    const fetchHouseholds = async () => {
+      if (isOpen) {
+        setIsLoadingHouseholds(true);
+        setApiError(null);
+        try {
+          const response = await axios.get('http://localhost:8001/api/accountant/households');
+          setHouseholds(response.data);
+        } catch (error: any) {
+          setApiError(error.response?.data?.message || 'Có lỗi xảy ra khi tải danh sách hộ khẩu');
+          console.error('Error fetching households:', error);
+        } finally {
+          setIsLoadingHouseholds(false);
+        }
+      }
+    };
+
+    fetchHouseholds();
+  }, [isOpen]);
+
+  // Fetch fees from API
+  useEffect(() => {
+    const fetchFees = async () => {
+      if (isOpen) {
+        try {
+          const response = await axios.get('http://localhost:8001/api/accountant/khoanthu');
+          const formattedFees = response.data.map((fee: any) => ({
+            id: fee.id,
+            tenKhoan: fee.tenKhoan,
+            trangThai: fee.trangThai
+          }));
+          setKhoanThuList(formattedFees);
+        } catch (error: any) {
+          setApiError(error.response?.data?.message || 'Có lỗi xảy ra khi tải danh sách khoản thu');
+        }
+      }
+    };
+
+    fetchFees();
+  }, [isOpen]);
 
   // Format currency input
   const formatCurrency = (value: string) => {
@@ -206,21 +238,57 @@ const NopPhiPopup: React.FC<NopPhiPopupProps> = ({
   };
 
   // Lưu thật sự
-  const handleSaveConfirmed = () => {
-    if (onSave) {
-      // Đảm bảo số tiền được định dạng đúng (chỉ lấy phần số)
-      const numericSoTien = parseInt(soTien.replace(/[^\d]/g, '')) || 0;
+  const handleSaveConfirmed = async () => {
+    try {
+      setIsSubmitting(true);
+      setApiError(null);
+
+      const requestData = {
+        khoanThuId: selectedFee?.id || khoanThuId,
+        hoKhauId: selectedHoKhau?.id || hoKhauId,
+        nguoiNop: nguoiNop.trim(),
+        soTien: parseInt(soTien.replace(/[^\d]/g, '')) || 0,
+        ngayNop: ngayNop,
+        trangThai: trangThai === 'Đã nộp'
+      };
+
+      let response;
+      if (isEditMode) {
+        response = await axios.put(
+          `http://localhost:8001/api/accountant/nopphi/${selectedHoKhau?.id}/${selectedFee?.id}`,
+          requestData
+        );
+      } else {
+        response = await axios.post(
+          'http://localhost:8001/api/accountant/nopphi',
+          requestData
+        );
+      }
+
+      if (response.data) {
+        const formattedData = {
+          khoanThuId: selectedFee?.id || khoanThuId,
+          hoKhauId: selectedHoKhau?.id || hoKhauId,
+          nguoiNopTen: nguoiNop.trim(), // Changed from nguoiNop to nguoiNopTen
+          soTien: parseInt(soTien.replace(/[^\d]/g, '')) || 0,
+          ngayNop: formatDate(ngayNop),
+          trangThai: trangThai // Pass the actual status
+        };
+
+        if (onSave) onSave(formattedData);
+        handleClose();
+      }
+    } catch (error: any) {
+      const errorMessage = error.response?.data?.message || 'Có lỗi xảy ra khi lưu thông tin nộp phí';
+      setApiError(errorMessage);
       
-      onSave({ 
-        khoanThuId,
-        hoKhauId,
-        trangThai,
-        nguoiNopTen: nguoiNop.trim(), // Lưu trực tiếp giá trị được nhập vào
-        soTien: numericSoTien,
-        ngayNop: formatDate(ngayNop) // Chuyển đổi định dạng ngày sang dd/mm/yyyy
-      });
+      // Auto hide error after 5 seconds
+      setTimeout(() => {
+        setApiError(null);
+      }, 5000);
+    } finally {
+      setIsSubmitting(false);
     }
-    handleClose();
   };
 
   // Xử lý click ra ngoài popup
@@ -232,14 +300,14 @@ const NopPhiPopup: React.FC<NopPhiPopupProps> = ({
 
   // Lọc danh sách khoản thu (chỉ hiển thị khoản thu đang thu)
   const filteredKhoanThu = isEditMode && selectedFee
-    ? [sampleKhoanThu.find(item => item.id === selectedFee.id)].filter(Boolean as any) as typeof sampleKhoanThu
-    : sampleKhoanThu.filter(item => item.trangThai === 'Đang thu');
+    ? [khoanThuList.find(item => item.id === selectedFee.id)].filter(Boolean)
+    : khoanThuList.filter(item => item.trangThai === 'Đang thu');
 
   // Lọc danh sách hộ khẩu để chỉ hiển thị các hộ chưa nộp với khoản phí đã chọn
   const filteredHoKhau = () => {
     // Nếu chưa chọn khoản thu, hiển thị tất cả các hộ khẩu
     if (!khoanThuId && !selectedFee) {
-      return sampleHoKhau;
+      return households;
     }
 
     const currentFee = selectedFee || 
@@ -249,16 +317,16 @@ const NopPhiPopup: React.FC<NopPhiPopupProps> = ({
     
     // Nếu đang ở chế độ chỉnh sửa và đã chọn hộ khẩu, luôn hiển thị hộ đó
     if (isEditMode && selectedHoKhau) {
-      const foundHoKhau = sampleHoKhau.find(item => item.maHo === selectedHoKhau.maHo);
+      const foundHoKhau = households.find(item => item.id === selectedHoKhau.id);
       return foundHoKhau ? [foundHoKhau] : [];
     }
 
     // Lọc các hộ khẩu chưa nộp
-    return sampleHoKhau.filter(hoKhau => {
+    return households.filter(hoKhau => {
       // Nếu currentFee không có hoKhauList (ví dụ: selectedFee chưa tải từ API đầy đủ), hiển thị tất cả
       if (!currentFee.hoKhauList) return true;
       
-      const hoKhauInList = currentFee.hoKhauList?.find((item: any) => item.maHo === hoKhau.maHo);
+      const hoKhauInList = currentFee.hoKhauList?.find((item: any) => item.id === hoKhau.id);
       
       // Nếu hộ khẩu không có trong danh sách của khoản phí HOẶC trạng thái là 'Chưa nộp', thì hiển thị
       return !hoKhauInList || hoKhauInList.trangThai === 'Chưa nộp';
@@ -292,12 +360,6 @@ const NopPhiPopup: React.FC<NopPhiPopupProps> = ({
               value={khoanThuId}
               onChange={e => {
                 setKhoanThuId(e.target.value);
-                // Cập nhật số tiền khi chọn khoản thu
-                const selectedKhoanThu = sampleKhoanThu.find(item => item.id === e.target.value);
-                if (selectedKhoanThu) {
-                  setSoTien(new Intl.NumberFormat('vi-VN').format(selectedKhoanThu.soTien));
-                }
-                // Reset hộ khẩu đã chọn
                 setHoKhauId('');
                 setCurrentHoKhau(null);
               }}
@@ -305,7 +367,9 @@ const NopPhiPopup: React.FC<NopPhiPopupProps> = ({
             >
               <option value="">-- Chọn khoản thu --</option>
               {filteredKhoanThu.map(item => (
-                <option key={item.id} value={item.id}>{item.tenKhoan} - {new Intl.NumberFormat('vi-VN').format(item.soTien)} VND</option>
+                <option key={item.id} value={item.id}>
+                  {item.tenKhoan}
+                </option>
               ))}
             </select>
             {errors.khoanThuId && <p className="text-xs text-red-500 mt-1">{errors.khoanThuId}</p>}
@@ -317,14 +381,21 @@ const NopPhiPopup: React.FC<NopPhiPopupProps> = ({
               className={`mt-1 block w-full px-3 py-2 border ${errors.hoKhauId ? 'border-red-500' : 'border-gray-300'} rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm`}
               value={hoKhauId}
               onChange={e => setHoKhauId(e.target.value)}
-              disabled={!!selectedHoKhau} // Disable nếu đã chọn sẵn hộ khẩu
+              disabled={!!selectedHoKhau || isLoadingHouseholds} // Disable nếu đã chọn sẵn hộ khẩu
             >
               <option value="">-- Chọn hộ khẩu --</option>
-              {filteredHoKhau().map(item => (
-                <option key={item.maHo} value={item.maHo}>{item.maHo} - {item.chuHo}</option>
-              ))}
+              {isLoadingHouseholds ? (
+                <option value="" disabled>Đang tải danh sách hộ khẩu...</option>
+              ) : (
+                filteredHoKhau().map(item => (
+                  <option key={item.id} value={item.id}>
+                    {item.id} - {item.owner}
+                  </option>
+                ))
+              )}
             </select>
             {errors.hoKhauId && <p className="text-xs text-red-500 mt-1">{errors.hoKhauId}</p>}
+            {apiError && <p className="text-xs text-red-500 mt-1">{apiError}</p>}
           </div>
 
           {isEditMode && (
@@ -417,10 +488,11 @@ const NopPhiPopup: React.FC<NopPhiPopupProps> = ({
               Hủy
             </button>
             <button
-              className="flex-1 px-4 py-3 bg-blue-500 text-white text-base font-semibold rounded-md shadow-sm hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-all"
+              className="flex-1 px-4 py-3 bg-blue-500 text-white text-base font-semibold rounded-md shadow-sm hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-all disabled:opacity-50"
               onClick={handleSave}
+              disabled={isSubmitting}
             >
-              Lưu
+              {isSubmitting ? 'Đang lưu...' : 'Lưu'}
             </button>
           </div>
         </div>
@@ -428,17 +500,26 @@ const NopPhiPopup: React.FC<NopPhiPopupProps> = ({
       
       {/* Subpopup xác nhận đóng/thêm */}
       {(showConfirmClose || showConfirmSave) && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[60]" onClick={() => {
-          setShowConfirmClose(false);
-          setShowConfirmSave(false);
-          setPendingAction(null);
-        }}>
-          <div className="bg-white rounded-lg shadow-xl px-8 py-7 max-w-sm w-full relative" onClick={e => e.stopPropagation()}>
-            <p className="text-base text-gray-800 mb-6 text-center font-medium">
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[60]" 
+          onClick={() => {
+            setShowConfirmClose(false);
+            setShowConfirmSave(false);
+            setPendingAction(null);
+          }}>
+          <div className="bg-white rounded-lg shadow-xl px-8 py-7 max-w-sm w-full relative" 
+            onClick={e => e.stopPropagation()}>
+            <p className="text-base text-gray-800 mb-4 text-center font-medium">
               {showConfirmClose && 'Những thay đổi hiện tại sẽ không được lưu lại. Bạn vẫn muốn thoát?'}
               {showConfirmSave && isEditMode && 'Bạn xác nhận lưu thay đổi thông tin nộp phí này?'}
               {showConfirmSave && !isEditMode && 'Bạn xác nhận lưu thông tin nộp phí này?'}
             </p>
+
+            {saveError && (
+              <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-md">
+                <p className="text-sm text-red-600">{saveError}</p>
+              </div>
+            )}
+
             <div className="flex gap-4 w-full">
               <button
                 className="flex-1 px-4 py-2.5 bg-gray-400 text-white rounded hover:bg-gray-500 font-medium transition-colors"
@@ -447,6 +528,7 @@ const NopPhiPopup: React.FC<NopPhiPopupProps> = ({
                   setShowConfirmSave(false);
                   setPendingAction(null);
                 }}
+                disabled={isSubmitting}
               >
                 {showConfirmClose ? 'Chỉnh sửa tiếp' : 'Hủy'}
               </button>
@@ -456,8 +538,9 @@ const NopPhiPopup: React.FC<NopPhiPopupProps> = ({
                   if (pendingAction === 'close') handleClose();
                   if (pendingAction === 'save') handleSaveConfirmed();
                 }}
+                disabled={isSubmitting}
               >
-                {showConfirmClose ? 'Thoát' : 'Xác nhận'}
+                {isSubmitting ? 'Đang lưu...' : (showConfirmClose ? 'Thoát' : 'Xác nhận')}
               </button>
             </div>
           </div>

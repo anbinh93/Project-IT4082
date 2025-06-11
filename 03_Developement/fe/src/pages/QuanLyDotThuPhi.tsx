@@ -206,6 +206,8 @@ const QuanLyDotThuPhi: React.FC = () => {
   // Thêm state cho loading và error
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [isDeletingFee, setIsDeletingFee] = useState(false);
+  const [deleteFeeError, setDeleteFeeError] = useState<string | null>(null);
 
   // Hàm kiểm tra và cập nhật trạng thái đợt thu
   const updateBatchStatus = (batch: any) => {
@@ -361,27 +363,43 @@ const QuanLyDotThuPhi: React.FC = () => {
     setIsDeleteFeeConfirmOpen(false);
     setSelectedFee(null);
   };
-  const handleDeleteFee = () => {
-    if (activeBatchForFee && selectedFee) {
+  const handleDeleteFee = async () => {
+    if (!activeBatchForFee || !selectedFee) return;
+
+    try {
+      setIsDeletingFee(true);
+      setDeleteFeeError(null);
+
+      // Call API to delete the fee
+      await axios.delete(`http://localhost:8001/api/accountant/khoanthu/${selectedFee.id}`);
+
+      // Update local state after successful deletion
       setBatches(prev => prev.map(batch => {
         if (batch.maDot === activeBatchForFee.maDot) {
-          const updatedKhoanThu = batch.details.khoanThu.filter(
-            (fee: any) => fee.id !== selectedFee.id
-          );
-          
-          const updatedBatch = {
+          return {
             ...batch,
             details: {
               ...batch.details,
-              khoanThu: updatedKhoanThu
+              khoanThu: batch.details.khoanThu.filter(
+                (fee: any) => fee.id !== selectedFee.id
+              )
             }
           };
-          
-          return updatedBatch;
         }
         return batch;
       }));
+
       closeDeleteFeeConfirm();
+    } catch (error: any) {
+      const errorMessage = error.response?.data?.message || 'Có lỗi xảy ra khi xóa khoản thu';
+      setDeleteFeeError(errorMessage);
+      
+      // Auto hide error after 5 seconds
+      setTimeout(() => {
+        setDeleteFeeError(null);
+      }, 5000);
+    } finally {
+      setIsDeletingFee(false);
     }
   };
 
@@ -722,25 +740,36 @@ const QuanLyDotThuPhi: React.FC = () => {
 
       {/* Popup xác nhận xóa khoản thu */}
       {isDeleteFeeConfirmOpen && selectedFee && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50" onClick={closeDeleteFeeConfirm}>
-          <div className="bg-white rounded-lg shadow-xl p-6 max-w-sm w-full relative" onClick={e => e.stopPropagation()}>
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50" 
+          onClick={closeDeleteFeeConfirm}>
+          <div className="bg-white rounded-lg shadow-xl p-6 max-w-sm w-full relative" 
+            onClick={e => e.stopPropagation()}>
             <h3 className="text-lg font-semibold text-gray-900 mb-3">Xác nhận xóa</h3>
-            <p className="text-gray-700 mb-6">
+            <p className="text-gray-700 mb-4">
               Bạn có chắc chắn muốn xóa khoản thu <span className="font-bold text-red-600">"{selectedFee.tenKhoan}"</span> không? <br/>
               <span className="text-sm text-gray-500">Thao tác này không thể hoàn tác.</span>
             </p>
+
+            {deleteFeeError && (
+              <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-md">
+                <p className="text-sm text-red-600">{deleteFeeError}</p>
+              </div>
+            )}
+
             <div className="flex justify-end gap-3">
               <button
-                className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-100 font-medium"
+                className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-100 font-medium disabled:opacity-50"
                 onClick={closeDeleteFeeConfirm}
+                disabled={isDeletingFee}
               >
                 Hủy
               </button>
               <button
-                className="px-4 py-2 bg-red-500 text-white rounded-md hover:bg-red-600 font-medium"
+                className="px-4 py-2 bg-red-500 text-white rounded-md hover:bg-red-600 font-medium disabled:opacity-50"
                 onClick={handleDeleteFee}
+                disabled={isDeletingFee}
               >
-                Xóa
+                {isDeletingFee ? 'Đang xóa...' : 'Xóa'}
               </button>
             </div>
           </div>

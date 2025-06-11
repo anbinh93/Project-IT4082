@@ -442,7 +442,9 @@ exports.deleteKhoanThu = async (req, res) => {
 
         // Kiểm tra xem có ai đã nộp khoản thu này chưa
         const nopPhiCount = await db.NopPhi.count({
-            where: { khoanthu_id: id }
+            where: { khoanThuId: id,
+                trangThai: true // Chỉ đếm những người đã nộp
+             }
         });
 
         if (nopPhiCount > 0) {

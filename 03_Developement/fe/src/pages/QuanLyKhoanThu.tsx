@@ -114,13 +114,11 @@ const QuanLyKhoanThu: React.FC = () => {
 
   // Xử lý khi lưu thông tin nộp phí
   const handleSaveNopPhi = (data: any) => {
-    // Cập nhật trạng thái của hộ khẩu
     setFees(prevFees => 
       prevFees.map(fee => {
         if (fee.id === data.khoanThuId) {
           const updatedHoKhauList = fee.hoKhauList.map((ho: any) => {
             if (ho.maHo === data.hoKhauId) {
-              // Nếu đang chuyển từ đã nộp sang chưa nộp
               if (data.trangThai === 'Chưa nộp') {
                 return {
                   ...ho,
@@ -130,25 +128,26 @@ const QuanLyKhoanThu: React.FC = () => {
                   nguoiNop: undefined
                 };
               }
-              // Nếu đang chuyển từ chưa nộp sang đã nộp
               return {
                 ...ho,
                 trangThai: 'Đã nộp',
                 ngayNop: data.ngayNop,
                 soTien: data.soTien,
-                nguoiNop: data.nguoiNopTen
+                nguoiNop: data.nguoiNopTen // Changed from data.nguoiNop to data.nguoiNopTen
               };
             }
             return ho;
           });
 
+          // Check if all households have paid
+          const isAllPaid = updatedHoKhauList.every(
+            (ho: any) => ho.trangThai === 'Đã nộp'
+          );
+
           return {
             ...fee,
             hoKhauList: updatedHoKhauList,
-            // Kiểm tra xem tất cả các hộ đã nộp hay chưa
-            trangThai: updatedHoKhauList.every((ho: any) => ho.trangThai === 'Đã nộp') 
-              ? 'Đã thu xong' 
-              : 'Đang thu'
+            trangThai: isAllPaid ? 'Đã thu xong' : 'Đang thu'
           };
         }
         return fee;
@@ -468,6 +467,11 @@ const QuanLyKhoanThu: React.FC = () => {
       selectedHoKhau={selectedHoKhau}
       onSave={handleSaveNopPhi}
       isEditMode={isEditMode}
+      availableFees={fees.map(fee => ({
+        id: fee.id,
+        tenKhoan: fee.tenKhoan,
+        trangThai: fee.trangThai,
+      }))}
     />
     </>
   );

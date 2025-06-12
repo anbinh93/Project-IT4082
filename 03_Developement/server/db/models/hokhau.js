@@ -44,7 +44,7 @@ module.exports = (sequelize, DataTypes) => {
     },
     chuHo: {
       type: DataTypes.INTEGER,
-      allowNull: false,
+      allowNull: true, // Cho phép null khi chưa có chủ hộ
       unique: true,
       references: {
         model: 'nhankhau',

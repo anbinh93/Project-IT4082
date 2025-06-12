@@ -9,7 +9,9 @@ const { Op } = require('sequelize');
  */
 exports.getGenderStatistics = async (req, res) => {
     try {
+        console.log('Starting gender statistics query...');
         const totalPopulation = await db.NhanKhau.count();
+        console.log('Total population:', totalPopulation);
 
         if (totalPopulation === 0) {
             return res.status(200).json({
@@ -22,21 +24,24 @@ exports.getGenderStatistics = async (req, res) => {
             });
         }
 
+        console.log('Executing gender statistics query...');
         const genderStats = await db.NhanKhau.findAll({
             attributes: [
-                'gioitinh',
+                'gioiTinh',
                 [db.sequelize.fn('COUNT', db.sequelize.col('id')), 'count']
             ],
-            group: ['gioitinh'],
-            order: [['gioitinh', 'ASC']]
+            group: ['gioiTinh'],
+            order: [['gioiTinh', 'ASC']],
+            logging: console.log
         });
+        console.log('Gender stats result:', genderStats);
 
         const genderData = genderStats.map(stat => {
             const count = parseInt(stat.dataValues.count);
             const percentage = ((count / totalPopulation) * 100).toFixed(2);
             
             return {
-                gender: stat.gioitinh || 'Không xác định',
+                gender: stat.gioiTinh || 'Không xác định',
                 count: count,
                 percentage: parseFloat(percentage)
             };
@@ -124,11 +129,11 @@ exports.getAgeStatistics = async (req, res) => {
         const populationWithAge = await db.sequelize.query(`
             SELECT 
                 id,
-                hoten,
-                ngaysinh,
-                EXTRACT(YEAR FROM AGE(ngaysinh)) as age
-            FROM nhankhau 
-            WHERE ngaysinh IS NOT NULL
+                "hoTen",
+                "ngaySinh",
+                EXTRACT(YEAR FROM AGE("ngaySinh")) as age
+            FROM "NhanKhau" 
+            WHERE "ngaySinh" IS NOT NULL
         `, { type: db.sequelize.QueryTypes.SELECT });
 
         if (populationWithAge.length === 0) {
@@ -337,7 +342,6 @@ exports.getTemporaryStatusStatistics = async (req, res) => {
         const currentDate = new Date();
 
         let whereCondition = {};
-        let dateFilter = '';
 
         if (mode === 'period' && fromDate && toDate) {
             const startDate = new Date(fromDate);
@@ -361,27 +365,35 @@ exports.getTemporaryStatusStatistics = async (req, res) => {
                 });
             }
 
-            dateFilter = `AND thoigian >= '${startDate.toISOString()}' AND thoigian <= '${endDate.toISOString()}'`;
+            whereCondition = {
+                thoiGian: {
+                    [Op.between]: [startDate, endDate]
+                }
+            };
         } else {
-            dateFilter = `AND thoigian <= '${currentDate.toISOString()}'`;
+            whereCondition = {
+                thoiGian: {
+                    [Op.lte]: currentDate
+                }
+            };
         }
 
-        const temporaryResidenceStats = await db.sequelize.query(`
-            SELECT COUNT(*) as count
-            FROM lichsuthaydoihokhau 
-            WHERE loaithaydoi = 1 
-            ${dateFilter}
-        `, { type: db.sequelize.QueryTypes.SELECT });
+        // Get temporary residence count (trangThai = 'đang tạm trú')
+        const temporaryResidenceCount = await db.TamTruTamVang.count({
+            where: {
+                ...whereCondition,
+                trangThai: 'đang tạm trú'
+            }
+        });
 
-        const temporaryAbsenceStats = await db.sequelize.query(`
-            SELECT COUNT(*) as count
-            FROM lichsuthaydoihokhau 
-            WHERE loaithaydoi = 2 
-            ${dateFilter}
-        `, { type: db.sequelize.QueryTypes.SELECT });
+        // Get temporary absence count (trangThai = 'tạm vắng')
+        const temporaryAbsenceCount = await db.TamTruTamVang.count({
+            where: {
+                ...whereCondition,
+                trangThai: 'tạm vắng'
+            }
+        });
 
-        const temporaryResidenceCount = parseInt(temporaryResidenceStats[0]?.count || 0);
-        const temporaryAbsenceCount = parseInt(temporaryAbsenceStats[0]?.count || 0);
         const totalTemporary = temporaryResidenceCount + temporaryAbsenceCount;
 
         if (totalTemporary === 0) {
@@ -407,29 +419,55 @@ exports.getTemporaryStatusStatistics = async (req, res) => {
         let detailData = null;
 
         if (includeDetails === 'true') {
-            const detailQuery = `
-                SELECT 
-                    lstd.id,
-                    lstd.nhankhau_id,
-                    lstd.loaithaydoi,
-                    lstd.thoigian,
-                    lstd.ghichu,
-                    nk.hoten,
-                    nk.cccd
-                FROM lichsuthaydoihokhau lstd
-                JOIN nhankhau nk ON lstd.nhankhau_id = nk.id
-                WHERE lstd.loaithaydoi IN (1, 2)
-                ${dateFilter}
-                ORDER BY lstd.thoigian DESC
-            `;
+            const temporaryResidenceDetails = await db.TamTruTamVang.findAll({
+                where: {
+                    ...whereCondition,
+                    trangThai: 'đang tạm trú'
+                },
+                include: [{
+                    model: db.NhanKhau,
+                    as: 'nhanKhau',
+                    attributes: ['hoTen', 'cccd']
+                }],
+                order: [['thoiGian', 'DESC']]
+            });
 
-            const details = await db.sequelize.query(detailQuery, { 
-                type: db.sequelize.QueryTypes.SELECT 
+            const temporaryAbsenceDetails = await db.TamTruTamVang.findAll({
+                where: {
+                    ...whereCondition,
+                    trangThai: 'tạm vắng'
+                },
+                include: [{
+                    model: db.NhanKhau,
+                    as: 'nhanKhau',
+                    attributes: ['hoTen', 'cccd']
+                }],
+                order: [['thoiGian', 'DESC']]
             });
 
             detailData = {
-                temporaryResidence: details.filter(item => item.loaithaydoi === 1),
-                temporaryAbsence: details.filter(item => item.loaithaydoi === 2)
+                temporaryResidence: temporaryResidenceDetails.map(item => ({
+                    id: item.id,
+                    nhankhau_id: item.nhanKhauId,
+                    loaithaydoi: 'tạm trú',
+                    ngaybatdau: item.thoiGian,
+                    ngayketthuc: null,
+                    ghichu: item.noiDungDeNghi || 'Đăng ký tạm trú',
+                    hoten: item.nhanKhau?.hoTen || 'N/A',
+                    cccd: item.nhanKhau?.cccd || 'N/A',
+                    diaChi: item.diaChi || 'N/A'
+                })),
+                temporaryAbsence: temporaryAbsenceDetails.map(item => ({
+                    id: item.id,
+                    nhankhau_id: item.nhanKhauId,
+                    loaithaydoi: 'tạm vắng',
+                    ngaybatdau: item.thoiGian,
+                    ngayketthuc: null,
+                    ghichu: item.noiDungDeNghi || 'Đăng ký tạm vắng',
+                    hoten: item.nhanKhau?.hoTen || 'N/A',
+                    cccd: item.nhanKhau?.cccd || 'N/A',
+                    diaChi: item.diaChi || 'N/A'
+                }))
             };
         }
 
@@ -459,6 +497,7 @@ exports.getTemporaryStatusStatistics = async (req, res) => {
         });
 
     } catch (error) {
+        console.error('Error in getTemporaryStatusStatistics:', error);
         return res.status(500).json({
             error: {
                 code: 'TEMPORARY_STATUS_STATISTICS_ERROR',
@@ -665,22 +704,26 @@ async function getBasicAgeStats() {
 async function getBasicTemporaryStats() {
     const currentDate = new Date();
     
-    const temporaryResidence = await db.sequelize.query(`
-        SELECT COUNT(*) as count
-        FROM lichsuthaydoihokhau 
-        WHERE loaithaydoi = 1 
-        AND thoigian <= '${currentDate.toISOString()}'
-    `, { type: db.sequelize.QueryTypes.SELECT });
+    const temporaryResidenceCount = await db.TamTruTamVang.count({
+        where: {
+            trangThai: 'đang tạm trú',
+            thoiGian: {
+                [Op.lte]: currentDate
+            }
+        }
+    });
 
-    const temporaryAbsence = await db.sequelize.query(`
-        SELECT COUNT(*) as count
-        FROM lichsuthaydoihokhau 
-        WHERE loaithaydoi = 2 
-        AND thoigian <= '${currentDate.toISOString()}'
-    `, { type: db.sequelize.QueryTypes.SELECT });
+    const temporaryAbsenceCount = await db.TamTruTamVang.count({
+        where: {
+            trangThai: 'tạm vắng',
+            thoiGian: {
+                [Op.lte]: currentDate
+            }
+        }
+    });
 
     return {
-        temporaryResidence: parseInt(temporaryResidence[0]?.count || 0),
-        temporaryAbsence: parseInt(temporaryAbsence[0]?.count || 0)
+        temporaryResidence: temporaryResidenceCount,
+        temporaryAbsence: temporaryAbsenceCount
     };
 } 

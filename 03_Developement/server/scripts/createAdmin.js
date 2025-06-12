@@ -29,13 +29,13 @@ async function createAdmin() {
     const adminUser = await User.create({
       username: 'admin',
       password: hashedPassword,
-      role: 'admin'
+      role: 'manager'  // Sử dụng 'manager' thay vì 'admin'
     });
 
     console.log('Admin user created successfully!');
     console.log('Username: admin');
     console.log('Password: admin123');
-    console.log('Role: admin');
+    console.log('Role: manager');
     console.log('ID:', adminUser.id);
 
     // Tạo thêm manager và accountant user

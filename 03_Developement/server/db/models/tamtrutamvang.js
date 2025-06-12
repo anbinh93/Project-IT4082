@@ -32,8 +32,18 @@ module.exports = (sequelize, DataTypes) => {
         isIn: [['đang tạm trú', 'đã kết thúc', 'tạm vắng']]
       }
     },
-    diaChi: DataTypes.STRING,
-    thoiGian: DataTypes.DATE,
+    diaChi: {
+      type: DataTypes.STRING,
+      allowNull: false
+    },
+    tuNgay: {
+      type: DataTypes.DATE,
+      allowNull: false
+    },
+    thoiGian: {
+      type: DataTypes.DATE,
+      allowNull: false
+    },
     noiDungDeNghi: DataTypes.TEXT
   }, {
     sequelize,

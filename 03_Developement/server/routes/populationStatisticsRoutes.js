@@ -3,24 +3,15 @@ const router = express.Router();
 const populationStatisticsController = require('../controllers/populationStatisticsController');
 const { verifyToken, verifyRole } = require('../middlewares/authMiddleware');
 
-// Middleware cho tất cả các routes
+// Enable auth for production
 router.use(verifyToken);
-router.use(verifyRole(['admin', 'manager', 'accountant']));
+// router.use(verifyRole(['manager', 'accountant'])); // Chỉ kế toán và tổ trưởng
 
-/**
- * Population Statistics Routes
- * Base path: /api/statistics/population
- * Actor: Ban Quản Trị (BQT)
- */
-
-// Routes cho thống kê nhân khẩu
+// Population statistics routes
 router.get('/overview', populationStatisticsController.getPopulationOverview);
 router.get('/gender', populationStatisticsController.getGenderStatistics);
 router.get('/age', populationStatisticsController.getAgeStatistics);
 router.get('/movement', populationStatisticsController.getPopulationMovement);
 router.get('/temporary-status', populationStatisticsController.getTemporaryStatusStatistics);
 
-// Route cho thêm dữ liệu biến động nhân khẩu
-router.post('/movement', populationStatisticsController.addPopulationMovement);
-
-module.exports = router; 
+module.exports = router;

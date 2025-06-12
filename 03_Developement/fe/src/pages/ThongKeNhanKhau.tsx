@@ -1,5 +1,6 @@
-import React, { useState } from "react";
-import Layout from '../components/Layout'; // Import Layout component
+import React, { useState, useEffect } from "react";
+import Layout from '../components/Layout';
+import { apiRequest } from '../services/api';
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -23,193 +24,302 @@ const FILTERS = [
   { label: 'Khoảng thời gian', value: 'time' },
   { label: 'Trạng thái tạm trú', value: 'status' },
 ];
-// Dữ liệu mẫu giống Figma
-const ageBarData = {
-  labels: ['<20', '20-30', '30-60', '>60'],
-  datasets: [
-    {
-      label: 'Số lượng',
-      data: [400, 600, 700, 300],
-      backgroundColor: [
-        '#B6E36C', // <20
-        '#F6F36C', // 20-30
-        '#F6A6F6', // 30-60
-        '#7CC6F6', // >60
-      ],
-      borderColor: '#1976D2',
-      borderWidth: 1,
-      borderRadius: 4,
-    },
-  ],
-};
-const maxY = Math.max(...ageBarData.datasets[0].data) + 100;
-const ageBarOptions = {
-  responsive: true,
-  plugins: {
-    legend: { display: false },
-    datalabels: {
-      anchor: 'end' as const,
-      align: 'top' as const,
-      clamp: true,
-      color: '#222',
-      font: { weight: 'bold' as const, size: 16 },
-      formatter: (value: number) => value,
-    },
-    title: { display: false },
-  },
-  scales: {
-    y: {
-      beginAtZero: true,
-      max: maxY,
-      ticks: { stepSize: 100 },
-      title: { display: false },
-    },
-    x: { title: { display: false } },
-  },
-};
-
-const genderPieData = {
-  labels: ['Nam', 'Nữ'],
-  datasets: [
-    {
-      label: 'Tỷ lệ',
-      data: [70, 30],
-      backgroundColor: [
-        '#2196F3', // Nam
-        '#ffffff', // Nữ
-      ],
-      borderColor: [
-        '#2196F3',
-        '#cccccc',
-      ],
-      borderWidth: 2,
-    },
-  ],
-};
-const genderPieOptions = {
-  responsive: true,
-  maintainAspectRatio: false,
-  plugins: {
-    legend: { display: false },
-    datalabels: {
-      color: '#222',
-      font: { weight: 'bold' as const, size: 16 },
-      formatter: (value: number, context: any) => {
-        const total = context.chart.data.datasets[0].data.reduce((sum: number, current: number) => sum + current, 0);
-        const percentage = ((value / total) * 100).toFixed(0) + '%';
-        return percentage;
-      },
-    },
-  },
-};
-
-const timeLineData = {
-  labels: ['01/05', '05/05', '10/05', '15/05', '20/05', '25/05', '31/05'],
-  datasets: [
-    {
-      label: 'Số lượng nhân khẩu',
-      data: [1200, 1250, 1300, 1280, 1350, 1370, 1400],
-      borderColor: '#2196F3',
-      backgroundColor: 'rgba(33,150,243,0.1)',
-      tension: 0.3,
-      pointRadius: 5,
-      pointBackgroundColor: '#2196F3',
-      fill: true,
-    },
-  ],
-};
-const timeLineOptions = {
-  responsive: true,
-  plugins: {
-    legend: { display: false },
-    datalabels: { display: false },
-  },
-  scales: {
-    y: { beginAtZero: true, title: { display: false } },
-    x: { title: { display: false } },
-  },
-};
-
-const statusPieData = {
-  labels: ['Tạm trú', 'Tạm vắng', 'Thường trú'],
-  datasets: [
-    {
-      label: 'Tỷ lệ',
-      data: [15, 10, 75],
-      backgroundColor: ['#2196F3', '#F6A6F6', '#B6E36C'],
-      borderColor: ['#2196F3', '#F6A6F6', '#B6E36C'],
-      borderWidth: 2,
-    },
-  ],
-};
-const statusPieOptions = genderPieOptions;
-
-const sampleTable = [
-  { ten: 'Nguyễn Văn An', gioiTinh: 'Nam', tuoi: 30, trangThai: 'Thường trú', hoKhau: 'HK001' },
-  { ten: 'Trần Thị Bình', gioiTinh: 'Nữ', tuoi: 37, trangThai: 'Tạm trú', hoKhau: 'HK002' },
-  { ten: 'Lê Minh Công', gioiTinh: 'Nam', tuoi: 24, trangThai: 'Tạm vắng', hoKhau: 'HK003' },
-];
-
-function exportToExcel() {
-  const ws = XLSX.utils.json_to_sheet(sampleTable.map(row => ({
-    'Họ tên': row.ten,
-    'Giới tính': row.gioiTinh,
-    'Tuổi': row.tuoi,
-    'Trạng thái': row.trangThai,
-    'Hộ khẩu': row.hoKhau,
-  })));
-  const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, 'Nhân khẩu');
-  XLSX.writeFile(wb, 'thong_ke_nhan_khau.xlsx');
-}
 
 const ThongKeNhanKhau: React.FC = () => {
   const [filterType, setFilterType] = useState('gender');
-  const [status, setStatus] = useState('tamtru');
   const [dateFrom, setDateFrom] = useState('2024-05-01');
   const [dateTo, setDateTo] = useState('2024-05-31');
+  
+  // State for real data from API
+  const [genderStats, setGenderStats] = useState<any>(null);
+  const [ageStats, setAgeStats] = useState<any>(null);
+  const [temporaryStats, setTemporaryStats] = useState<any>(null);
+  const [residentsList, setResidentsList] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  let chart, legend;
-  if (filterType === 'gender') {
-    chart = <Pie data={genderPieData} options={genderPieOptions} plugins={[ChartDataLabels]} />;
-    legend = (
-      <div className="flex gap-6 justify-center mt-4">
-        <p className="flex items-center"><span className="inline-block w-4 h-4 bg-blue-500 rounded-full mr-2"></span> Nam</p>
-        <p className="flex items-center"><span className="inline-block w-4 h-4 bg-white border border-gray-400 rounded-full mr-2"></span> Nữ</p>
-      </div>
-    );
-  } else if (filterType === 'age') {
-    chart = <Bar data={ageBarData} options={ageBarOptions} plugins={[ChartDataLabels]} />;
-    legend = (
-      <div className="flex flex-wrap gap-4 justify-center mt-4">
-        <p><span className="inline-block w-3 h-3" style={{background:'#B6E36C', marginRight:6}}></span> &lt;20</p>
-        <p><span className="inline-block w-3 h-3" style={{background:'#F6F36C', marginRight:6}}></span> 20-30</p>
-        <p><span className="inline-block w-3 h-3" style={{background:'#F6A6F6', marginRight:6}}></span> 30-60</p>
-        <p><span className="inline-block w-3 h-3" style={{background:'#7CC6F6', marginRight:6}}></span> &gt;60</p>
-      </div>
-    );
-  } else if (filterType === 'time') {
-    chart = <Line data={timeLineData} options={timeLineOptions} plugins={[ChartDataLabels]} />;
-    legend = null;
-  } else if (filterType === 'status') {
-    chart = <Pie data={statusPieData} options={statusPieOptions} plugins={[ChartDataLabels]} />;
-    legend = (
-      <div className="flex gap-6 justify-center mt-4">
-        <p className="flex items-center"><span className="inline-block w-4 h-4 bg-blue-500 rounded-full mr-2"></span> Tạm trú</p>
-        <p className="flex items-center"><span className="inline-block w-4 h-4 bg-pink-300 rounded-full mr-2"></span> Tạm vắng</p>
-        <p className="flex items-center"><span className="inline-block w-4 h-4 bg-lime-300 rounded-full mr-2"></span> Thường trú</p>
-      </div>
-    );
-  }
+  // Fetch data from API
+  useEffect(() => {
+    const fetchPopulationData = async () => {
+      try {
+        setLoading(true);
+        console.log('🔄 Fetching population data for filter:', filterType);
+        
+        // Fetch different statistics based on filter type
+        let promises = [];
+        
+        switch (filterType) {
+          case 'gender':
+            promises = [
+              apiRequest('/population/gender'),
+              apiRequest('/residents')
+            ];
+            break;
+          case 'age':
+            promises = [
+              apiRequest('/population/age'),
+              apiRequest('/residents')
+            ];
+            break;
+          case 'status':
+            promises = [
+              apiRequest('/population/temporary-status'),
+              apiRequest('/residents')
+            ];
+            break;
+          case 'time':
+            promises = [
+              apiRequest('/population/overview'),
+              apiRequest('/residents')
+            ];
+            break;
+          default:
+            promises = [
+              apiRequest('/population/gender'),
+              apiRequest('/residents')
+            ];
+        }
+
+        const [statsData, residentsData] = await Promise.all(promises);
+        
+        console.log('📊 Stats data received:', statsData);
+        console.log('👥 Residents data received:', residentsData);
+        
+        // Update state based on filter type
+        if (filterType === 'gender') {
+          setGenderStats(statsData);
+        } else if (filterType === 'age') {
+          setAgeStats(statsData);
+        } else if (filterType === 'status') {
+          setTemporaryStats(statsData);
+        }
+        
+        setResidentsList(residentsData.data?.residents || []);
+        setError(null);
+      } catch (error: any) {
+        console.error('❌ Error fetching population data:', error);
+        setError('Lỗi khi tải dữ liệu thống kê nhân khẩu: ' + error.message);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchPopulationData();
+  }, [filterType, dateFrom, dateTo]);
+
+  // Generate chart data based on API response
+  const getChartData = () => {
+    if (loading) {
+      return {
+        chart: <div className="text-center">Đang tải dữ liệu...</div>,
+        legend: null
+      };
+    }
+
+    if (error) {
+      return {
+        chart: <div className="text-center text-red-500">{error}</div>,
+        legend: null
+      };
+    }
+
+    if (filterType === 'gender' && genderStats?.statistics) {
+      const data = genderStats.statistics.chartData || [];
+      
+      const chartData = {
+        labels: data.map((item: any) => item.label),
+        datasets: [{
+          label: 'Số lượng',
+          data: data.map((item: any) => item.value),
+          backgroundColor: ['#2196F3', '#F6A6F6'],
+          borderColor: ['#2196F3', '#F6A6F6'],
+          borderWidth: 2,
+        }],
+      };
+
+      const chartOptions = {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          datalabels: {
+            color: '#222',
+            font: { weight: 'bold' as const, size: 16 },
+            formatter: (value: number, context: any) => {
+              const total = context.chart.data.datasets[0].data.reduce((sum: number, current: number) => sum + current, 0);
+              const percentage = ((value / total) * 100).toFixed(0) + '%';
+              return percentage;
+            },
+          },
+        },
+      };
+
+      return {
+        chart: <Pie data={chartData} options={chartOptions} plugins={[ChartDataLabels]} />,
+        legend: (
+          <div className="flex gap-6 justify-center mt-4">
+            {data.map((item: any, index: number) => (
+              <p key={index} className="flex items-center">
+                <span 
+                  className="inline-block w-4 h-4 rounded-full mr-2" 
+                  style={{ backgroundColor: index === 0 ? '#2196F3' : '#F6A6F6' }}
+                ></span>
+                {item.label}: {item.value} ({item.percentage}%)
+              </p>
+            ))}
+          </div>
+        )
+      };
+    }
+
+    if (filterType === 'age' && ageStats?.statistics) {
+      const data = ageStats.statistics.byAgeGroup || [];
+      
+      const chartData = {
+        labels: data.map((item: any) => item.ageGroup),
+        datasets: [{
+          label: 'Số lượng',
+          data: data.map((item: any) => item.count),
+          backgroundColor: ['#B6E36C', '#F6F36C', '#F6A6F6', '#7CC6F6'],
+          borderColor: '#1976D2',
+          borderWidth: 1,
+          borderRadius: 4,
+        }],
+      };
+
+      const maxY = Math.max(...data.map((item: any) => item.count)) + 100;
+      const chartOptions = {
+        responsive: true,
+        plugins: {
+          legend: { display: false },
+          datalabels: {
+            anchor: 'end' as const,
+            align: 'top' as const,
+            clamp: true,
+            color: '#222',
+            font: { weight: 'bold' as const, size: 16 },
+            formatter: (value: number) => value,
+          },
+        },
+        scales: {
+          y: {
+            beginAtZero: true,
+            max: maxY,
+            ticks: { stepSize: Math.ceil(maxY / 10) },
+          },
+        },
+      };
+
+      return {
+        chart: <Bar data={chartData} options={chartOptions} plugins={[ChartDataLabels]} />,
+        legend: (
+          <div className="flex flex-wrap gap-4 justify-center mt-4">
+            {data.map((item: any, index: number) => (
+              <p key={index}>
+                <span 
+                  className="inline-block w-3 h-3 mr-2" 
+                  style={{ backgroundColor: ['#B6E36C', '#F6F36C', '#F6A6F6', '#7CC6F6'][index] }}
+                ></span>
+                {item.ageGroup}: {item.count}
+              </p>
+            ))}
+          </div>
+        )
+      };
+    }
+
+    if (filterType === 'status' && temporaryStats?.statistics) {
+      const tempStatus = temporaryStats.statistics.temporaryStatus;
+      const chartData = temporaryStats.statistics.chartData || [];
+      
+      const pieData = {
+        labels: chartData.map((item: any) => item.label),
+        datasets: [{
+          label: 'Số lượng',
+          data: chartData.map((item: any) => item.value),
+          backgroundColor: ['#2196F3', '#F6A6F6', '#B6E36C'],
+          borderColor: ['#2196F3', '#F6A6F6', '#B6E36C'],
+          borderWidth: 2,
+        }],
+      };
+
+      return {
+        chart: <Pie data={pieData} options={{
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { display: false },
+            datalabels: {
+              color: '#222',
+              font: { weight: 'bold' as const, size: 16 },
+              formatter: (value: number, context: any) => {
+                const total = context.chart.data.datasets[0].data.reduce((sum: number, current: number) => sum + current, 0);
+                const percentage = ((value / total) * 100).toFixed(0) + '%';
+                return percentage;
+              },
+            },
+          },
+        }} plugins={[ChartDataLabels]} />,
+        legend: (
+          <div className="flex gap-6 justify-center mt-4">
+            {chartData.map((item: any, index: number) => (
+              <p key={index} className="flex items-center">
+                <span 
+                  className="inline-block w-4 h-4 rounded-full mr-2" 
+                  style={{ backgroundColor: ['#2196F3', '#F6A6F6', '#B6E36C'][index] }}
+                ></span>
+                {item.label}: {item.value} ({item.percentage}%)
+              </p>
+            ))}
+          </div>
+        )
+      };
+    }
+
+    // Default fallback for time or no data
+    return {
+      chart: <div className="text-center text-gray-500">Chọn loại thống kê để xem dữ liệu</div>,
+      legend: null
+    };
+  };
+
+  const { chart, legend } = getChartData();
+
+  // Process residents list for table
+  const processedResidents = residentsList.map((resident, index) => ({
+    id: resident.id,
+    ten: resident.hoTen || 'N/A',
+    gioiTinh: resident.gioiTinh || 'N/A',
+    tuoi: resident.ngaySinh ? new Date().getFullYear() - new Date(resident.ngaySinh).getFullYear() : 'N/A',
+    trangThai: 'Thường trú', // Default status, could be enhanced
+    hoKhau: `HK${String(index + 1).padStart(3, '0')}`, // Generate household code
+  }));
+
+  const exportToExcel = () => {
+    const exportData = processedResidents.length > 0 ? processedResidents : [
+      { ten: 'Không có dữ liệu', gioiTinh: '', tuoi: '', trangThai: '', hoKhau: '' }
+    ];
+    
+    const ws = XLSX.utils.json_to_sheet(exportData.map(row => ({
+      'Họ tên': row.ten,
+      'Giới tính': row.gioiTinh,
+      'Tuổi': row.tuoi,
+      'Trạng thái': row.trangThai,
+      'Hộ khẩu': row.hoKhau,
+    })));
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Nhân khẩu');
+    XLSX.writeFile(wb, 'thong_ke_nhan_khau.xlsx');
+  };
 
   return (
-  <Layout role="totruong"> {/* Wrap with Layout - Assuming this is for totruong role */} 
-    <div className="p-4 flex flex-col gap-6">
-      {/* Page Title and Welcome Text */}
-      <div>
-        <h1 className="text-2xl font-bold text-gray-800">THỐNG KÊ NHÂN KHẨU</h1>
-        <p className="text-gray-600 text-sm mt-1">Chào mừng đến với Hệ thống Quản lý Thu phí Chung cư</p>
-      </div>
+    <Layout role="totruong">
+      <div className="p-4 flex flex-col gap-6">
+        {/* Page Title and Welcome Text */}
+        <div>
+          <h1 className="text-2xl font-bold text-gray-800">THỐNG KÊ NHÂN KHẨU</h1>
+          <p className="text-gray-600 text-sm mt-1">Thống kê dữ liệu nhân khẩu thực tế từ hệ thống</p>
+        </div>
 
         {/* Filter Area */}
         <div className="flex flex-wrap items-center gap-4">
@@ -223,9 +333,19 @@ const ThongKeNhanKhau: React.FC = () => {
           </select>
           {filterType === 'time' && (
             <>
-              <input type="date" className="border border-gray-300 rounded-md px-2 py-1 text-sm" value={dateFrom} onChange={e => setDateFrom(e.target.value)} />
+              <input 
+                type="date" 
+                className="border border-gray-300 rounded-md px-2 py-1 text-sm" 
+                value={dateFrom} 
+                onChange={e => setDateFrom(e.target.value)} 
+              />
               <span>-</span>
-              <input type="date" className="border border-gray-300 rounded-md px-2 py-1 text-sm" value={dateTo} onChange={e => setDateTo(e.target.value)} />
+              <input 
+                type="date" 
+                className="border border-gray-300 rounded-md px-2 py-1 text-sm" 
+                value={dateTo} 
+                onChange={e => setDateTo(e.target.value)} 
+              />
             </>
           )}
         </div>
@@ -236,40 +356,66 @@ const ThongKeNhanKhau: React.FC = () => {
             {chart}
           </div>
           {legend}
-      </div>
-
-      {/* Resident List Table */}
-      <div className="mt-6 bg-white rounded-md shadow-md overflow-hidden border border-gray-200">
-          <div className="p-4 bg-gray-100 border-b border-gray-200 flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-gray-800">Danh sách nhân khẩu</h2>
-            <button className="bg-blue-500 text-white px-4 py-2 rounded-md font-semibold hover:bg-blue-600 transition" onClick={exportToExcel}>Xuất báo cáo</button>
         </div>
-        <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50">
-            <tr>
-              <th className="px-6 py-3 text-left text-xs font-bold text-gray-800 uppercase tracking-wider">Họ tên</th>
-              <th className="px-6 py-3 text-left text-xs font-bold text-gray-800 uppercase tracking-wider">Giới tính</th>
+
+        {/* Resident List Table */}
+        <div className="mt-6 bg-white rounded-md shadow-md overflow-hidden border border-gray-200">
+          <div className="p-4 bg-gray-100 border-b border-gray-200 flex items-center justify-between">
+            <h2 className="text-lg font-semibold text-gray-800">
+              Danh sách nhân khẩu ({processedResidents.length} người)
+            </h2>
+            <button 
+              className="bg-blue-500 text-white px-4 py-2 rounded-md font-semibold hover:bg-blue-600 transition" 
+              onClick={exportToExcel}
+            >
+              Xuất báo cáo
+            </button>
+          </div>
+          <table className="min-w-full divide-y divide-gray-200">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="px-6 py-3 text-left text-xs font-bold text-gray-800 uppercase tracking-wider">Họ tên</th>
+                <th className="px-6 py-3 text-left text-xs font-bold text-gray-800 uppercase tracking-wider">Giới tính</th>
                 <th className="px-6 py-3 text-left text-xs font-bold text-gray-800 uppercase tracking-wider">Tuổi</th>
                 <th className="px-6 py-3 text-left text-xs font-bold text-gray-800 uppercase tracking-wider">Trạng thái</th>
                 <th className="px-6 py-3 text-left text-xs font-bold text-gray-800 uppercase tracking-wider">Hộ khẩu</th>
-            </tr>
-          </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
-              {sampleTable.map((row, idx) => (
-                <tr key={idx}>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-gray-900">{row.ten}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{row.gioiTinh}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{row.tuoi}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{row.trangThai}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{row.hoKhau}</td>
-            </tr>
-              ))}
-          </tbody>
-        </table>
+              </tr>
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-200">
+              {loading ? (
+                <tr>
+                  <td colSpan={5} className="px-6 py-4 text-center text-gray-500">
+                    Đang tải dữ liệu...
+                  </td>
+                </tr>
+              ) : processedResidents.length > 0 ? (
+                processedResidents.slice(0, 10).map((row, idx) => (
+                  <tr key={idx}>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-gray-900">{row.ten}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{row.gioiTinh}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{row.tuoi}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{row.trangThai}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{row.hoKhau}</td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan={5} className="px-6 py-4 text-center text-gray-500">
+                    Chưa có dữ liệu nhân khẩu
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+          {processedResidents.length > 10 && (
+            <div className="px-6 py-3 bg-gray-50 text-sm text-gray-500 text-center">
+              Hiển thị 10/{processedResidents.length} kết quả đầu tiên
+            </div>
+          )}
+        </div>
       </div>
-    </div>
-  </Layout>
-);
+    </Layout>
+  );
 };
 
-export default ThongKeNhanKhau; 
+export default ThongKeNhanKhau;

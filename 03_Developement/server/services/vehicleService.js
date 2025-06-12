@@ -6,8 +6,7 @@ const vehicleService = {
   // Vehicle Type Services
   async getAllVehicleTypes() {
     return await LoaiXe.findAll({
-      where: { trangThai: true }, // Only get active vehicle types
-      order: [['tenLoaiXe', 'ASC']]
+      order: [['ten', 'ASC']]
     });
   },
 
@@ -15,16 +14,15 @@ const vehicleService = {
     const { tenLoaiXe, phiThue, moTa } = data;
     
     // Check if exists
-    const existing = await LoaiXe.findOne({ where: { tenLoaiXe } });
+    const existing = await LoaiXe.findOne({ where: { ten: tenLoaiXe } });
     if (existing) {
       throw new Error('Loại xe đã tồn tại');
     }
 
     return await LoaiXe.create({
-      tenLoaiXe,
+      ten: tenLoaiXe,
       phiThue: phiThue || 0,
-      moTa,
-      trangThai: true
+      moTa
     });
   },
 
@@ -34,21 +32,20 @@ const vehicleService = {
       throw new Error('Không tìm thấy loại xe');
     }
 
-    const { tenLoaiXe, phiThue, moTa, trangThai } = data;
+    const { tenLoaiXe, phiThue, moTa } = data;
     
     // Check name conflict if updating name
-    if (tenLoaiXe && tenLoaiXe !== vehicleType.tenLoaiXe) {
-      const existing = await LoaiXe.findOne({ where: { tenLoaiXe } });
+    if (tenLoaiXe && tenLoaiXe !== vehicleType.ten) {
+      const existing = await LoaiXe.findOne({ where: { ten: tenLoaiXe } });
       if (existing) {
         throw new Error('Tên loại xe đã tồn tại');
       }
     }
 
     return await vehicleType.update({
-      tenLoaiXe: tenLoaiXe || vehicleType.tenLoaiXe,
+      ten: tenLoaiXe || vehicleType.ten,
       phiThue: phiThue !== undefined ? phiThue : vehicleType.phiThue,
-      moTa: moTa !== undefined ? moTa : vehicleType.moTa,
-      trangThai: trangThai !== undefined ? trangThai : vehicleType.trangThai
+      moTa: moTa !== undefined ? moTa : vehicleType.moTa
     });
   },
 
@@ -61,8 +58,7 @@ const vehicleService = {
     // Check if being used
     const vehicleCount = await QuanLyXe.count({ where: { loaiXeId: id } });
     if (vehicleCount > 0) {
-      // Instead of hard delete, soft delete by setting trangThai to false
-      return await vehicleType.update({ trangThai: false });
+      throw new Error('Loại xe đang được sử dụng, không thể xóa');
     }
 
     return await vehicleType.destroy();
@@ -94,7 +90,7 @@ const vehicleService = {
         {
           model: LoaiXe,
           as: 'loaiXe',
-          attributes: ['id', 'tenLoaiXe', 'phiThue', 'moTa', 'trangThai']
+          attributes: ['id', 'ten', 'phiThue', 'moTa']
         },
         {
           model: HoKhau,
@@ -136,14 +132,9 @@ const vehicleService = {
     }
 
     // Check vehicle type exists and is active
-    const loaiXe = await LoaiXe.findOne({ 
-      where: { 
-        id: loaiXeId,
-        trangThai: true // Only allow active vehicle types
-      } 
-    });
+    const loaiXe = await LoaiXe.findByPk(loaiXeId);
     if (!loaiXe) {
-      throw new Error('Không tìm thấy loại xe hoặc loại xe đã bị vô hiệu hóa');
+      throw new Error('Không tìm thấy loại xe');
     }
 
     // Check license plate uniqueness
@@ -168,7 +159,7 @@ const vehicleService = {
         {
           model: LoaiXe,
           as: 'loaiXe',
-          attributes: ['id', 'tenLoaiXe', 'phiThue', 'moTa', 'trangThai']
+          attributes: ['id', 'ten', 'phiThue', 'moTa']
         },
         {
           model: HoKhau,
@@ -238,7 +229,7 @@ const vehicleService = {
         {
           model: LoaiXe,
           as: 'loaiXe',
-          attributes: ['id', 'tenLoaiXe', 'phiThue', 'moTa', 'trangThai']
+          attributes: ['id', 'ten', 'phiThue', 'moTa']
         },
         {
           model: HoKhau,
@@ -272,7 +263,7 @@ const vehicleService = {
         {
           model: LoaiXe,
           as: 'loaiXe',
-          attributes: ['id', 'tenLoaiXe', 'phiThue', 'moTa', 'trangThai']
+          attributes: ['id', 'ten', 'phiThue', 'moTa']
         }
       ],
       order: [['id', 'DESC']] // Order by id instead of createdAt
@@ -295,7 +286,7 @@ const vehicleService = {
         {
           model: LoaiXe,
           as: 'loaiXe',
-          attributes: ['id', 'tenLoaiXe', 'phiThue']
+          attributes: ['id', 'ten', 'phiThue']
         }
       ],
       group: ['loaiXeId', 'loaiXe.id'],

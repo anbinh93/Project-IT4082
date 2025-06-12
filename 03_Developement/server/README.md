@@ -343,10 +343,9 @@ To set up the database:
 ## API Endpoints
 
 The system provides RESTful APIs for:
-- Resident management (`/api/residents`)
+- User authentication (`/api/auth`)
 - Household management (`/api/households`)
-- Fee management (`/api/fees`)
-- Payment processing (`/api/payments`)
+- Vehicle management (`/api/vehicles`)
 - Statistics and reports (`/api/statistics`)
 
 For detailed API documentation, see the `/docs` folder.

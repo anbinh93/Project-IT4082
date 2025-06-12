@@ -211,7 +211,7 @@ module.exports = {
       },
       chuHo: {
         type: Sequelize.INTEGER,
-        allowNull: false,
+        allowNull: true,
         unique: true
       },
       soNha: {

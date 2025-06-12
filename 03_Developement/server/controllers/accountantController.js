@@ -3,13 +3,7 @@ const db = require('../db/models');
 // Lấy danh sách khoản thu
 exports.getKhoanThu = async (req, res) => {
     try {
-        const khoanthu = await db.KhoanThu.findAll({
-            include: [{
-                model: db.NopPhi,
-                as: 'nopPhi'
-            }],
-            order: [['ngaytao', 'DESC']]
-        });
+        const khoanthu = await db.KhoanThu.findAll();
         return res.status(200).json(khoanthu);
     } catch (error) {
         return res.status(500).json({ message: error.message });
@@ -40,14 +34,12 @@ exports.getKhoanThuById = async (req, res) => {
 // Thêm khoản thu mới
 exports.createKhoanThu = async (req, res) => {
     try {
-        const { tenkhoanthu, thoihan, batbuoc, ghichu } = req.body;
+        const { tenKhoanThu, batBuoc, ghiChu } = req.body;
         
         const khoanthu = await db.KhoanThu.create({
-            tenkhoanthu,
-            ngaytao: new Date(),
-            thoihan,
-            batbuoc,
-            ghichu
+            tenKhoanThu,
+            batBuoc,
+            ghiChu
         });
 
         return res.status(201).json(khoanthu);

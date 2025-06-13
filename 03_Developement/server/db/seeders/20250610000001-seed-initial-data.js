@@ -48,30 +48,47 @@ module.exports = {
     // Insert KhoanThu
     await queryInterface.bulkInsert('KhoanThu', [
       {
-        tenKhoanThu: 'Phí quản lý',
-        batBuoc: true,
-        ghiChu: 'Phí quản lý chung cư hàng tháng',
+        tenkhoanthu: 'Phí quản lý',
+        ngaytao: new Date(),
+        thoihan: new Date('2025-12-31'),
+        batbuoc: true,
+        ghichu: 'Phí quản lý chung cư hàng tháng',
         createdAt: new Date(),
         updatedAt: new Date()
       },
       {
-        tenKhoanThu: 'Phí điện',
-        batBuoc: true,
-        ghiChu: 'Tiền điện hàng tháng',
+        tenkhoanthu: 'Phí điện',
+        ngaytao: new Date(),
+        thoihan: new Date('2025-12-31'),
+        batbuoc: true,
+        ghichu: 'Tiền điện hàng tháng',
         createdAt: new Date(),
         updatedAt: new Date()
       },
       {
-        tenKhoanThu: 'Phí nước',
-        batBuoc: true,
-        ghiChu: 'Tiền nước hàng tháng',
+        tenkhoanthu: 'Phí nước',
+        ngaytao: new Date(),
+        thoihan: new Date('2025-12-31'),
+        batbuoc: true,
+        ghichu: 'Tiền nước hàng tháng',
         createdAt: new Date(),
         updatedAt: new Date()
       },
       {
-        tenKhoanThu: 'Phí internet',
-        batBuoc: false,
-        ghiChu: 'Phí internet chung',
+        tenkhoanthu: 'Phí internet',
+        ngaytao: new Date(),
+        thoihan: new Date('2025-12-31'),
+        batbuoc: false,
+        ghichu: 'Phí internet chung',
+        createdAt: new Date(),
+        updatedAt: new Date()
+      },
+      {
+        tenkhoanthu: 'Phí bảo vệ',
+        ngaytao: new Date(),
+        thoihan: new Date('2025-12-31'),
+        batbuoc: true,
+        ghichu: 'Phí dịch vụ bảo vệ 24/7',
         createdAt: new Date(),
         updatedAt: new Date()
       }
@@ -202,6 +219,17 @@ module.exports = {
         updatedAt: new Date()
       },
       {
+        chuHo: 2,
+        soNha: '102',
+        duong: 'Lê Văn Lương',
+        phuong: 'Nhân Chính',
+        quan: 'Thanh Xuân',
+        thanhPho: 'Hà Nội',
+        ngayLamHoKhau: new Date('2023-01-15'),
+        createdAt: new Date(),
+        updatedAt: new Date()
+      },
+      {
         chuHo: 3,
         soNha: '201',
         duong: 'Lê Văn Lương',
@@ -222,6 +250,11 @@ module.exports = {
     
     await queryInterface.bulkUpdate('Canho', 
       { hoKhauId: 2 },
+      { soPhong: 102 }
+    );
+
+    await queryInterface.bulkUpdate('Canho', 
+      { hoKhauId: 3 },
       { soPhong: 201 }
     );
 
@@ -237,15 +270,15 @@ module.exports = {
       },
       {
         nhanKhauId: 2,
-        hoKhauId: 1,
-        ngayThemNhanKhau: new Date('2023-01-01'),
-        quanHeVoiChuHo: 'vợ/chồng',
+        hoKhauId: 2,
+        ngayThemNhanKhau: new Date('2023-01-15'),
+        quanHeVoiChuHo: 'chủ hộ',
         createdAt: new Date(),
         updatedAt: new Date()
       },
       {
         nhanKhauId: 3,
-        hoKhauId: 2,
+        hoKhauId: 3,
         ngayThemNhanKhau: new Date('2023-02-01'),
         quanHeVoiChuHo: 'chủ hộ',
         createdAt: new Date(),
@@ -277,25 +310,53 @@ module.exports = {
       }
     ]);
 
-    // Insert sample NopPhi
+    // Insert sample NopPhi (Payment records)
     await queryInterface.bulkInsert('NopPhi', [
       {
-        hoKhauId: 1,
-        khoanThuId: 1,
-        soTien: 500000.00,
-        nguoiNop: 'Nguyễn Văn An',
-        ngayNop: new Date('2025-06-05'),
-        trangThai: true,
+        hokhau_id: 1,
+        khoanthu_id: 1,
+        sotien: 500000.00,
+        ngaynop: new Date('2025-06-05'),
+        nguoinop: 'Nguyễn Văn An',
+        phuongthuc: 'CASH',
+        ghichu: 'Nộp phí quản lý tháng 6',
+        status: 'ACTIVE',
         createdAt: new Date(),
         updatedAt: new Date()
       },
       {
-        hoKhauId: 1,
-        khoanThuId: 2,
-        soTien: 800000.00,
-        nguoiNop: 'Nguyễn Văn An',
-        ngayNop: new Date('2025-06-05'),
-        trangThai: true,
+        hokhau_id: 1,
+        khoanthu_id: 2,
+        sotien: 800000.00,
+        ngaynop: new Date('2025-06-05'),
+        nguoinop: 'Nguyễn Văn An',
+        phuongthuc: 'BANK_TRANSFER',
+        ghichu: 'Nộp tiền điện tháng 6',
+        status: 'ACTIVE',
+        createdAt: new Date(),
+        updatedAt: new Date()
+      },
+      {
+        hokhau_id: 2,
+        khoanthu_id: 1,
+        sotien: 500000.00,
+        ngaynop: new Date('2025-06-03'),
+        nguoinop: 'Trần Thị Bình',
+        phuongthuc: 'ONLINE',
+        ghichu: 'Thanh toán online qua ứng dụng',
+        status: 'ACTIVE',
+        createdAt: new Date(),
+        updatedAt: new Date()
+      },
+      {
+        hokhau_id: 3,
+        khoanthu_id: 3,
+        sotien: 300000.00,
+        ngaynop: new Date('2025-06-02'),
+        nguoinop: 'Lê Minh Cường',
+        phuongthuc: 'CASH',
+        ghichu: 'Tiền nước tháng 6',
+        status: 'ACTIVE',
         createdAt: new Date(),
         updatedAt: new Date()
       }

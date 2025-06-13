@@ -63,6 +63,11 @@ module.exports = (sequelize, DataTypes) => {
     ghiChu: {
       type: DataTypes.TEXT,
       allowNull: true
+    },
+    soDienThoai: {
+      type: DataTypes.STRING(15),
+      allowNull: true,
+      comment: 'Số điện thoại liên lạc'
     }
   }, {
     sequelize,

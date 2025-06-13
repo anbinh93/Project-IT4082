@@ -19,7 +19,7 @@ module.exports = (sequelize, DataTypes) => {
         as: 'lichSuThayDoi'
       });
       HoKhau.hasMany(models.NopPhi, {
-        foreignKey: 'hoKhauId',
+        foreignKey: 'hokhau_id',
         sourceKey: 'soHoKhau',
         as: 'nopPhi'
       });
@@ -28,11 +28,26 @@ module.exports = (sequelize, DataTypes) => {
         sourceKey: 'soHoKhau',
         as: 'quanLyXe'
       });
+      
+      // HoKhau has many ThanhToan
+      HoKhau.hasMany(models.ThanhToan, {
+        foreignKey: 'hoKhauId',
+        sourceKey: 'soHoKhau',
+        as: 'thanhToan'
+      });
+      
       // HoKhau has one Canho
       HoKhau.hasOne(models.Canho, {
         foreignKey: 'hoKhauId',
         sourceKey: 'soHoKhau',
         as: 'canho'
+      });
+      
+      // HoKhau has one Room
+      HoKhau.hasOne(models.Room, {
+        foreignKey: 'hoKhauId',
+        sourceKey: 'soHoKhau',
+        as: 'room'
       });
     }
   }

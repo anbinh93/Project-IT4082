@@ -19,7 +19,7 @@ const residentController = {
 
       const { count, rows: residents } = await NhanKhau.findAndCountAll({
         where: whereClause,
-        attributes: ['id', 'hoTen', 'ngaySinh', 'gioiTinh', 'cccd', 'danToc', 'ngheNghiep'],
+        attributes: ['id', 'hoTen', 'ngaySinh', 'gioiTinh', 'cccd', 'danToc', 'ngheNghiep', 'soDienThoai'],
         limit: parseInt(limit),
         offset: parseInt(offset),
         order: [['hoTen', 'ASC']]
@@ -91,7 +91,7 @@ const residentController = {
 
       const availableResidents = await NhanKhau.findAll({
         where: whereClauseWithAvailability,
-        attributes: ['id', 'hoTen', 'ngaySinh', 'gioiTinh', 'cccd'],
+        attributes: ['id', 'hoTen', 'ngaySinh', 'gioiTinh', 'cccd', 'soDienThoai'],
         order: [['hoTen', 'ASC']]
       });
 
@@ -102,7 +102,8 @@ const residentController = {
           name: resident.hoTen,
           ngaySinh: resident.ngaySinh,
           gioiTinh: resident.gioiTinh,
-          cccd: resident.cccd
+          cccd: resident.cccd,
+          soDienThoai: resident.soDienThoai
         }))
       });
     } catch (error) {
@@ -170,6 +171,7 @@ const residentController = {
         ngayCap, 
         noiCap, 
         ngheNghiep,
+        soDienThoai,
         selectedHouseholdId,
         quanHeVoiChuHo
       } = req.body;
@@ -204,7 +206,8 @@ const residentController = {
         cccd,
         ngayCap: ngayCap ? new Date(ngayCap) : null,
         noiCap: noiCap || null,
-        ngheNghiep: ngheNghiep || null
+        ngheNghiep: ngheNghiep || null,
+        soDienThoai: soDienThoai || null
       });
 
       // If household is selected, add resident to household
@@ -425,12 +428,20 @@ const residentController = {
   // Separate household - move resident to different household
   async separateHousehold(req, res) {
     try {
-      const { residentId, targetType, targetHouseholdId, newHouseholdAddress, reason } = req.body;
+      const { residentId, targetType, targetHouseholdId, newHouseholdAddress, reason, quanHeVoiChuHoMoi } = req.body;
 
       if (!residentId || !targetType || !reason) {
         return res.status(400).json({
           success: false,
           message: 'Thiếu thông tin bắt buộc: residentId, targetType, reason'
+        });
+      }
+
+      // Validate relationship with new head if moving to existing household
+      if (targetType === 'existing' && !quanHeVoiChuHoMoi) {
+        return res.status(400).json({
+          success: false,
+          message: 'Vui lòng chọn quan hệ với chủ hộ mới khi chuyển vào hộ có sẵn'
         });
       }
 
@@ -546,16 +557,29 @@ const residentController = {
           });
         }
 
-        // Parse address
-        const addressParts = newHouseholdAddress.split(' - ');
+        // Parse address - handle different separator styles
+        let addressParts = [];
+        
+        // Try to split by the expected delimiter ' - '
+        if (newHouseholdAddress.includes(' - ')) {
+          addressParts = newHouseholdAddress.split(' - ').map(part => part.trim());
+        } 
+        // If there are no ' - ' delimiters, try comma
+        else if (newHouseholdAddress.includes(',')) {
+          addressParts = newHouseholdAddress.split(',').map(part => part.trim());
+        }
+        // If no separators, treat as a single address part
+        else {
+          addressParts = [newHouseholdAddress.trim()];
+        }
         
         const newHouseholdData = {
           chuHo: residentId,
           soNha: addressParts[0] || '',
           duong: addressParts[1] || '',
-          phuong: addressParts[2] || '',
-          quan: 'Thanh Xuân',
-          thanhPho: 'Hà Nội',
+          phuong: addressParts[2] || 'Nhân Chính',
+          quan: addressParts[3] || 'Thanh Xuân',
+          thanhPho: addressParts[4] || 'Hà Nội',
           ngayLamHoKhau: new Date()
         };
         
@@ -587,7 +611,7 @@ const residentController = {
         nhanKhauId: residentId,
         hoKhauId: targetHouseholdId_final,
         ngayThemNhanKhau: new Date(),
-        quanHeVoiChuHo: targetType === 'new' ? 'chủ hộ' : 'khác'
+        quanHeVoiChuHo: targetType === 'new' ? 'chủ hộ' : (quanHeVoiChuHoMoi || 'khác')
       });
 
       // Record the addition in history
@@ -617,9 +641,21 @@ const residentController = {
 
     } catch (error) {
       console.error('Error separating household:', error);
+      
+      // Provide more descriptive error messages
+      let errorMessage = 'Lỗi server khi tách hộ';
+      
+      if (error.name === 'SequelizeValidationError') {
+        errorMessage = 'Lỗi xác thực dữ liệu: ' + error.message;
+      } else if (error.name === 'SequelizeForeignKeyConstraintError') {
+        errorMessage = 'Lỗi ràng buộc dữ liệu: Không thể liên kết với hộ khẩu hoặc nhân khẩu yêu cầu';
+      } else if (error.name === 'SequelizeUniqueConstraintError') {
+        errorMessage = 'Lỗi dữ liệu trùng lặp: ' + error.message;
+      }
+      
       res.status(500).json({
         success: false,
-        message: 'Lỗi server khi tách hộ',
+        message: errorMessage,
         error: error.message,
         details: process.env.NODE_ENV === 'development' ? {
           name: error.name,
@@ -705,6 +741,143 @@ const residentController = {
       res.status(500).json({
         success: false,
         message: 'Lỗi server khi lấy lịch sử thay đổi hộ khẩu',
+        error: error.message
+      });
+    }
+  },
+
+  // Update resident information
+  async updateResident(req, res) {
+    try {
+      const { id } = req.params;
+      const { 
+        hoTen, 
+        ngaySinh, 
+        gioiTinh, 
+        danToc, 
+        tonGiao, 
+        cccd, 
+        ngayCap, 
+        noiCap, 
+        ngheNghiep,
+        soDienThoai,
+        ghiChu
+      } = req.body;
+
+      // Check if resident exists
+      const resident = await NhanKhau.findByPk(id);
+      if (!resident) {
+        return res.status(404).json({
+          success: false,
+          message: 'Không tìm thấy nhân khẩu'
+        });
+      }
+
+      // Check if CCCD already exists for another resident
+      if (cccd && cccd !== resident.cccd) {
+        const existingResident = await NhanKhau.findOne({
+          where: { 
+            cccd: cccd,
+            id: { [Op.ne]: id }
+          }
+        });
+
+        if (existingResident) {
+          return res.status(400).json({
+            success: false,
+            message: 'Số CCCD này đã tồn tại trong hệ thống'
+          });
+        }
+      }
+
+      // Update resident information
+      const updatedData = {
+        hoTen: hoTen || resident.hoTen,
+        ngaySinh: ngaySinh ? new Date(ngaySinh) : resident.ngaySinh,
+        gioiTinh: gioiTinh || resident.gioiTinh,
+        danToc: danToc || resident.danToc,
+        tonGiao: tonGiao || resident.tonGiao,
+        cccd: cccd || resident.cccd,
+        ngayCap: ngayCap ? new Date(ngayCap) : resident.ngayCap,
+        noiCap: noiCap || resident.noiCap,
+        ngheNghiep: ngheNghiep || resident.ngheNghiep,
+        soDienThoai: soDienThoai || resident.soDienThoai,
+        ghiChu: ghiChu || resident.ghiChu
+      };
+
+      await resident.update(updatedData);
+
+      res.json({
+        success: true,
+        message: 'Cập nhật thông tin nhân khẩu thành công',
+        data: resident
+      });
+    } catch (error) {
+      console.error('Error updating resident:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Lỗi server khi cập nhật thông tin nhân khẩu',
+        error: error.message
+      });
+    }
+  },
+
+  // Delete resident
+  async deleteResident(req, res) {
+    try {
+      const { id } = req.params;
+
+      // Check if resident exists
+      const resident = await NhanKhau.findByPk(id);
+      if (!resident) {
+        return res.status(404).json({
+          success: false,
+          message: 'Không tìm thấy nhân khẩu'
+        });
+      }
+
+      // Check if resident is head of any household
+      const isHouseholdHead = await HoKhau.findOne({
+        where: { chuHo: id }
+      });
+
+      if (isHouseholdHead) {
+        return res.status(400).json({
+          success: false,
+          message: 'Không thể xóa nhân khẩu này vì đang là chủ hộ. Vui lòng chuyển chủ hộ trước khi xóa.'
+        });
+      }
+
+      // Check if resident is member of any household
+      const householdMembership = await ThanhVienHoKhau.findOne({
+        where: { nhanKhauId: id }
+      });
+
+      if (householdMembership) {
+        // Remove from household first
+        await householdMembership.destroy();
+        
+        // Record the removal in history
+        await LichSuThayDoiHoKhau.create({
+          nhanKhauId: id,
+          hoKhauId: householdMembership.hoKhauId,
+          loaiThayDoi: 2, // Removed from household
+          thoiGian: new Date()
+        });
+      }
+
+      // Delete the resident
+      await resident.destroy();
+
+      res.json({
+        success: true,
+        message: 'Xóa nhân khẩu thành công'
+      });
+    } catch (error) {
+      console.error('Error deleting resident:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Lỗi server khi xóa nhân khẩu',
         error: error.message
       });
     }

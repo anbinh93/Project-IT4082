@@ -11,10 +11,12 @@ import HomepageKeToan from "./pages/HomepageKeToan";
 import HomepageToTruong from "./pages/HomepageToTruong";
 import QuanLyHoKhau from "./pages/QuanLyHoKhau";
 import QuanLyNhanKhau from "./pages/QuanLyNhanKhau";
-import QuanLyKhoanThu from "./pages/QuanLyKhoanThu";
+import QuanLyKhoanThu from "./pages/QuanLyKhoanThuTabBased";
+import QuanLyDotThuPhi from "./pages/QuanLyDotThuPhi";
 import QuanLyTamTru from "./pages/QuanLyTamTru";
 import LichSuThayDoiNhanKhau from "./pages/LichSuThayDoiNhanKhau";
-import QuanLyXeNew from "./pages/QuanLyXeNew";
+import QuanLyXe from "./pages/QuanLyXe";
+import QuanLyPhong from "./pages/QuanLyPhong";
 import ThongKeNhanKhau from "./pages/ThongKeNhanKhau";
 import ThongKeKhoanThu from "./pages/ThongKeKhoanThu";
 import ProtectedRoute from "./components/ProtectedRoute";
@@ -39,6 +41,11 @@ function App() {
         <Route path="/quan-ly-khoan-thu" element={
           <ProtectedRoute requiredRoles={['admin', 'accountant']}>
             <QuanLyKhoanThu />
+          </ProtectedRoute>
+        } />
+        <Route path="/quan-ly-dot-thu-phi" element={
+          <ProtectedRoute requiredRoles={['admin', 'accountant']}>
+            <QuanLyDotThuPhi />
           </ProtectedRoute>
         } />
         <Route path="/thong-ke-khoan-thu" element={
@@ -76,9 +83,15 @@ function App() {
           </ProtectedRoute>
         } />
 
+        <Route path="/quan-ly-phong" element={
+          <ProtectedRoute requiredRoles={['admin', 'manager']}>
+            <QuanLyPhong />
+          </ProtectedRoute>
+        } />
+
         <Route path="/quan-ly-xe" element={
           <ProtectedRoute requiredRoles={['admin', 'manager']}>
-            <QuanLyXeNew />
+            <QuanLyXe />
           </ProtectedRoute>
         } />
         <Route path="/thong-ke-nhan-khau" element={

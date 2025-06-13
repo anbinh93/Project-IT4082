@@ -1,9 +1,19 @@
 import React, { useState, useEffect } from 'react';
+import { khoanThuAPI } from '../services/api';
 
 interface EditDotThuPhiPopupProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave?: (data: { maDot: string; tenDot: string; ngayTao: string; hanThu: string }) => void;
+  onSave?: (data: { 
+    maDot: string; 
+    tenDot: string; 
+    ngayTao: string; 
+    hanThu: string;
+    khoanThu?: Array<{
+      khoanThuId: number;
+      soTien: number;
+    }>;
+  }) => void;
   batch?: any | null;
 }
 
@@ -13,10 +23,13 @@ const EditDotThuPhiPopup: React.FC<EditDotThuPhiPopupProps> = ({ isOpen, onClose
   const [tenDot, setTenDot] = useState('');
   const [ngayTao, setNgayTao] = useState(today);
   const [hanThu, setHanThu] = useState('');
+  const [availableKhoanThu, setAvailableKhoanThu] = useState<any[]>([]);
+  const [selectedKhoanThu, setSelectedKhoanThu] = useState<Array<{khoanThuId: number; soTien: number}>>([]);
   const [errors, setErrors] = useState<{ maDot?: string; tenDot?: string; ngayTao?: string; hanThu?: string }>({});
   const [showConfirmClose, setShowConfirmClose] = useState(false);
   const [showConfirmSave, setShowConfirmSave] = useState(false);
   const [pendingAction, setPendingAction] = useState<'close' | 'save' | null>(null);
+  const [loadingKhoanThu, setLoadingKhoanThu] = useState(false);
 
   // Hàm chuyển đổi định dạng ngày từ dd/mm/yyyy sang yyyy-mm-dd
   const formatDateForInput = (dateString: string): string => {
@@ -50,8 +63,56 @@ const EditDotThuPhiPopup: React.FC<EditDotThuPhiPopupProps> = ({ isOpen, onClose
       setTenDot(batch.tenDot || '');
       setNgayTao(formatDateForInput(batch.ngayTao) || today);
       setHanThu(formatDateForInput(batch.hanCuoi) || '');
+      
+      // Load existing khoanThu for this batch
+      if (batch.details?.khoanThu) {
+        const khoanThuData = batch.details.khoanThu.map((kt: any) => ({
+          khoanThuId: kt.id,
+          soTien: kt.soTienMacDinh || 0
+        }));
+        setSelectedKhoanThu(khoanThuData);
+      }
     }
   }, [batch, today]);
+
+  // Load available KhoanThu from API
+  useEffect(() => {
+    const loadKhoanThu = async () => {
+      if (!isOpen) return;
+      
+      try {
+        setLoadingKhoanThu(true);
+        const response = await khoanThuAPI.getAll();
+        if (response.success) {
+          setAvailableKhoanThu(response.data);
+        }
+      } catch (error) {
+        console.error('Error loading KhoanThu:', error);
+      } finally {
+        setLoadingKhoanThu(false);
+      }
+    };
+
+    loadKhoanThu();
+  }, [isOpen]);
+
+  // Xử lý thay đổi khoản thu
+  const handleKhoanThuChange = (khoanThuId: number, isChecked: boolean) => {
+    if (isChecked) {
+      setSelectedKhoanThu(prev => [...prev, { khoanThuId, soTien: 0 }]);
+    } else {
+      setSelectedKhoanThu(prev => prev.filter(kt => kt.khoanThuId !== khoanThuId));
+    }
+  };
+
+  // Xử lý thay đổi số tiền khoản thu
+  const handleSoTienChange = (khoanThuId: number, soTien: number) => {
+    setSelectedKhoanThu(prev => 
+      prev.map(kt => 
+        kt.khoanThuId === khoanThuId ? { ...kt, soTien } : kt
+      )
+    );
+  };
 
   if (!isOpen) return null;
 
@@ -60,7 +121,11 @@ const EditDotThuPhiPopup: React.FC<EditDotThuPhiPopupProps> = ({ isOpen, onClose
     maDot !== batch.maDot || 
     tenDot !== batch.tenDot || 
     formatDateForSave(ngayTao) !== batch.ngayTao || 
-    formatDateForSave(hanThu) !== batch.hanCuoi
+    formatDateForSave(hanThu) !== batch.hanCuoi ||
+    JSON.stringify(selectedKhoanThu) !== JSON.stringify(batch.details?.khoanThu?.map((kt: any) => ({
+      khoanThuId: kt.id,
+      soTien: kt.soTienMacDinh || 0
+    })) || [])
   );
 
   const validate = () => {
@@ -91,6 +156,7 @@ const EditDotThuPhiPopup: React.FC<EditDotThuPhiPopupProps> = ({ isOpen, onClose
     setTenDot('');
     setNgayTao(today);
     setHanThu('');
+    setSelectedKhoanThu([]);
     setShowConfirmClose(false);
     setShowConfirmSave(false);
     setPendingAction(null);
@@ -110,7 +176,8 @@ const EditDotThuPhiPopup: React.FC<EditDotThuPhiPopupProps> = ({ isOpen, onClose
       maDot, 
       tenDot, 
       ngayTao: formatDateForSave(ngayTao), 
-      hanThu: formatDateForSave(hanThu) 
+      hanThu: formatDateForSave(hanThu),
+      khoanThu: selectedKhoanThu
     });
     handleClose();
   };
@@ -178,6 +245,62 @@ const EditDotThuPhiPopup: React.FC<EditDotThuPhiPopupProps> = ({ isOpen, onClose
             />
             {errors.hanThu && <p className="text-xs text-red-500 mt-1">{errors.hanThu}</p>}
           </div>
+
+          {/* Phần chọn khoản thu */}
+          <div className="mb-8">
+            <label className="block text-sm font-medium text-gray-700 mb-3">Chọn khoản thu cho đợt này</label>
+            {loadingKhoanThu ? (
+              <div className="text-center py-4 text-gray-500">Đang tải khoản thu...</div>
+            ) : (
+              <div className="space-y-3 max-h-48 overflow-y-auto border border-gray-200 rounded-md p-3">
+                {availableKhoanThu.length === 0 ? (
+                  <div className="text-center py-4 text-gray-500">Không có khoản thu nào</div>
+                ) : (
+                  availableKhoanThu.map((khoanThu) => {
+                    const isSelected = selectedKhoanThu.some(kt => kt.khoanThuId === khoanThu.id);
+                    const selectedItem = selectedKhoanThu.find(kt => kt.khoanThuId === khoanThu.id);
+                    
+                    return (
+                      <div key={khoanThu.id} className="flex items-center space-x-3 p-2 border border-gray-100 rounded">
+                        <input
+                          type="checkbox"
+                          checked={isSelected}
+                          onChange={(e) => handleKhoanThuChange(khoanThu.id, e.target.checked)}
+                          className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                        />
+                        <div className="flex-1">
+                          <span className="text-sm font-medium text-gray-900">{khoanThu.tenKhoan}</span>
+                          {khoanThu.batBuoc && (
+                            <span className="ml-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                              Bắt buộc
+                            </span>
+                          )}
+                          {khoanThu.ghiChu && (
+                            <p className="text-xs text-gray-500 mt-1">{khoanThu.ghiChu}</p>
+                          )}
+                        </div>
+                        {isSelected && (
+                          <div className="flex items-center space-x-2">
+                            <span className="text-xs text-gray-500">Số tiền:</span>
+                            <input
+                              type="number"
+                              value={selectedItem?.soTien || 0}
+                              onChange={(e) => handleSoTienChange(khoanThu.id, parseInt(e.target.value) || 0)}
+                              className="w-24 px-2 py-1 text-xs border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                              placeholder="0"
+                              min="0"
+                            />
+                            <span className="text-xs text-gray-500">VND</span>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            )}
+          </div>
+
           <div className="flex gap-4">
             <button
               className="flex-1 px-4 py-3 bg-gray-500 text-white text-base font-semibold rounded-md shadow-sm hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition-all"

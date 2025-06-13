@@ -1,9 +1,34 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Layout from '../components/Layout'; // Import Layout component
 import AddEditDotThuPhiPopup from '../components/AddEditDotThuPhiPopup'; // Import Add popup
 import EditDotThuPhiPopup from '../components/EditDotThuPhiPopup'; // Import Edit popup
 import AddEditFeePopup from '../components/AddEditFeePopup'; // Import Add/Edit Fee popup
 import { FEE_TYPES } from '../components/AddEditFeePopup';
+import api from '../services/api';
+
+// Function to map fee names from database to fee types
+const mapFeeNameToType = (feeNameFromDB: string): string => {
+  const nameLower = feeNameFromDB.toLowerCase();
+  
+  if (nameLower.includes('dịch vụ') || nameLower.includes('dich vu')) {
+    return 'PHI_DICH_VU';
+  } else if (nameLower.includes('quản lý') || nameLower.includes('quan ly')) {
+    return 'PHI_QUAN_LY';
+  } else if (nameLower.includes('gửi xe') || nameLower.includes('gui xe') || nameLower.includes('xe')) {
+    return 'PHI_GUI_XE';
+  } else if (nameLower.includes('điện') || nameLower.includes('dien')) {
+    return 'PHI_DIEN';
+  } else if (nameLower.includes('nước') || nameLower.includes('nuoc')) {
+    return 'PHI_NUOC';
+  } else if (nameLower.includes('internet') || nameLower.includes('mạng')) {
+    return 'PHI_INTERNET';
+  } else if (nameLower.includes('vệ sinh') || nameLower.includes('ve sinh')) {
+    return 'PHI_VE_SINH';
+  }
+  
+  // Default to service fee if no match found
+  return 'PHI_DICH_VU';
+};
 
 // Định nghĩa type mới cho khoản thu và batch
 interface HouseholdFee {
@@ -177,7 +202,11 @@ const QuanLyDotThuPhi: React.FC = () => {
   const [selectedBatch, setSelectedBatch] = useState<any | null>(null); // State for selected batch details
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState('Tất cả');
-  const [batches, setBatches] = useState<Batch[]>(sampleBatches); // State for all batches
+  const [batches, setBatches] = useState<Batch[]>([]); // State for all batches - start empty
+  
+  // API related states
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   
   // Thêm các state mới
   const [isDeleteBatchConfirmOpen, setIsDeleteBatchConfirmOpen] = useState(false); // Xác nhận xóa đợt thu
@@ -187,6 +216,115 @@ const QuanLyDotThuPhi: React.FC = () => {
   const [selectedFee, setSelectedFee] = useState<any | null>(null); // Khoản thu được chọn để sửa/xóa
   const [activeBatchForFee, setActiveBatchForFee] = useState<any | null>(null); // Đợt thu đang được thao tác với khoản thu
   const [addFeeError, setAddFeeError] = useState<string | null>(null);
+
+  // Load fee collection periods from API
+  useEffect(() => {
+    console.log('🚀 QuanLyDotThuPhi component mounted');
+    loadDotThuData();
+  }, []);
+
+  const loadDotThuData = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      console.log('🔄 Loading fee collection data from API...');
+      console.log('📊 Current batches state:', batches);
+      console.log('📊 Sample batches available:', sampleBatches);
+      console.log('🔑 Checking authentication token...');
+      
+      // Check if we have a valid auth token
+      const authToken = localStorage.getItem('authToken');
+      console.log('🔑 Auth token:', authToken ? 'Present' : 'Missing');
+      
+      if (!authToken) {
+        console.warn('⚠️  No auth token found, using sample data');
+        setError('Vui lòng đăng nhập để tải dữ liệu từ server.');
+        setBatches(sampleBatches);
+        return;
+      }
+      
+      try {
+        // Load all fee collection periods
+        const response = await api.dotThu.getAll({
+          page: 0,
+          size: 100, // Load all for now
+          sortBy: 'createdAt',
+          sortDir: 'desc'
+        });
+        
+        console.log('📊 API Response:', response);
+        
+        if (response && response.dotThus) {
+          // Transform API data to match frontend structure
+          const transformedBatches = response.dotThus.map((dotThu: any) => {
+            // Transform khoanThu from API format to frontend format
+            const transformedKhoanThu = (dotThu.khoanThu || []).map((khoanthu: any) => ({
+              id: khoanthu.id,
+              type: mapFeeNameToType(khoanthu.tenkhoanthu), // Use mapping function
+              tenKhoan: khoanthu.tenkhoanthu, // Fix field name to match interface
+              chiTiet: khoanthu.tenkhoanthu, // Use name as description for now
+              batBuoc: 'Bắt buộc', // Default to mandatory
+              soTien: khoanthu.DotThu_KhoanThu?.soTien || '0',
+              householdFees: {} // Empty for now, can be populated later
+            }));
+
+            console.log('🔄 Transformed khoanThu for dotThu', dotThu.id, ':', transformedKhoanThu);
+
+            return {
+              maDot: dotThu.id,
+              tenDot: dotThu.tenDotThu,
+              ngayTao: formatDate(dotThu.ngayTao),
+              hanCuoi: formatDate(dotThu.thoiHan),
+              trangThai: isDatePast(dotThu.thoiHan) ? 'Đã đóng' : 'Đang mở',
+              details: {
+                maDot: dotThu.id,
+                tenDot: dotThu.tenDotThu,
+                ngayTao: formatDate(dotThu.ngayTao),
+                hanCuoi: formatDate(dotThu.thoiHan),
+                khoanThu: transformedKhoanThu
+              },
+              isExpanded: false
+            };
+          });
+          
+          console.log('✅ Transformed batches:', transformedBatches);
+          setBatches(transformedBatches);
+        } else {
+          console.log('⚠️  No data returned from API, setting empty array');
+          setBatches([]);
+        }
+      } catch (apiError) {
+        console.warn('⚠️  API call failed, using sample data as fallback:', apiError);
+        setError('Không thể tải dữ liệu từ server. Đang hiển thị dữ liệu mẫu.');
+        setBatches(sampleBatches);
+      }
+    } catch (error) {
+      console.error('❌ Error loading fee collection data:', error);
+      setError('Không thể tải dữ liệu đợt thu phí. Đang sử dụng dữ liệu mẫu.');
+      // Fallback to sample data if API fails
+      setBatches(sampleBatches);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Helper function to format date from API response
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('vi-VN', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric'
+    });
+  };
+
+  // Helper function to check if date is past
+  const isDatePast = (dateString: string) => {
+    const today = new Date();
+    const compareDate = new Date(dateString);
+    return compareDate < today;
+  };
 
   // Hàm kiểm tra và cập nhật trạng thái đợt thu
   const updateBatchStatus = (batch: any) => {
@@ -209,6 +347,15 @@ const QuanLyDotThuPhi: React.FC = () => {
       const matchFilter = filter === 'Tất cả' ? true : (filter === 'Đang mở' ? batch.trangThai === 'Đang mở' : batch.trangThai === 'Đã đóng');
       return matchSearch && matchFilter;
     });
+
+  // Debug logs
+  console.log('🔍 Debug render state:');
+  console.log('- Batches:', batches);
+  console.log('- Filtered batches:', filteredBatches);
+  console.log('- Loading:', loading);
+  console.log('- Error:', error);
+  console.log('- Search:', search);
+  console.log('- Filter:', filter);
 
   // Mở rộng/thu gọn thông tin đợt thu
   const toggleExpandBatch = (maDot: string) => {
@@ -243,10 +390,33 @@ const QuanLyDotThuPhi: React.FC = () => {
     setIsDeleteBatchConfirmOpen(false);
     setSelectedBatch(null);
   };
-  const handleDeleteBatch = () => {
+  const handleDeleteBatch = async () => {
     if (selectedBatch) {
-      setBatches(prev => prev.filter(batch => batch.maDot !== selectedBatch.maDot));
-      closeDeleteBatchConfirm();
+      try {
+        console.log('🔄 Deleting batch:', selectedBatch.maDot);
+        
+        // Call API to delete batch
+        const response = await api.dotThu.delete(selectedBatch.maDot);
+
+        if (response.success) {
+          console.log('✅ Batch deleted successfully');
+          
+          // Reload data from API to get fresh data
+          await loadDotThuData();
+          
+          closeDeleteBatchConfirm();
+          alert('Đã xóa đợt thu thành công!');
+        } else {
+          throw new Error(response.message || 'Không thể xóa đợt thu');
+        }
+      } catch (error: any) {
+        console.error('❌ Error deleting batch:', error);
+        alert('Có lỗi xảy ra khi xóa đợt thu: ' + (error.message || 'Lỗi không xác định'));
+        
+        // Fallback: remove from local state if API fails
+        setBatches(prev => prev.filter(batch => batch.maDot !== selectedBatch.maDot));
+        closeDeleteBatchConfirm();
+      }
     }
   };
 
@@ -265,25 +435,32 @@ const QuanLyDotThuPhi: React.FC = () => {
   const closeAddFeePopup = () => {
     setIsAddFeePopupOpen(false);
   };
-  const handleAddFee = (newFee: any) => {
+  const handleAddFee = async (newFee: any) => {
     if (activeBatchForFee) {
-      const feeId = `K${Math.floor(Math.random() * 1000).toString().padStart(3, '0')}`;
-      const updatedFee = { id: feeId, ...newFee };
-      setBatches(prev => prev.map(batch => {
-        if (batch.maDot === activeBatchForFee.maDot) {
-          const updatedBatch = {
-            ...batch,
-            details: {
-              ...batch.details,
-              khoanThu: [...batch.details.khoanThu, updatedFee]
-            }
-          };
-          setSelectedBatch(updatedBatch);
-          return updatedBatch;
+      try {
+        // First, create the fee type in the backend
+        const response = await api.khoanThu.create({
+          tenKhoan: newFee.tenKhoan,
+          batBuoc: newFee.batBuoc === 'Bắt buộc',
+          ghiChu: newFee.chiTiet || '',
+        });
+
+        if (response.success) {
+          console.log('✅ Fee created successfully:', response.data);
+          
+          // Reload data from API to get fresh data
+          await loadDotThuData();
+          closeAddFeePopup();
+          
+          // Show success message
+          alert('Đã tạo khoản thu thành công!');
+        } else {
+          alert('Có lỗi xảy ra khi tạo khoản thu: ' + (response.message || 'Lỗi không xác định'));
         }
-        return batch;
-      }));
-      closeAddFeePopup();
+      } catch (error: any) {
+        console.error('Error creating fee type:', error);
+        alert('Có lỗi xảy ra khi tạo khoản thu: ' + (error.message || 'Lỗi không xác định'));
+      }
     }
   };
 
@@ -298,25 +475,35 @@ const QuanLyDotThuPhi: React.FC = () => {
     setIsEditFeePopupOpen(false);
     setSelectedFee(null);
   };
-  const handleEditFee = (updatedFee: any) => {
+  const handleEditFee = async (updatedFee: any) => {
     if (activeBatchForFee && selectedFee) {
-      setBatches(prev => prev.map(batch => {
-        if (batch.maDot === activeBatchForFee.maDot) {
-          const updatedKhoanThu = batch.details.khoanThu.map((fee: any) =>
-            fee.id === selectedFee.id ? { id: fee.id, ...updatedFee } : fee
-          );
-          const updatedBatch = {
-            ...batch,
-            details: {
-              ...batch.details,
-              khoanThu: updatedKhoanThu
-            }
-          };
-          return updatedBatch;
+      try {
+        // Update the fee type in the backend if it has a backendId
+        if (selectedFee.backendId) {
+          const response = await api.khoanThu.update(selectedFee.backendId, {
+            tenKhoan: updatedFee.tenKhoan,
+            batBuoc: updatedFee.batBuoc === 'Bắt buộc',
+            ghiChu: updatedFee.chiTiet || '',
+          });
+
+          if (!response.success) {
+            alert('Có lỗi xảy ra khi cập nhật khoản thu: ' + (response.message || 'Lỗi không xác định'));
+            return;
+          }
         }
-        return batch;
-      }));
-      closeEditFeePopup();
+
+        console.log('✅ Fee updated successfully');
+        
+        // Reload data from API to get fresh data
+        await loadDotThuData();
+        closeEditFeePopup();
+        
+        // Show success message
+        alert('Đã cập nhật khoản thu thành công!');
+      } catch (error: any) {
+        console.error('Error updating fee type:', error);
+        alert('Có lỗi xảy ra khi cập nhật khoản thu: ' + (error.message || 'Lỗi không xác định'));
+      }
     }
   };
 
@@ -331,84 +518,141 @@ const QuanLyDotThuPhi: React.FC = () => {
     setIsDeleteFeeConfirmOpen(false);
     setSelectedFee(null);
   };
-  const handleDeleteFee = () => {
+  const handleDeleteFee = async () => {
     if (activeBatchForFee && selectedFee) {
-      setBatches(prev => prev.map(batch => {
-        if (batch.maDot === activeBatchForFee.maDot) {
-          const updatedKhoanThu = batch.details.khoanThu.filter(
-            (fee: any) => fee.id !== selectedFee.id
-          );
+      try {
+        // Delete from backend if it has a backendId
+        if (selectedFee.backendId) {
+          const response = await api.khoanThu.delete(selectedFee.backendId);
           
-          const updatedBatch = {
-            ...batch,
-            details: {
-              ...batch.details,
-              khoanThu: updatedKhoanThu
-            }
-          };
-          
-          return updatedBatch;
+          if (!response.success) {
+            alert('Có lỗi xảy ra khi xóa khoản thu: ' + (response.message || 'Lỗi không xác định'));
+            return;
+          }
         }
-        return batch;
-      }));
-      closeDeleteFeeConfirm();
+
+        console.log('✅ Fee deleted successfully');
+        
+        // Reload data from API to get fresh data
+        await loadDotThuData();
+        closeDeleteFeeConfirm();
+        
+        // Show success message
+        alert('Đã xóa khoản thu thành công!');
+      } catch (error: any) {
+        console.error('Error deleting fee type:', error);
+        alert('Có lỗi xảy ra khi xóa khoản thu: ' + (error.message || 'Lỗi không xác định'));
+      }
     }
   };
 
   // Thêm đợt thu mới vào danh sách
-  const handleAddBatch = (data: { maDot: string; tenDot: string; ngayTao: string; hanThu: string }) => {
-    const today = new Date().toISOString().slice(0, 10);
-    const trangThai = data.hanThu >= today ? 'Đang mở' : 'Đã đóng';
-    
-    setBatches(prev => [
-      {
-        maDot: data.maDot,
-        tenDot: data.tenDot,
+  const handleAddBatch = async (data: { maDot: string; tenDot: string; ngayTao: string; hanThu: string }) => {
+    try {
+      console.log('🔄 Creating new batch:', data);
+      
+      // Call API to create new batch
+      const response = await api.dotThu.create({
+        tenDotThu: data.tenDot,
         ngayTao: data.ngayTao,
-        hanCuoi: data.hanThu,
-        trangThai: trangThai,
-        details: {
-          maDot: data.maDot,
-          tenDot: data.tenDot,
-          ngayTao: data.ngayTao,
-          hanCuoi: data.hanThu,
-          khoanThu: []
-        },
-        isExpanded: false
-      },
-      ...prev
-    ]);
-  };
+        thoiHan: data.hanThu,
+      });
 
-  // Cập nhật thông tin đợt thu
-  const handleEditBatch = (data: { maDot: string; tenDot: string; ngayTao: string; hanThu: string }) => {
-    if (!selectedBatch) return;
-    
-    const today = new Date().toISOString().slice(0, 10);
-    const trangThai = data.hanThu >= today ? 'Đang mở' : 'Đã đóng';
-    
-    setBatches(prev => prev.map(batch => {
-      if (batch.maDot === selectedBatch.maDot) {
-        return {
+      if (response.success) {
+        console.log('✅ Batch created successfully:', response.data);
+        
+        // Reload data from API to get fresh data
+        await loadDotThuData();
+        
+        alert('Đã tạo đợt thu mới thành công!');
+      } else {
+        throw new Error(response.message || 'Không thể tạo đợt thu');
+      }
+    } catch (error: any) {
+      console.error('❌ Error creating batch:', error);
+      alert('Có lỗi xảy ra khi tạo đợt thu: ' + (error.message || 'Lỗi không xác định'));
+      
+      // Fallback: add to local state if API fails
+      const today = new Date().toISOString().slice(0, 10);
+      const trangThai = data.hanThu >= today ? 'Đang mở' : 'Đã đóng';
+      
+      setBatches(prev => [
+        {
           maDot: data.maDot,
           tenDot: data.tenDot,
           ngayTao: data.ngayTao,
           hanCuoi: data.hanThu,
           trangThai: trangThai,
           details: {
-            ...batch.details,
             maDot: data.maDot,
             tenDot: data.tenDot,
             ngayTao: data.ngayTao,
-            hanCuoi: data.hanThu
+            hanCuoi: data.hanThu,
+            khoanThu: []
           },
-          isExpanded: batch.isExpanded
-        };
-      }
-      return batch;
-    }));
+          isExpanded: false
+        },
+        ...prev
+      ]);
+    }
+  };
+
+  // Cập nhật thông tin đợt thu
+  const handleEditBatch = async (data: { maDot: string; tenDot: string; ngayTao: string; hanThu: string }) => {
+    if (!selectedBatch) return;
     
-    closeEditPopup();
+    try {
+      console.log('🔄 Updating batch:', selectedBatch.maDot, data);
+      
+      // Call API to update batch
+      const response = await api.dotThu.update(selectedBatch.maDot, {
+        tenDotThu: data.tenDot,
+        ngayTao: data.ngayTao,
+        thoiHan: data.hanThu,
+      });
+
+      if (response.success) {
+        console.log('✅ Batch updated successfully:', response.data);
+        
+        // Reload data from API to get fresh data
+        await loadDotThuData();
+        
+        closeEditPopup();
+        alert('Đã cập nhật đợt thu thành công!');
+      } else {
+        throw new Error(response.message || 'Không thể cập nhật đợt thu');
+      }
+    } catch (error: any) {
+      console.error('❌ Error updating batch:', error);
+      alert('Có lỗi xảy ra khi cập nhật đợt thu: ' + (error.message || 'Lỗi không xác định'));
+      
+      // Fallback: update local state if API fails
+      const today = new Date().toISOString().slice(0, 10);
+      const trangThai = data.hanThu >= today ? 'Đang mở' : 'Đã đóng';
+      
+      setBatches(prev => prev.map(batch => {
+        if (batch.maDot === selectedBatch.maDot) {
+          return {
+            maDot: data.maDot,
+            tenDot: data.tenDot,
+            ngayTao: data.ngayTao,
+            hanCuoi: data.hanThu,
+            trangThai: trangThai,
+            details: {
+              ...batch.details,
+              maDot: data.maDot,
+              tenDot: data.tenDot,
+              ngayTao: data.ngayTao,
+              hanCuoi: data.hanThu
+            },
+            isExpanded: batch.isExpanded
+          };
+        }
+        return batch;
+      }));
+      
+      closeEditPopup();
+    }
   };
 
   return (
@@ -420,6 +664,35 @@ const QuanLyDotThuPhi: React.FC = () => {
             <h1 className="text-2xl font-bold text-gray-800">QUẢN LÝ ĐỢT THU PHÍ</h1>
             <p className="text-gray-600 text-sm mt-1">Chào mừng đến với Hệ thống Quản lý Thu phí Chung cư</p>
           </div>
+
+          {/* Error Message */}
+          {error && (
+            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-md">
+              <div className="flex items-center gap-2">
+                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                </svg>
+                {error}
+                <button 
+                  onClick={() => {setError(null); loadDotThuData();}} 
+                  className="ml-auto text-sm underline hover:no-underline"
+                >
+                  Thử lại
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Loading State */}
+          {loading ? (
+            <div className="flex items-center justify-center py-12">
+              <div className="flex items-center gap-3">
+                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+                <span className="text-gray-600">Đang tải dữ liệu...</span>
+              </div>
+            </div>
+          ) : (
+            <>
 
           {/* Search, Filter and Add Button Area */}
           <div className="flex items-center gap-4">
@@ -480,8 +753,20 @@ const QuanLyDotThuPhi: React.FC = () => {
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {filteredBatches.map((batch) => (
-                  <React.Fragment key={batch.maDot}>
+                {(() => {
+                  console.log('🎯 Rendering table with filteredBatches:', filteredBatches);
+                  console.log('🎯 filteredBatches.length:', filteredBatches.length);
+                  return null;
+                })()}
+                {filteredBatches.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="px-6 py-4 text-center text-gray-500">
+                      Không có đợt thu phí nào
+                    </td>
+                  </tr>
+                ) : (
+                  filteredBatches.map((batch) => (
+                    <React.Fragment key={batch.maDot}>
                     <tr 
                       className="hover:bg-gray-50 cursor-pointer transition-all"
                       onClick={() => toggleExpandBatch(batch.maDot)}
@@ -562,10 +847,12 @@ const QuanLyDotThuPhi: React.FC = () => {
                                   <tbody className="bg-white divide-y divide-gray-200">
                                     {batch.details.khoanThu.map((fee: any) => {
                                       const feeType = FEE_TYPES[fee.type];
-                                      const total = fee.householdFees ? Object.values(fee.householdFees).reduce((sum: number, h: any) => sum + (h.amount || 0), 0) : 0;
+                                      // Use soTien directly from API data, fallback to householdFees calculation
+                                      const total = fee.soTien ? parseFloat(fee.soTien) : 
+                                                   (fee.householdFees ? Object.values(fee.householdFees).reduce((sum: number, h: any) => sum + (h.amount || 0), 0) : 0);
                                       return (
                                         <tr key={fee.id} className="hover:bg-gray-50">
-                                          <td className="px-4 py-3 text-sm text-gray-900 font-medium">{feeType?.name || ''}</td>
+                                          <td className="px-4 py-3 text-sm text-gray-900 font-medium">{feeType?.name || fee.tenKhoan || 'Không xác định'}</td>
                                           <td className="px-4 py-3 text-sm text-gray-700">{fee.chiTiet}</td>
                                           <td className="px-4 py-3 text-sm text-blue-700 font-semibold">{total.toLocaleString('vi-VN')} VND</td>
                                           <td className="px-4 py-3 text-sm">
@@ -597,10 +884,12 @@ const QuanLyDotThuPhi: React.FC = () => {
                       </tr>
                     )}
                   </React.Fragment>
-                ))}
+                )))}
               </tbody>
             </table>
           </div>
+            </>
+          )}
         </div>
       </Layout>
       <AddEditDotThuPhiPopup isOpen={isAddPopupOpen} onClose={closeAddPopup} onSave={handleAddBatch} />
@@ -702,4 +991,4 @@ const QuanLyDotThuPhi: React.FC = () => {
   );
 };
 
-export default QuanLyDotThuPhi; 
+export default QuanLyDotThuPhi;

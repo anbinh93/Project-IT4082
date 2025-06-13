@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from "react";
 import Layout from '../components/Layout';
 import AddEditNhanKhauPopup from '../components/AddEditNhanKhauPopup';
+import EditNhanKhauPopup from '../components/EditNhanKhauPopup';
 import TachHoPopup from '../components/TachHoPopup';
-import DoichuhoPopup from '../components/DoichuhoPopup';
 import { residentAPI } from '../services/api';
 
 interface Resident {
@@ -12,6 +12,7 @@ interface Resident {
   ngaySinh: string;
   cccd: string;
   ngheNghiep: string;
+  soDienThoai?: string;
   laChuHo?: boolean;
   maHoGiaDinh?: string;
   // Thêm thông tin hộ khẩu
@@ -26,12 +27,12 @@ interface Resident {
 
 const QuanLyNhanKhau: React.FC = () => {
   const [isAddPopupOpen, setIsAddPopupOpen] = useState(false);
-  const [isDoichuhoPopupOpen, setIsDoichuhoPopupOpen] = useState(false);
-  const [selectedResidentForDoichuho, setSelectedResidentForDoichuho] = useState<Resident | null>(null);
+  const [isEditPopupOpen, setIsEditPopupOpen] = useState(false);
+  const [editingResidentId, setEditingResidentId] = useState<number | null>(null);
   const [isTachHoPopupOpen, setIsTachHoPopupOpen] = useState(false);
   const [selectedResidentForTachHo, setSelectedResidentForTachHo] = useState<Resident | null>(null);
   const [search, setSearch] = useState('');
-  const [sortBy, setSortBy] = useState<'id' | 'hoTen' | 'gioiTinh' | 'ngaySinh' | 'cccd' | 'ngheNghiep'>('id');
+  const [sortBy, setSortBy] = useState<'id' | 'hoTen' | 'gioiTinh' | 'ngaySinh' | 'cccd' | 'ngheNghiep' | 'soDienThoai'>('id');
   const [sortAsc, setSortAsc] = useState(true);
   
   // State for real data
@@ -48,17 +49,42 @@ const QuanLyNhanKhau: React.FC = () => {
     setIsAddPopupOpen(false);
   };
 
+  const openEditPopup = (residentId: number) => {
+    setEditingResidentId(residentId);
+    setIsEditPopupOpen(true);
+  };
+
+  const closeEditPopup = () => {
+    setIsEditPopupOpen(false);
+    setEditingResidentId(null);
+  };
+
   const handleResidentCreated = () => {
     loadResidents(); // Refresh data after adding
   };
 
-  const openDoichuhoPopup = (resident: Resident) => {
-    setSelectedResidentForDoichuho(resident);
-    setIsDoichuhoPopupOpen(true);
+  const handleResidentUpdated = () => {
+    loadResidents(); // Refresh data after editing
+    closeEditPopup();
   };
-  const closeDoichuhoPopup = () => {
-    setIsDoichuhoPopupOpen(false);
-    setSelectedResidentForDoichuho(null);
+
+  const handleDeleteResident = async (residentId: number, residentName: string) => {
+    if (!window.confirm(`Bạn có chắc chắn muốn xóa nhân khẩu "${residentName}" không? Thao tác này không thể hoàn tác.`)) {
+      return;
+    }
+
+    try {
+      const response = await residentAPI.delete(residentId);
+      if (response.success) {
+        alert('Xóa nhân khẩu thành công!');
+        loadResidents(); // Refresh data
+      } else {
+        alert(response.message || 'Có lỗi xảy ra khi xóa nhân khẩu');
+      }
+    } catch (error: any) {
+      console.error('Error deleting resident:', error);
+      alert(error.message || 'Có lỗi xảy ra khi xóa nhân khẩu');
+    }
   };
 
   const openTachHoPopup = (resident: Resident) => {
@@ -72,10 +98,6 @@ const QuanLyNhanKhau: React.FC = () => {
 
   const handleTachHo = (rowData: Resident) => {
     openTachHoPopup(rowData);
-  };
-
-  const handleThayDoiChuHo = (rowData: Resident) => {
-    openDoichuhoPopup(rowData);
   };
 
   // Load residents from API
@@ -161,8 +183,16 @@ const QuanLyNhanKhau: React.FC = () => {
   );
   
   const sorted = [...filtered].sort((a, b) => {
-    if (a[sortBy] < b[sortBy]) return sortAsc ? -1 : 1;
-    if (a[sortBy] > b[sortBy]) return sortAsc ? 1 : -1;
+    const aValue = a[sortBy];
+    const bValue = b[sortBy];
+    
+    // Handle undefined/null values
+    if (aValue == null && bValue == null) return 0;
+    if (aValue == null) return sortAsc ? 1 : -1;
+    if (bValue == null) return sortAsc ? -1 : 1;
+    
+    if (aValue < bValue) return sortAsc ? -1 : 1;
+    if (aValue > bValue) return sortAsc ? 1 : -1;
     return 0;
   });
 
@@ -247,6 +277,7 @@ const QuanLyNhanKhau: React.FC = () => {
                         { key: 'gioiTinh', label: 'Giới tính' },
                         { key: 'ngaySinh', label: 'Ngày sinh' },
                         { key: 'cccd', label: 'CCCD' },
+                        { key: 'soDienThoai', label: 'SĐT' },
                         { key: 'ngheNghiep', label: 'Nghề nghiệp' },
                         { key: 'household', label: 'Hộ khẩu' },
                       ].map(col => (
@@ -269,7 +300,7 @@ const QuanLyNhanKhau: React.FC = () => {
                   <tbody className="bg-white divide-y divide-gray-200">
                     {sorted.length === 0 ? (
                       <tr>
-                        <td colSpan={8} className="px-6 py-8 text-center text-gray-500">
+                        <td colSpan={9} className="px-6 py-8 text-center text-gray-500">
                           {search ? 'Không tìm thấy nhân khẩu nào phù hợp' : 'Chưa có nhân khẩu nào'}
                         </td>
                       </tr>
@@ -292,6 +323,7 @@ const QuanLyNhanKhau: React.FC = () => {
                             {new Date(rowData.ngaySinh).toLocaleDateString('vi-VN')}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{rowData.cccd}</td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{rowData.soDienThoai || 'Chưa có'}</td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{rowData.ngheNghiep}</td>
                           
                           {/* Cột Hộ khẩu */}
@@ -324,24 +356,41 @@ const QuanLyNhanKhau: React.FC = () => {
                             )}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm">
-                            <div className="flex space-x-2">
+                            <div className="flex flex-wrap gap-2">
+                              {/* Edit Button */}
+                              <button
+                                onClick={() => openEditPopup(rowData.id)}
+                                className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-blue-100 text-blue-800 hover:bg-blue-200 transition-colors"
+                                title="Chỉnh sửa thông tin"
+                              >
+                                <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                </svg>
+                                Sửa
+                              </button>
+
+                              {/* Delete Button */}
+                              <button
+                                onClick={() => handleDeleteResident(rowData.id, rowData.hoTen)}
+                                className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-red-100 text-red-800 hover:bg-red-200 transition-colors"
+                                title="Xóa nhân khẩu"
+                              >
+                                <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                </svg>
+                                Xóa
+                              </button>
+
+                              {/* Household Separation Button */}
                               <button
                                 onClick={() => handleTachHo(rowData)}
-                                className="inline-flex items-center px-3 py-1 rounded-md text-xs font-medium bg-yellow-100 text-yellow-800 hover:bg-yellow-200 transition-colors"
+                                className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-yellow-100 text-yellow-800 hover:bg-yellow-200 transition-colors"
+                                title="Tách hộ"
                               >
-                                <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
                                 </svg>
                                 Tách hộ
-                              </button>
-                              <button
-                                onClick={() => handleThayDoiChuHo(rowData)}
-                                className="inline-flex items-center px-3 py-1 rounded-md text-xs font-medium bg-green-100 text-green-800 hover:bg-green-200 transition-colors"
-                              >
-                                <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                                </svg>
-                                Đổi chủ hộ
                               </button>
                             </div>
                           </td>
@@ -432,15 +481,16 @@ const QuanLyNhanKhau: React.FC = () => {
         onClose={closeAddPopup} 
         onSuccess={handleResidentCreated}
       />
+      <EditNhanKhauPopup
+        isOpen={isEditPopupOpen}
+        onClose={closeEditPopup}
+        onSuccess={handleResidentUpdated}
+        residentId={editingResidentId}
+      />
       <TachHoPopup
         isOpen={isTachHoPopupOpen}
         onClose={closeTachHoPopup}
         selectedResident={selectedResidentForTachHo}
-      />
-      <DoichuhoPopup
-        isOpen={isDoichuhoPopupOpen}
-        onClose={closeDoichuhoPopup}
-        selectedResident={selectedResidentForDoichuho}
       />
     </>
   );

@@ -20,6 +20,12 @@ router.get('/:id', residentController.getResidentById);
 // Create new resident
 router.post('/', residentController.createResident);
 
+// Update resident information
+router.put('/:id', residentController.updateResident);
+
+// Delete resident
+router.delete('/:id', residentController.deleteResident);
+
 // Add resident to household
 router.post('/add-to-household', residentController.addToHousehold);
 

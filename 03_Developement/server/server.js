@@ -24,8 +24,10 @@ const populationStatisticsRoutes = require('./routes/populationStatisticsRoutes'
 const paymentRoutes = require('./routes/paymentRoutes');
 const accountantRoutes = require('./routes/accountantRoutes');
 const dotThuRoutes = require('./routes/dotThuRoutes');
+const khoanThuRoutes = require('./routes/khoanThuRoutes');
 const tamTruRoutes = require('./routes/tamTruRoutes');
 const canhoRoutes = require('./routes/canhoRoutes');
+const roomRoutes = require('./routes/roomRoutes');
 
 const port = process.env.PORT || 8000;
 
@@ -59,8 +61,10 @@ app.get('/', (req, res) => {
             payments: '/api/payments',
             accountant: '/api/accountant',
             dotThu: '/api/dot-thu',
+            khoanThu: '/api/khoan-thu',
             tamTru: '/api/tam-tru',
-            canho: '/api/canho'
+            canho: '/api/canho',
+            rooms: '/api/rooms'
         }
     });
 });
@@ -74,8 +78,10 @@ app.use('/api/population', populationStatisticsRoutes);
 app.use('/api/payments', paymentRoutes);
 app.use('/api/accountant', accountantRoutes);
 app.use('/api/dot-thu', dotThuRoutes);
+app.use('/api/khoan-thu', khoanThuRoutes);
 app.use('/api/tam-tru', tamTruRoutes);
 app.use('/api/canho', canhoRoutes);
+app.use('/api/rooms', roomRoutes);
 
 app.listen(port, () => {
     console.log(`Server running on port ${port}`);

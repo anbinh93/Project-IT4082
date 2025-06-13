@@ -282,12 +282,38 @@ export const residentAPI = {
     ngayCap?: string;
     noiCap?: string;
     ngheNghiep?: string;
+    soDienThoai?: string;
     selectedHouseholdId?: string;
     quanHeVoiChuHo?: string;
   }) => {
     return apiRequest('/residents', {
       method: 'POST',
       body: JSON.stringify(data),
+    });
+  },
+
+  update: async (id: string | number, data: {
+    hoTen?: string;
+    ngaySinh?: string;
+    gioiTinh?: string;
+    danToc?: string;
+    tonGiao?: string;
+    cccd?: string;
+    ngayCap?: string;
+    noiCap?: string;
+    ngheNghiep?: string;
+    soDienThoai?: string;
+    ghiChu?: string;
+  }) => {
+    return apiRequest(`/residents/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  },
+
+  delete: async (id: string | number) => {
+    return apiRequest(`/residents/${id}`, {
+      method: 'DELETE',
     });
   },
 
@@ -369,13 +395,259 @@ export const populationAPI = {
   },
 };
 
-// Export default api object for convenience
+// DotThu (Fee Collection) API functions
+export const dotThuAPI = {
+  // Get all fee collection periods with pagination and search
+  getAll: async (params?: {
+    page?: number;
+    size?: number;
+    sortBy?: string;
+    sortDir?: string;
+    search?: string;
+  }) => {
+    const queryParams = new URLSearchParams();
+    if (params?.page !== undefined) queryParams.append('page', params.page.toString());
+    if (params?.size !== undefined) queryParams.append('size', params.size.toString());
+    if (params?.sortBy) queryParams.append('sortBy', params.sortBy);
+    if (params?.sortDir) queryParams.append('sortDir', params.sortDir);
+    if (params?.search) queryParams.append('search', params.search);
+    
+    const queryString = queryParams.toString();
+    const endpoint = `/dot-thu${queryString ? `?${queryString}` : ''}`;
+    
+    return await apiRequest(endpoint);
+  },
+
+  // Get all fee collection periods with their fee items (for tab-based view)
+  getAllWithKhoanThu: async (params?: {
+    page?: number;
+    size?: number;
+    sortBy?: string;
+    sortDir?: string;
+    search?: string;
+  }) => {
+    const queryParams = new URLSearchParams();
+    if (params?.page !== undefined) queryParams.append('page', params.page.toString());
+    if (params?.size !== undefined) queryParams.append('size', params.size.toString());
+    if (params?.sortBy) queryParams.append('sortBy', params.sortBy);
+    if (params?.sortDir) queryParams.append('sortDir', params.sortDir);
+    if (params?.search) queryParams.append('search', params.search);
+    
+    const queryString = queryParams.toString();
+    const endpoint = `/dot-thu/with-khoan-thu${queryString ? `?${queryString}` : ''}`;
+    
+    return await apiRequest(endpoint);
+  },
+
+  // Get fee collection period by ID
+  getById: async (id: string) => {
+    return await apiRequest(`/dot-thu/${id}`);
+  },
+
+  // Create new fee collection period
+  create: async (data: {
+    tenDotThu: string;
+    ngayTao: string;
+    thoiHan: string;
+    khoanThu?: Array<{
+      khoanThuId: string;
+      soTien?: number;
+    }>;
+  }) => {
+    return await apiRequest('/dot-thu', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  // Update fee collection period
+  update: async (id: string, data: {
+    tenDotThu?: string;
+    ngayTao?: string;
+    thoiHan?: string;
+    khoanThu?: Array<{
+      khoanThuId: string;
+      soTien?: number;
+    }>;
+  }) => {
+    return await apiRequest(`/dot-thu/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  },
+
+  // Delete fee collection period
+  delete: async (id: string) => {
+    return await apiRequest(`/dot-thu/${id}`, {
+      method: 'DELETE',
+    });
+  },
+
+  // Get fee collection statistics
+  getStatistics: async () => {
+    return await apiRequest('/dot-thu/statistics');
+  },
+
+  // Get payment statistics for a fee collection period
+  getPaymentStatistics: async (dotThuId: string) => {
+    return await apiRequest(`/dot-thu/${dotThuId}/payment-statistics`);
+  },
+
+  // Get payment info for a household in a specific fee collection period
+  getPaymentInfo: async (dotThuId: string, hoKhauId: string) => {
+    return await apiRequest(`/dot-thu/${dotThuId}/payment-info/${hoKhauId}`);
+  },
+
+  // Record payment for a household
+  recordPayment: async (data: {
+    dotThuId: string;
+    hoKhauId: string;
+    nguoiNop: string;
+    ngayNop: string;
+    khoanThuIds: string[];
+  }) => {
+    return await apiRequest('/dot-thu/record-payment', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+};
+
+// KhoanThu API functions
+export const khoanThuAPI = {
+  // Get all fee types
+  getAll: async () => {
+    return await apiRequest('/khoan-thu');
+  },
+
+  // Get fee type by ID
+  getById: async (id: string) => {
+    return await apiRequest(`/khoan-thu/${id}`);
+  },
+
+  // Create new fee type
+  create: async (data: {
+    tenKhoan: string;
+    batBuoc: boolean;
+    ghiChu?: string;
+    thoiHan?: string;
+  }) => {
+    return await apiRequest('/khoan-thu', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  // Update fee type
+  update: async (id: string, data: {
+    tenKhoan?: string;
+    batBuoc?: boolean;
+    ghiChu?: string;
+    thoiHan?: string;
+  }) => {
+    return await apiRequest(`/khoan-thu/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  },
+
+  // Delete fee type
+  delete: async (id: string) => {
+    return await apiRequest(`/khoan-thu/${id}`, {
+      method: 'DELETE',
+    });
+  },
+};
+
+// Payment API functions
+export const paymentAPI = {
+  // Create new payment
+  create: async (data: {
+    householdId: number;
+    feeTypeId: number;
+    amountPaid: number;
+    paymentDate?: string;
+    paymentMethod?: string;
+    notes?: string;
+    nguoinop?: string;
+  }) => {
+    return await apiRequest('/payments', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  // Get all payments
+  getAll: async (params?: {
+    householdId?: number;
+    feeTypeId?: number;
+    startDate?: string;
+    endDate?: string;
+    paymentMethod?: string;
+    page?: number;
+    size?: number;
+    sortBy?: string;
+    sortDir?: string;
+  }) => {
+    const queryString = params ? new URLSearchParams(params as any).toString() : '';
+    return await apiRequest(`/payments${queryString ? `?${queryString}` : ''}`);
+  },
+
+  // Get payment by ID
+  getById: async (id: string | number) => {
+    return await apiRequest(`/payments/${id}`);
+  },
+
+  // Update payment
+  update: async (id: string | number, data: {
+    amountPaid?: number;
+    paymentDate?: string;
+    paymentMethod?: string;
+    notes?: string;
+    nguoinop?: string;
+  }) => {
+    return await apiRequest(`/payments/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  },
+
+  // Delete payment (soft delete)
+  delete: async (id: string | number) => {
+    return await apiRequest(`/payments/${id}`, {
+      method: 'DELETE',
+    });
+  },
+
+  // Restore payment
+  restore: async (id: string | number, restoreReason?: string) => {
+    return await apiRequest(`/payments/${id}/restore`, {
+      method: 'POST',
+      body: JSON.stringify({ restoreReason }),
+    });
+  },
+
+  // Get payment statistics
+  getStatistics: async (params?: {
+    feeTypeId?: number;
+    startDate?: string;
+    endDate?: string;
+  }) => {
+    const queryString = params ? new URLSearchParams(params as any).toString() : '';
+    return await apiRequest(`/payments/statistics${queryString ? `?${queryString}` : ''}`);
+  },
+};
+
+// Export the main API object with dotThu, khoanThu, and payment included
 const api = {
   auth: authAPI,
   vehicles: vehicleAPI,
   households: householdAPI,
   residents: residentAPI,
   population: populationAPI,
+  dotThu: dotThuAPI,
+  khoanThu: khoanThuAPI,
+  payment: paymentAPI,
 };
 
 export default api;

@@ -5,7 +5,7 @@ module.exports = (sequelize, DataTypes) => {
   class KhoanThu extends Model {
     static associate(models) {
       KhoanThu.hasMany(models.NopPhi, {
-        foreignKey: 'khoanThuId',
+        foreignKey: 'khoanthu_id',
         as: 'nopPhi'
       });
       KhoanThu.belongsToMany(models.DotThu, {
@@ -13,6 +13,12 @@ module.exports = (sequelize, DataTypes) => {
         foreignKey: 'khoanThuId',
         otherKey: 'dotThuId',
         as: 'dotThu'
+      });
+      
+      // KhoanThu has many ThanhToan
+      KhoanThu.hasMany(models.ThanhToan, {
+        foreignKey: 'khoanThuId',
+        as: 'thanhToan'
       });
     }
   }
@@ -23,20 +29,33 @@ module.exports = (sequelize, DataTypes) => {
       autoIncrement: true,
       allowNull: false
     },
-    tenKhoanThu: {
+    tenkhoanthu: {
       type: DataTypes.STRING,
       allowNull: false
     },
-    batBuoc: {
+    ngaytao: {
+      type: DataTypes.DATE,
+      allowNull: false,
+      defaultValue: DataTypes.NOW
+    },
+    thoihan: {
+      type: DataTypes.DATE,
+      allowNull: true
+    },
+    batbuoc: {
       type: DataTypes.BOOLEAN,
       allowNull: false,
       defaultValue: false
     },
-    ghiChu: DataTypes.TEXT
+    ghichu: {
+      type: DataTypes.TEXT,
+      allowNull: true
+    }
   }, {
     sequelize,
     modelName: 'KhoanThu',
-    tableName: 'KhoanThu'
+    tableName: 'KhoanThu',
+    timestamps: true
   });
   return KhoanThu;
 }; 

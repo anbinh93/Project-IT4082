@@ -28,6 +28,7 @@ const TachHoPopup: React.FC<TachHoPopupProps> = ({ isOpen, onClose, selectedResi
   const [newHouseholdAddress, setNewHouseholdAddress] = useState('');
   const [isCreatingNewHousehold, setIsCreatingNewHousehold] = useState(false);
   const [reason, setReason] = useState('');
+  const [relationshipWithNewHead, setRelationshipWithNewHead] = useState('');
   
   // State for real data
   const [availableHouseholds, setAvailableHouseholds] = useState<Household[]>([]);
@@ -93,6 +94,11 @@ const TachHoPopup: React.FC<TachHoPopupProps> = ({ isOpen, onClose, selectedResi
       return;
     }
     
+    if (!isCreatingNewHousehold && !relationshipWithNewHead) {
+      setError('Vui lòng chọn mối quan hệ với chủ hộ mới');
+      return;
+    }
+    
     if (isCreatingNewHousehold && !newHouseholdAddress.trim()) {
       setError('Vui lòng nhập địa chỉ hộ gia đình mới');
       return;
@@ -107,12 +113,26 @@ const TachHoPopup: React.FC<TachHoPopupProps> = ({ isOpen, onClose, selectedResi
       setSubmitting(true);
       setError('');
 
+      // Format address with hyphens as expected by the backend
+      let formattedAddress = newHouseholdAddress;
+      if (isCreatingNewHousehold && formattedAddress) {
+        // If address doesn't contain hyphens, format it properly
+        if (!formattedAddress.includes(' - ')) {
+          // Try to split by comma if present
+          if (formattedAddress.includes(',')) {
+            const parts = formattedAddress.split(',').map(part => part.trim());
+            formattedAddress = parts.join(' - ');
+          }
+        }
+      }
+
       const separationData = {
         residentId: selectedResident.id,
         targetType: isCreatingNewHousehold ? 'new' as const : 'existing' as const,
         targetHouseholdId: isCreatingNewHousehold ? undefined : parseInt(selectedHousehold),
-        newHouseholdAddress: isCreatingNewHousehold ? newHouseholdAddress : undefined,
-        reason: reason
+        newHouseholdAddress: isCreatingNewHousehold ? formattedAddress : undefined,
+        reason: reason,
+        quanHeVoiChuHoMoi: !isCreatingNewHousehold ? relationshipWithNewHead : undefined
       };
 
       // Call API to handle household separation
@@ -130,7 +150,21 @@ const TachHoPopup: React.FC<TachHoPopupProps> = ({ isOpen, onClose, selectedResi
       }
     } catch (err: any) {
       console.error('Error separating household:', err);
-      setError(err.message || 'Có lỗi xảy ra khi tách hộ');
+      
+      // Provide more descriptive error messages
+      let errorMessage = 'Có lỗi xảy ra khi tách hộ';
+      
+      if (err.message) {
+        if (err.message.includes('address')) {
+          errorMessage = 'Lỗi định dạng địa chỉ. Vui lòng kiểm tra lại.';
+        } else if (err.message.includes('Không tìm thấy')) {
+          errorMessage = err.message;
+        } else {
+          errorMessage = `Lỗi: ${err.message}`;
+        }
+      }
+      
+      setError(errorMessage);
     } finally {
       setSubmitting(false);
     }
@@ -141,6 +175,7 @@ const TachHoPopup: React.FC<TachHoPopupProps> = ({ isOpen, onClose, selectedResi
     setNewHouseholdAddress('');
     setIsCreatingNewHousehold(false);
     setReason('');
+    setRelationshipWithNewHead('');
   };
 
   const handleClose = () => {
@@ -384,6 +419,27 @@ const TachHoPopup: React.FC<TachHoPopupProps> = ({ isOpen, onClose, selectedResi
                     Hiện tại không có hộ khẩu nào có thể chuyển đến
                   </p>
                 )}
+
+                {/* Quan hệ với chủ hộ mới */}
+                {selectedHousehold && (
+                  <div className="mt-4">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Quan hệ với chủ hộ mới: <span className="text-red-500">*</span>
+                    </label>
+                    <select
+                      value={relationshipWithNewHead}
+                      onChange={(e) => setRelationshipWithNewHead(e.target.value)}
+                      className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      required
+                    >
+                      <option value="">-- Chọn quan hệ --</option>
+                      <option value="vợ/chồng">Vợ/Chồng</option>
+                      <option value="con">Con</option>
+                      <option value="bố/mẹ">Bố/Mẹ</option>
+                      <option value="khác">Khác</option>
+                    </select>
+                  </div>
+                )}
               </div>
             )}
 
@@ -397,12 +453,15 @@ const TachHoPopup: React.FC<TachHoPopupProps> = ({ isOpen, onClose, selectedResi
                   type="text"
                   value={newHouseholdAddress}
                   onChange={(e) => setNewHouseholdAddress(e.target.value)}
-                  placeholder="Ví dụ: Chung cư C - Tầng 10 - Căn 1001"
+                  placeholder="Ví dụ: Chung cư C, Tầng 10, Căn 1001, Thanh Xuân, Hà Nội"
                   className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   required={isCreatingNewHousehold}
                 />
                 <p className="text-sm text-gray-500 mt-1">
                   Lưu ý: Nhân khẩu sẽ trở thành chủ hộ của hộ gia đình mới
+                </p>
+                <p className="text-xs text-blue-600 mt-1">
+                  Định dạng địa chỉ: Số nhà/căn hộ, Đường/Tầng, Phường, Quận, Thành phố
                 </p>
               </div>
             )}

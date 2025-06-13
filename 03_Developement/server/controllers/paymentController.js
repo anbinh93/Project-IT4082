@@ -57,8 +57,8 @@ exports.createPayment = async (req, res) => {
         const hokhau = await db.HoKhau.findByPk(householdId, {
             include: [{
                 model: db.NhanKhau,
-                as: 'chuHo',
-                attributes: ['id', 'hoten']
+                as: 'chuHoInfo',
+                attributes: ['id', 'hoTen']
             }],
             transaction
         });
@@ -112,7 +112,7 @@ exports.createPayment = async (req, res) => {
             khoanthu_id: feeTypeId,
             sotien: amountPaid,
             ngaynop: paymentDate || new Date(),
-            nguoinop: nguoinop || hokhau.chuHo?.hoten,
+            nguoinop: nguoinop || hokhau.chuHoInfo?.hoTen,
             phuongthuc: paymentMethod || 'CASH',
             ghichu: notes,
             status: 'ACTIVE'
@@ -128,8 +128,8 @@ exports.createPayment = async (req, res) => {
                     as: 'hoKhau',
                     include: [{
                         model: db.NhanKhau,
-                        as: 'chuHo',
-                        attributes: ['id', 'hoten']
+                        as: 'chuHoInfo',
+                        attributes: ['id', 'hoTen']
                     }]
                 },
                 {
@@ -222,8 +222,8 @@ exports.getPayments = async (req, res) => {
                     as: 'hoKhau',
                     include: [{
                         model: db.NhanKhau,
-                        as: 'chuHo',
-                        attributes: ['id', 'hoten']
+                        as: 'chuHoInfo',
+                        attributes: ['id', 'hoTen']
                     }]
                 },
                 {
@@ -283,8 +283,8 @@ exports.getPaymentById = async (req, res) => {
                     as: 'hoKhau',
                     include: [{
                         model: db.NhanKhau,
-                        as: 'chuHo',
-                        attributes: ['id', 'hoten']
+                        as: 'chuHoInfo',
+                        attributes: ['id', 'hoTen']
                     }]
                 },
                 {
@@ -360,8 +360,8 @@ exports.updatePayment = async (req, res) => {
                     as: 'hoKhau',
                     include: [{
                         model: db.NhanKhau,
-                        as: 'chuHo',
-                        attributes: ['id', 'hoten']
+                        as: 'chuHoInfo',
+                        attributes: ['id', 'hoTen']
                     }]
                 },
                 {
@@ -422,8 +422,8 @@ exports.deletePayment = async (req, res) => {
                     as: 'hoKhau',
                     include: [{
                         model: db.NhanKhau,
-                        as: 'chuHo',
-                        attributes: ['id', 'hoten']
+                        as: 'chuHoInfo',
+                        attributes: ['id', 'hoTen']
                     }]
                 },
                 {
@@ -547,8 +547,8 @@ exports.restorePayment = async (req, res) => {
                     as: 'hoKhau',
                     include: [{
                         model: db.NhanKhau,
-                        as: 'chuHo',
-                        attributes: ['id', 'hoten']
+                        as: 'chuHoInfo',
+                        attributes: ['id', 'hoTen']
                     }]
                 },
                 {

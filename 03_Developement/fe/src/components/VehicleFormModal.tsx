@@ -108,17 +108,18 @@ const VehicleFormModal: React.FC<VehicleFormModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg shadow-xl w-full max-w-md mx-4 max-h-[90vh] overflow-y-auto">
-        <div className="flex items-center justify-between p-6 border-b">
+    <div className="fixed inset-0 z-50">
+      <div className="fixed inset-0 bg-black bg-opacity-25" onClick={onClose}></div>
+      <div className="fixed left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-white rounded-lg shadow-lg w-full max-w-md max-h-[90vh] overflow-auto">
+        <div className="sticky top-0 bg-white flex items-center justify-between p-5 border-b border-gray-200">
           <h2 className="text-xl font-semibold text-gray-900">
             {editingVehicle ? 'Chỉnh sửa xe' : 'Thêm xe mới'}
           </h2>
           <button
             onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 transition-colors"
+            className="text-gray-400 hover:text-gray-600 transition-colors rounded-full p-1 hover:bg-gray-100"
           >
-            <X className="w-6 h-6" />
+            <X className="w-5 h-5" />
           </button>
         </div>
 
@@ -158,11 +159,20 @@ const VehicleFormModal: React.FC<VehicleFormModalProps> = ({
               required
             >
               <option value="">Chọn loại xe</option>
-              {vehicleTypes.map(type => (
-                <option key={type.id} value={type.id}>
-                  {type.ten} - {type.phiThue.toLocaleString()} VNĐ/tháng
-                </option>
-              ))}
+              {vehicleTypes.map(type => {
+                let price = '';
+                if (type.ten === 'Xe đạp' || type.ten === 'Xe máy') {
+                  price = '70.000 VNĐ/tháng';
+                } else if (type.ten === 'Ô tô') {
+                  price = '1.200.000 VNĐ/tháng';
+                }
+                
+                return (
+                  <option key={type.id} value={type.id}>
+                    {type.ten} - {price}
+                  </option>
+                );
+              })}
             </select>
           </div>
 
@@ -245,20 +255,22 @@ const VehicleFormModal: React.FC<VehicleFormModalProps> = ({
           </div>
 
           {/* Action buttons */}
-          <div className="flex gap-3 pt-4">
-            <button
-              type="submit"
-              className="flex-1 bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors"
-            >
-              {editingVehicle ? 'Cập nhật' : 'Thêm mới'}
-            </button>
-            <button
-              type="button"
-              onClick={onClose}
-              className="flex-1 bg-gray-300 text-gray-700 py-2 px-4 rounded-lg hover:bg-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition-colors"
-            >
-              Hủy
-            </button>
+          <div className="border-t border-gray-200 py-4 mt-6">
+            <div className="flex gap-3 justify-end">
+              <button
+                type="button"
+                onClick={onClose}
+                className="px-4 py-2 text-sm font-medium text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-1 focus:ring-offset-1 transition-colors"
+              >
+                Hủy
+              </button>
+              <button
+                type="submit"
+                className="px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md hover:bg-blue-700 focus:outline-none focus:ring-1 focus:ring-offset-1 transition-colors"
+              >
+                {editingVehicle ? 'Cập nhật' : 'Lưu'}
+              </button>
+            </div>
           </div>
         </form>
       </div>

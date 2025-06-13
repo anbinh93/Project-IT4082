@@ -1,6 +1,20 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import Layout from '../components/Layout';
 import NopPhiPopup from '../components/NopPhiPopup';
+import NopNhanhPopup from '../components/NopNhanhPopup';
+
+interface KhoanThu {
+  id: number;
+  tenKhoan: string;
+  loaiKhoan: string;
+  batBuoc: boolean;
+  ghiChu: string;
+  DotThu_KhoanThu?: {
+    soTien: number;
+    dotThuId: number;
+    khoanThuId: number;
+  };
+}
 
 // Dữ liệu mẫu cho các khoản thu
 const sampleFees = [
@@ -122,6 +136,7 @@ const sampleFees = [
 
 const QuanLyKhoanThu: React.FC = () => {
   const [isNopPhiPopupOpen, setIsNopPhiPopupOpen] = useState(false);
+  const [isNopNhanhPopupOpen, setIsNopNhanhPopupOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterOption, setFilterOption] = useState('Tất cả');
   const [selectedFee, setSelectedFee] = useState<any | null>(null);
@@ -141,6 +156,23 @@ const QuanLyKhoanThu: React.FC = () => {
   const handleClosePopup = () => {
     setIsNopPhiPopupOpen(false);
     setIsEditMode(false);
+  };
+
+  // Xử lý mở popup nộp nhanh
+  const handleOpenNopNhanhPopup = () => {
+    setIsNopNhanhPopupOpen(true);
+  };
+
+  // Đóng popup nộp nhanh  
+  const handleCloseNopNhanhPopup = () => {
+    setIsNopNhanhPopupOpen(false);
+  };
+
+  // Xử lý khi lưu thông tin nộp nhanh
+  const handleSaveNopNhanh = (data: any) => {
+    console.log('Payment data received:', data);
+    // TODO: Implement payment processing logic
+    alert('Đã ghi nhận thanh toán thành công!');
   };
 
   // Xử lý khi lưu thông tin nộp phí
@@ -305,12 +337,12 @@ const QuanLyKhoanThu: React.FC = () => {
         {/* Add Button */}
         <button 
           className="bg-blue-500 text-white px-4 py-2 rounded-md shadow-sm hover:bg-blue-600 flex items-center gap-2"
-          onClick={() => handleOpenPopup()}
+          onClick={() => handleOpenNopNhanhPopup()}
         >
           <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
           </svg>
-          Nhập thông tin nộp phí
+          Ghi nhận thanh toán nhanh
         </button>
       </div>
 
@@ -329,6 +361,7 @@ const QuanLyKhoanThu: React.FC = () => {
               <th className="px-6 py-3 text-left text-xs font-bold text-gray-800 uppercase tracking-wider">Bắt buộc?</th>
               <th className="px-6 py-3 text-left text-xs font-bold text-gray-800 uppercase tracking-wider">Ghi chú</th>
               <th className="px-6 py-3 text-left text-xs font-bold text-gray-800 uppercase tracking-wider">Trạng thái</th>
+              <th className="px-6 py-3 text-center text-xs font-bold text-gray-800 uppercase tracking-wider">Thao tác</th>
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
@@ -364,6 +397,18 @@ const QuanLyKhoanThu: React.FC = () => {
                     <span className={`px-2 py-1 rounded-full text-xs font-medium ${fee.trangThai === 'Đang thu' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
                       {fee.trangThai}
                     </span>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-center">
+                    <button 
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        toggleExpandFee(fee.id);
+                      }}
+                      className="text-blue-600 hover:text-blue-800 text-sm font-medium underline"
+                      title="Xem chi tiết danh sách hộ khẩu"
+                    >
+                      {fee.isExpanded ? 'Thu gọn' : 'Xem chi tiết'}
+                    </button>
                   </td>
                 </tr>
                 
@@ -438,30 +483,52 @@ const QuanLyKhoanThu: React.FC = () => {
                                     <td className="px-4 py-3 text-sm text-gray-900">{hoKhau.nguoiNop || '-'}</td>
                                     <td className="px-4 py-3 text-sm text-center">
                                       {fee.trangThai === 'Đang thu' && (
-                                        <div className="flex justify-center space-x-3">
+                                        <div className="flex justify-center space-x-2">
                                           {hoKhau.trangThai === 'Chưa nộp' ? (
-                                            <button 
-                                              onClick={(e) => {
-                                                e.stopPropagation();
-                                                handleOpenPopup(fee, hoKhau);
-                                              }}
-                                              className="text-blue-600 hover:text-blue-800"
-                                              title="Nhập thông tin nộp phí"
-                                            >
-                                              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                                              </svg>
-                                            </button>
+                                            <>
+                                              <button 
+                                                onClick={(e) => {
+                                                  e.stopPropagation();
+                                                  handleOpenPopup(fee, hoKhau);
+                                                }}
+                                                className="text-blue-600 hover:text-blue-800 p-1 rounded"
+                                                title="Nhập thông tin nộp phí"
+                                              >
+                                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                                                </svg>
+                                              </button>
+                                              <button 
+                                                onClick={(e) => {
+                                                  e.stopPropagation();
+                                                  // TODO: Implement quick payment confirmation
+                                                  if (window.confirm(`Xác nhận ${hoKhau.chuHo} đã nộp ${formatCurrency(hoKhau.soTien)} cho khoản thu "${fee.tenKhoan}"?`)) {
+                                                    handleSaveNopPhi({
+                                                      khoanThuId: fee.id,
+                                                      hoKhauId: hoKhau.maHo,
+                                                      trangThai: 'Đã nộp',
+                                                      soTien: hoKhau.soTien,
+                                                      ngayNop: new Date().toLocaleDateString('vi-VN'),
+                                                      nguoiNopTen: hoKhau.chuHo
+                                                    });
+                                                  }
+                                                }}
+                                                className="bg-green-500 hover:bg-green-600 text-white px-2 py-1 rounded text-xs font-medium"
+                                                title="Xác nhận đã thanh toán"
+                                              >
+                                                ✓ Xác nhận
+                                              </button>
+                                            </>
                                           ) : (
                                             <button 
                                               onClick={(e) => {
                                                 e.stopPropagation();
                                                 handleOpenPopup(fee, hoKhau, true);
                                               }}
-                                              className="text-indigo-600 hover:text-indigo-900"
+                                              className="text-indigo-600 hover:text-indigo-900 p-1 rounded"
                                               title="Chỉnh sửa thông tin"
                                             >
-                                              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                                               </svg>
                                             </button>
@@ -499,6 +566,13 @@ const QuanLyKhoanThu: React.FC = () => {
       selectedHoKhau={selectedHoKhau}
       onSave={handleSaveNopPhi}
       isEditMode={isEditMode}
+    />
+    
+    {/* Popup Ghi nhận thanh toán nhanh */}
+    <NopNhanhPopup
+      isOpen={isNopNhanhPopupOpen}
+      onClose={handleCloseNopNhanhPopup}
+      onSave={handleSaveNopNhanh}
     />
     </>
   );

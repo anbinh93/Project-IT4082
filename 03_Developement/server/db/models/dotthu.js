@@ -10,6 +10,12 @@ module.exports = (sequelize, DataTypes) => {
         otherKey: 'khoanThuId',
         as: 'khoanThu'
       });
+      
+      // DotThu has many ThanhToan
+      DotThu.hasMany(models.ThanhToan, {
+        foreignKey: 'dotThuId',
+        as: 'thanhToan'
+      });
     }
   }
   

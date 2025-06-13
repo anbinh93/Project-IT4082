@@ -149,8 +149,8 @@ exports.getChuaNopPhi = async (req, res) => {
             include: [
                 {
                     model: db.NhanKhau,
-                    as: 'chuHo',
-                    attributes: ['id', 'hoten']
+                    as: 'chuHoInfo',
+                    attributes: ['id', 'hoTen']
                 }
             ]
         });
@@ -164,12 +164,12 @@ exports.getChuaNopPhi = async (req, res) => {
         const daNopHoKhauIds = daNopIds.map(item => item.hokhau_id);
         
         // Lọc ra những hộ chưa nộp
-        const chuaNop = hokhau.filter(hk => !daNopHoKhauIds.includes(hk.sohokhau));
+        const chuaNop = hokhau.filter(hk => !daNopHoKhauIds.includes(hk.soHoKhau));
         
         // Format lại dữ liệu trả về
         const result = chuaNop.map(hk => ({
-            sohokhau: hk.sohokhau,
-            tenchuho: hk.chuHo ? hk.chuHo.hoten : 'Chưa có chủ hộ'
+            soHoKhau: hk.soHoKhau,
+            tenchuho: hk.chuHoInfo ? hk.chuHoInfo.hoTen : 'Chưa có chủ hộ'
         }));
 
         return res.status(200).json({

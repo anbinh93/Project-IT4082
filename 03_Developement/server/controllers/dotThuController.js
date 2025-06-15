@@ -1,5 +1,6 @@
 const db = require('../db/models');
 const { Op } = require('sequelize');
+const feeCalculationService = require('../services/feeCalculationService');
 
 // Get all fee collection periods with their fee items
 const getAllDotThuWithKhoanThu = async (req, res) => {
@@ -147,6 +148,7 @@ const getAllDotThu = async (req, res) => {
     }));
 
     return res.status(200).json({
+      success: true,
       dotThus: formattedDotThus,
       pagination: {
         currentPage: parseInt(page),
@@ -213,6 +215,7 @@ const createDotThu = async (req, res) => {
     // Validate required fields
     if (!tenDotThu || !ngayTao || !thoiHan) {
       return res.status(400).json({
+        success: false,
         message: 'Thiếu thông tin bắt buộc: tenDotThu, ngayTao, thoiHan'
       });
     }
@@ -233,6 +236,19 @@ const createDotThu = async (req, res) => {
       }));
 
       await db.DotThu_KhoanThu.bulkCreate(dotThuKhoanThuData);
+      
+      // Get the fee types for calculation
+      const selectedKhoanThu = await db.KhoanThu.findAll({
+        where: {
+          id: khoanThu.map(kt => kt.khoanThuId)
+        }
+      });
+
+      // Create household fees automatically
+      await feeCalculationService.createHouseholdFeesForDotThu(newDotThu.id, selectedKhoanThu);
+    } else {
+      // If no specific fee types provided, create fees for all mandatory types
+      await feeCalculationService.createHouseholdFeesForDotThu(newDotThu.id);
     }
 
     // Fetch the created period with associations
@@ -245,13 +261,15 @@ const createDotThu = async (req, res) => {
     });
 
     return res.status(201).json({
+      success: true,
       message: 'Tạo đợt thu phí thành công',
-      dotThu: createdDotThu
+      data: createdDotThu
     });
 
   } catch (error) {
     console.error('Error creating fee collection period:', error);
     return res.status(500).json({
+      success: false,
       message: 'Lỗi server khi tạo đợt thu phí',
       error: error.message
     });
@@ -307,13 +325,15 @@ const updateDotThu = async (req, res) => {
     });
 
     return res.status(200).json({
+      success: true,
       message: 'Cập nhật đợt thu phí thành công',
-      dotThu: updatedDotThu
+      data: updatedDotThu
     });
 
   } catch (error) {
     console.error('Error updating fee collection period:', error);
     return res.status(500).json({
+      success: false,
       message: 'Lỗi server khi cập nhật đợt thu phí',
       error: error.message
     });
@@ -341,12 +361,14 @@ const deleteDotThu = async (req, res) => {
     await dotThu.destroy();
 
     return res.status(200).json({
+      success: true,
       message: 'Xóa đợt thu phí thành công'
     });
 
   } catch (error) {
     console.error('Error deleting fee collection period:', error);
     return res.status(500).json({
+      success: false,
       message: 'Lỗi server khi xóa đợt thu phí',
       error: error.message
     });

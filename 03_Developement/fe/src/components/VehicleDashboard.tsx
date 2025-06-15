@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { vehicleService } from '../services/vehicleService';
 import type { Vehicle, VehicleType } from '../services/vehicleService';
 import { authService } from '../services/authService';
-import { VehicleForm, VehicleTypeForm } from './VehicleForms';
+import { VehicleForm, VehicleTypeForm } from './VehicleForms'; // Corrected this line
 import { 
   Car, 
   Plus, 
@@ -64,7 +64,10 @@ export const VehicleDashboard: React.FC<VehicleDashboardProps> = ({ onLogout }) 
   const filteredVehicles = vehicles.filter(vehicle => {
     const matchesSearch = vehicle.bienSo.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          vehicle.hoKhau?.chuHoInfo?.hoTen?.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesStatus = !filterStatus || vehicle.trangThai === filterStatus;
+    // Handle both Vietnamese and English status values in filter  
+    const matchesStatus = !filterStatus || vehicle.trangThai === filterStatus ||
+      (filterStatus === 'ACTIVE' && vehicle.trangThai === 'Hoạt động') ||
+      (filterStatus === 'INACTIVE' && vehicle.trangThai === 'Ngừng sử dụng');
     const matchesType = !filterType || vehicle.loaiXeId.toString() === filterType;
     
     return matchesSearch && matchesStatus && matchesType;
@@ -207,10 +210,9 @@ export const VehicleDashboard: React.FC<VehicleDashboardProps> = ({ onLogout }) 
                     onChange={(e) => setFilterType(e.target.value)}
                   >
                     <option value="">Tất cả loại xe</option>
-                    {vehicleTypes.map(type => (
-                      <option key={type.id} value={type.id.toString()}>
-                        {type.tenLoaiXe}
-                      </option>
+                    {vehicleTypes.map(type => (                    <option key={type.id} value={type.id.toString()}>
+                      {type.ten}
+                    </option>
                     ))}
                   </select>
                 </div>
@@ -263,7 +265,7 @@ export const VehicleDashboard: React.FC<VehicleDashboardProps> = ({ onLogout }) 
                         {vehicle.bienSo}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {vehicle.loaiXe?.tenLoaiXe}
+                        {vehicle.loaiXe?.ten}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                         <div>
@@ -357,9 +359,6 @@ export const VehicleDashboard: React.FC<VehicleDashboardProps> = ({ onLogout }) 
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Mô tả
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Trạng thái
-                    </th>
                     {canManage && (
                       <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Thao tác
@@ -371,22 +370,13 @@ export const VehicleDashboard: React.FC<VehicleDashboardProps> = ({ onLogout }) 
                   {vehicleTypes.map((type) => (
                     <tr key={type.id} className="hover:bg-gray-50">
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                        {type.tenLoaiXe}
+                        {type.ten}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                         {Number(type.phiThue).toLocaleString()} VNĐ
                       </td>
                       <td className="px-6 py-4 text-sm text-gray-500">
                         {type.moTa || '-'}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                          type.trangThai 
-                            ? 'bg-green-100 text-green-800' 
-                            : 'bg-red-100 text-red-800'
-                        }`}>
-                          {type.trangThai ? 'Hoạt động' : 'Ngừng hoạt động'}
-                        </span>
                       </td>
                       {canManage && (
                         <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
@@ -469,7 +459,7 @@ export const VehicleDashboard: React.FC<VehicleDashboardProps> = ({ onLogout }) 
         <VehicleForm
           vehicle={editingVehicle}
           vehicleTypes={vehicleTypes}
-          onSave={async (vehicleData) => {
+          onSave={async (vehicleData: any) => {
             try {
               if (editingVehicle) {
                 await vehicleService.updateVehicle(editingVehicle.id, vehicleData);

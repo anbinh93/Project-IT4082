@@ -55,7 +55,10 @@ const QuanLyXe: React.FC = () => {
       vehicle.bienSo.toLowerCase().includes(searchTerm.toLowerCase()) ||
       vehicle.hoKhau?.chuHoInfo?.hoTen?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       '';
-    const matchesStatus = !filterStatus || vehicle.trangThai === filterStatus;
+    // Handle both Vietnamese and English status values in filter
+    const matchesStatus = !filterStatus || vehicle.trangThai === filterStatus || 
+      (filterStatus === 'ACTIVE' && vehicle.trangThai === 'Hoạt động') ||
+      (filterStatus === 'INACTIVE' && vehicle.trangThai === 'Ngừng sử dụng');
     const matchesType = !filterType || vehicle.loaiXeId.toString() === filterType;
     return matchesSearch && matchesStatus && matchesType;
   });
@@ -113,7 +116,9 @@ const QuanLyXe: React.FC = () => {
   };
 
   const getStatusBadge = (status: string) => {
-    return status === 'ACTIVE' ? (
+    // Handle both Vietnamese and English status values
+    const isActive = status === 'ACTIVE' || status === 'Hoạt động';
+    return isActive ? (
       <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">
         Đang sử dụng
       </span>

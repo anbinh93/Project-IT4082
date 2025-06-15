@@ -11,7 +11,7 @@ import HomepageKeToan from "./pages/HomepageKeToan";
 import HomepageToTruong from "./pages/HomepageToTruong";
 import QuanLyHoKhau from "./pages/QuanLyHoKhau";
 import QuanLyNhanKhau from "./pages/QuanLyNhanKhau";
-import QuanLyKhoanThu from "./pages/QuanLyKhoanThuTabBased";
+import QuanLyKhoanThu from "./pages/QuanLyKhoanThu";
 import QuanLyDotThuPhi from "./pages/QuanLyDotThuPhi";
 import QuanLyTamTru from "./pages/QuanLyTamTru";
 import LichSuThayDoiNhanKhau from "./pages/LichSuThayDoiNhanKhau";
@@ -31,6 +31,9 @@ function App() {
     <Router basename="/KTPM_FE">
       <Routes>
         <Route path="/login" element={<Login />} />
+        
+        {/* Test route for debugging */}
+        <Route path="/test" element={<div>Test Page Works!</div>} />
         
         {/* Kế toán routes - accessible by admin and accountant */}
         <Route path="/homepage-ketoan" element={

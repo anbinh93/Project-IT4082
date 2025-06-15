@@ -1,35 +1,27 @@
 import React, { useState, useEffect } from 'react';
-import api from '../services/api';
 
 // Interface definitions
 interface DotThu {
-  id: string;
+  id: number;
   tenDotThu: string;
   ngayTao: string;
   thoiHan: string;
 }
 
 interface HoKhau {
-  id: string;
-  maHoKhau: string;
+  id: number;
+  soHoKhau: number;
   chuHo: string;
-  soPhong?: string;
+  diaChi: string;
 }
 
-interface KhoanThuChiTiet {
-  id: string;
-  tenKhoan: string;
+interface KhoanThuInfo {
+  id: number;
+  tenKhoanThu: string;
   soTien: number;
-  trangThai: 'Đã nộp' | 'Chưa nộp';
-  ngayNop?: string;
-  nguoiNop?: string;
-}
-
-interface TongTienInfo {
-  tongTien: number;
-  daThanhToan: number;
-  conLai: number;
-  chiTiet: KhoanThuChiTiet[];
+  soTienDaNop: number;
+  trangThai: string;
+  ghiChu?: string;
 }
 
 interface NopNhanhPopupProps {
@@ -50,40 +42,47 @@ const NopNhanhPopup: React.FC<NopNhanhPopupProps> = ({
   // Form data states
   const [dotThuList, setDotThuList] = useState<DotThu[]>([]);
   const [hoKhauList, setHoKhauList] = useState<HoKhau[]>([]);
-  const [selectedDotThu, setSelectedDotThu] = useState<string>('');
-  const [selectedHoKhau, setSelectedHoKhau] = useState<string>('');
-  const [tongTienInfo, setTongTienInfo] = useState<TongTienInfo | null>(null);
-  const [showChiTiet, setShowChiTiet] = useState(false);
-  const [nguoiNop, setNguoiNop] = useState<string>('');
-  const [ngayNop, setNgayNop] = useState<string>('');
+  const [selectedDotThu, setSelectedDotThu] = useState<number | null>(null);
+  const [selectedHoKhau, setSelectedHoKhau] = useState<number | null>(null);
+  const [khoanThuInfo, setKhoanThuInfo] = useState<KhoanThuInfo[]>([]);
+  const [selectedPayments, setSelectedPayments] = useState<{[key: number]: number}>({});
+  const [ghiChu, setGhiChu] = useState('');
 
-  // Load initial data
+  // Load initial data when popup opens
   useEffect(() => {
     if (isOpen) {
       loadDotThuList();
       loadHoKhauList();
+      setSelectedDotThu(null);
+      setSelectedHoKhau(null);
+      setKhoanThuInfo([]);
+      setSelectedPayments({});
+      setGhiChu('');
+      setError(null);
     }
   }, [isOpen]);
+
+  // Load household fees when both dot thu and ho khau are selected
+  useEffect(() => {
+    if (selectedDotThu && selectedHoKhau) {
+      loadKhoanThuInfo(selectedDotThu, selectedHoKhau);
+    }
+  }, [selectedDotThu, selectedHoKhau]);
 
   // Load danh sách đợt thu
   const loadDotThuList = async () => {
     try {
       setLoading(true);
-      const response = await api.dotThu.getAll({
-        page: 0,
-        size: 100,
-        sortBy: 'createdAt',
-        sortDir: 'desc'
+      const response = await fetch('http://localhost:8000/api/dot-thu?page=0&size=20&sortBy=createdAt&sortDir=desc', {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('authToken')}`,
+          'Content-Type': 'application/json'
+        }
       });
       
-      if (response && response.dotThus) {
-        const formattedDotThu = response.dotThus.map((dot: any) => ({
-          id: dot.id,
-          tenDotThu: dot.tenDotThu,
-          ngayTao: new Date(dot.ngayTao).toLocaleDateString('vi-VN'),
-          thoiHan: new Date(dot.thoiHan).toLocaleDateString('vi-VN')
-        }));
-        setDotThuList(formattedDotThu);
+      const data = await response.json();
+      if (data.success && data.dotThus) {
+        setDotThuList(data.dotThus);
       }
     } catch (err) {
       console.error('Error loading dot thu list:', err);
@@ -96,13 +95,20 @@ const NopNhanhPopup: React.FC<NopNhanhPopupProps> = ({
   // Load danh sách hộ khẩu
   const loadHoKhauList = async () => {
     try {
-      const response = await api.households.getAll();
-      if (response && response.data && response.data.households) {
-        const formattedHoKhau = response.data.households.map((ho: any) => ({
-          id: ho.soHoKhau.toString(),
-          maHoKhau: ho.soHoKhau.toString(),
+      const response = await fetch('http://localhost:8000/api/households', {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('authToken')}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      const data = await response.json();
+      if (data.success && data.data?.households) {
+        const formattedHoKhau = data.data.households.map((ho: any) => ({
+          id: ho.soHoKhau,
+          soHoKhau: ho.soHoKhau,
           chuHo: ho.chuHoInfo?.hoTen || 'Không xác định',
-          soPhong: ho.roomInfo?.soPhong || ''
+          diaChi: `${ho.soNha || ''} ${ho.duong || ''}, ${ho.phuong || ''}`.trim()
         }));
         setHoKhauList(formattedHoKhau);
       }
@@ -112,214 +118,178 @@ const NopNhanhPopup: React.FC<NopNhanhPopupProps> = ({
     }
   };
 
-  // Load thông tin tổng tiền khi chọn hộ khẩu
-  const loadTongTienInfo = async (dotThuId: string, hoKhauId: string) => {
+  // Load thông tin khoản thu của hộ khẩu trong đợt thu
+  const loadKhoanThuInfo = async (dotThuId: number, hoKhauId: number) => {
     try {
       setLoading(true);
       
-      // Gọi API để lấy thông tin thanh toán
-      const response = await api.dotThu.getPaymentInfo(dotThuId, hoKhauId);
+      // Lấy tất cả khoản thu của hộ khẩu trong đợt thu này
+      const response = await fetch(`http://localhost:8000/api/household-fees/ho-khau/${hoKhauId}/dot-thu/${dotThuId}`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('authToken')}`,
+          'Content-Type': 'application/json'
+        }
+      });
       
-      if (response && response.success) {
-        const { totalAmount, paidAmount, remainingAmount, details } = response.data;
+      const data = await response.json();
+      
+      if (data.success && data.data) {
+        const fees = data.data.map((fee: any) => ({
+          id: fee.id,
+          tenKhoanThu: fee.khoanThu?.tenkhoanthu || 'Không xác định',
+          soTien: parseFloat(fee.soTien || '0'),
+          soTienDaNop: parseFloat(fee.soTienDaNop || '0'),
+          trangThai: fee.trangThai,
+          ghiChu: fee.ghiChu || ''
+        }));
         
-        const tongTienInfo: TongTienInfo = {
-          tongTien: totalAmount || 0,
-          daThanhToan: paidAmount || 0,
-          conLai: remainingAmount || 0,
-          chiTiet: details?.map((item: any) => ({
-            id: item.id,
-            tenKhoan: item.tenKhoan,
-            soTien: item.soTien,
-            trangThai: item.trangThai,
-            ngayNop: item.ngayNop,
-            nguoiNop: item.nguoiNop
-          })) || []
-        };
+        setKhoanThuInfo(fees);
         
-        setTongTienInfo(tongTienInfo);
-      } else {
-        // Fallback to mock data if API fails
-        console.warn('API failed, using mock data');
-        const mockData: TongTienInfo = {
-          tongTien: 2500000,
-          daThanhToan: 500000,
-          conLai: 2000000,
-          chiTiet: [
-            {
-              id: 'KT001',
-              tenKhoan: 'Phí dịch vụ chung cư',
-              soTien: 755000,
-              trangThai: 'Chưa nộp'
-            },
-            {
-              id: 'KT002',
-              tenKhoan: 'Phí gửi xe',
-              soTien: 140000,
-              trangThai: 'Đã nộp',
-              ngayNop: '10/05/2025',
-              nguoiNop: 'Nguyễn Văn A'
-            },
-            {
-              id: 'KT003',
-              tenKhoan: 'Phí quản lý',
-              soTien: 1605000,
-              trangThai: 'Chưa nộp'
-            }
-          ]
-        };
-        setTongTienInfo(mockData);
-      }
-      
-      // Auto-fill người nộp với tên chủ hộ
-      const selectedHo = hoKhauList.find(ho => ho.id === hoKhauId);
-      if (selectedHo) {
-        setNguoiNop(selectedHo.chuHo);
-      }
-      
-    } catch (err) {
-      console.error('Error loading payment info:', err);
-      setError('Không thể tải thông tin thanh toán');
-      
-      // Use mock data as fallback
-      const mockData: TongTienInfo = {
-        tongTien: 2500000,
-        daThanhToan: 500000,
-        conLai: 2000000,
-        chiTiet: [
-          {
-            id: 'KT001',
-            tenKhoan: 'Phí dịch vụ chung cư',
-            soTien: 755000,
-            trangThai: 'Chưa nộp'
-          },
-          {
-            id: 'KT002',
-            tenKhoan: 'Phí gửi xe',
-            soTien: 140000,
-            trangThai: 'Đã nộp',
-            ngayNop: '10/05/2025',
-            nguoiNop: 'Nguyễn Văn A'
+        // Auto-select unpaid amounts for convenience
+        const autoPayments: {[key: number]: number} = {};
+        fees.forEach((fee: KhoanThuInfo) => {
+          if (fee.soTien > fee.soTienDaNop) {
+            autoPayments[fee.id] = fee.soTien - fee.soTienDaNop;
           }
-        ]
-      };
-      setTongTienInfo(mockData);
-      
-      // Auto-fill người nộp với tên chủ hộ
-      const selectedHo = hoKhauList.find(ho => ho.id === hoKhauId);
-      if (selectedHo) {
-        setNguoiNop(selectedHo.chuHo);
+        });
+        setSelectedPayments(autoPayments);
+      } else {
+        setKhoanThuInfo([]);
+        setSelectedPayments({});
       }
+    } catch (err) {
+      console.error('Error loading khoan thu info:', err);
+      setError('Không thể tải thông tin khoản thu');
+      setKhoanThuInfo([]);
     } finally {
       setLoading(false);
     }
   };
 
-  // Handle chọn đợt thu
-  const handleDotThuChange = (dotThuId: string) => {
-    setSelectedDotThu(dotThuId);
-    setSelectedHoKhau('');
-    setTongTienInfo(null);
-    setShowChiTiet(false);
+  // Handle payment amount change
+  const handlePaymentChange = (khoanThuId: number, amount: string) => {
+    const numAmount = parseFloat(amount) || 0;
+    setSelectedPayments(prev => ({
+      ...prev,
+      [khoanThuId]: numAmount
+    }));
   };
 
-  // Handle chọn hộ khẩu
-  const handleHoKhauChange = (hoKhauId: string) => {
-    setSelectedHoKhau(hoKhauId);
-    if (selectedDotThu && hoKhauId) {
-      loadTongTienInfo(selectedDotThu, hoKhauId);
-    }
-  };
-
-  // Handle submit
+  // Handle submit payment
   const handleSubmit = async () => {
-    if (!selectedDotThu || !selectedHoKhau || !nguoiNop || !ngayNop) {
-      setError('Vui lòng điền đầy đủ thông tin');
-      return;
-    }
-
-    if (!tongTienInfo) {
-      setError('Không có thông tin thanh toán');
-      return;
-    }
-
     try {
-      setLoading(true);
-      setError(null);
-      
-      // Lấy danh sách các khoản thu chưa thanh toán
-      const unpaidItems = tongTienInfo.chiTiet.filter(item => item.trangThai === 'Chưa nộp');
-      
-      if (unpaidItems.length === 0) {
-        setError('Không có khoản thu nào cần thanh toán');
+      if (!selectedDotThu || !selectedHoKhau) {
+        setError('Vui lòng chọn đợt thu và hộ khẩu');
         return;
       }
-      
-      const submitData = {
-        dotThuId: selectedDotThu,
-        hoKhauId: selectedHoKhau,
-        nguoiNop,
-        ngayNop,
-        khoanThuIds: unpaidItems.map(item => item.id)
-      };
 
-      console.log('Submitting payment data:', submitData);
-      
-      // Gọi API để ghi nhận thanh toán
-      const response = await api.dotThu.recordPayment(submitData);
-      
-      if (response && response.success) {
-        console.log('Payment recorded successfully:', response);
-        
-        if (onSave) {
-          onSave({
-            ...submitData,
-            totalAmount: tongTienInfo.conLai,
-            success: true
-          });
-        }
-        
-        alert(`Đã ghi nhận thanh toán thành công!\nSố tiền: ${tongTienInfo.conLai.toLocaleString('vi-VN')} VNĐ\nNgười nộp: ${nguoiNop}`);
-        handleClose();
-      } else {
-        throw new Error(response?.message || 'Có lỗi xảy ra khi ghi nhận thanh toán');
+      const paymentsToProcess = Object.entries(selectedPayments)
+        .filter(([_, amount]) => amount > 0)
+        .map(([khoanThuId, amount]) => ({ 
+          householdFeeId: parseInt(khoanThuId), 
+          amount: amount 
+        }));
+
+      if (paymentsToProcess.length === 0) {
+        setError('Vui lòng nhập số tiền thanh toán');
+        return;
       }
+
+      setLoading(true);
+
+      // Process each payment
+      for (const payment of paymentsToProcess) {
+        const response = await fetch(`http://localhost:8000/api/household-fees/${payment.householdFeeId}/payment`, {
+          method: 'PUT',
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('authToken')}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            soTienThanhToan: payment.amount,
+            ghiChu: ghiChu || 'Thanh toán nhanh'
+          })
+        });
+
+        const data = await response.json();
+        if (!data.success) {
+          throw new Error(data.message || 'Có lỗi xảy ra khi thanh toán');
+        }
+      }
+
+      // Success notification  
+      const totalAmount = paymentsToProcess.reduce((sum, p) => sum + p.amount, 0);
       
+      // Toast notification instead of alert
+      const toast = document.createElement('div');
+      toast.className = 'fixed top-4 right-4 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg z-50 transition-all duration-300';
+      toast.innerHTML = `
+        <div class="flex items-center space-x-2">
+          <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
+          </svg>
+          <span>Thanh toán thành công! Tổng số tiền: ${formatCurrency(totalAmount)}</span>
+        </div>
+      `;
+      document.body.appendChild(toast);
+      setTimeout(() => {
+        toast.style.opacity = '0';
+        setTimeout(() => document.body.removeChild(toast), 300);
+      }, 3000);
+      
+      // Call onSave callback if provided
+      if (onSave) {
+        onSave({
+          dotThuId: selectedDotThu,
+          hoKhauId: selectedHoKhau,
+          payments: paymentsToProcess,
+          totalAmount,
+          ghiChu
+        });
+      }
+
+      handleClose();
     } catch (err: any) {
-      console.error('Error submitting payment:', err);
-      setError(err.message || 'Không thể ghi nhận thanh toán');
+      console.error('Error processing payment:', err);
+      setError(err.message || 'Có lỗi xảy ra khi xử lý thanh toán');
     } finally {
       setLoading(false);
     }
+  };
+
+  // Format currency
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('vi-VN', {
+      style: 'currency',
+      currency: 'VND'
+    }).format(amount);
   };
 
   // Handle close
   const handleClose = () => {
-    setSelectedDotThu('');
-    setSelectedHoKhau('');
-    setTongTienInfo(null);
-    setShowChiTiet(false);
-    setNguoiNop('');
-    setNgayNop('');
+    setSelectedDotThu(null);
+    setSelectedHoKhau(null);
+    setKhoanThuInfo([]);
+    setSelectedPayments({});
+    setGhiChu('');
     setError(null);
     onClose();
   };
 
-  // Set default date to today
-  useEffect(() => {
-    const today = new Date().toISOString().split('T')[0];
-    setNgayNop(today);
-  }, []);
+  // Format date
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString('vi-VN');
+  };
 
   if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg shadow-lg max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+      <div className="bg-white rounded-lg w-full max-w-4xl max-h-[90vh] overflow-hidden">
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-gray-200">
           <h2 className="text-xl font-semibold text-gray-800">Ghi nhận thanh toán nhanh</h2>
-          <button 
+          <button
             onClick={handleClose}
             className="text-gray-400 hover:text-gray-600 transition-colors"
           >
@@ -330,177 +300,169 @@ const NopNhanhPopup: React.FC<NopNhanhPopupProps> = ({
         </div>
 
         {/* Content */}
-        <div className="p-6 space-y-6">
-          {/* Error message */}
+        <div className="p-6 max-h-[calc(90vh-180px)] overflow-y-auto">
           {error && (
-            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-md">
+            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-md mb-4">
               {error}
+              <button 
+                onClick={() => setError(null)}
+                className="float-right text-red-500 hover:text-red-700"
+              >
+                ×
+              </button>
             </div>
           )}
 
-          {/* Chọn đợt thu */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Chọn đợt thu <span className="text-red-500">*</span>
-            </label>
-            <select
-              value={selectedDotThu}
-              onChange={(e) => handleDotThuChange(e.target.value)}
-              className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              disabled={loading}
-            >
-              <option value="">-- Chọn đợt thu --</option>
-              {dotThuList.map(dot => (
-                <option key={dot.id} value={dot.id}>
-                  {dot.tenDotThu} ({dot.ngayTao} - {dot.thoiHan})
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* Chọn hộ khẩu */}
-          {selectedDotThu && (
+          <div className="space-y-6">
+            {/* Chọn đợt thu */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Chọn hộ khẩu <span className="text-red-500">*</span>
+                Chọn đợt thu phí
               </label>
               <select
-                value={selectedHoKhau}
-                onChange={(e) => handleHoKhauChange(e.target.value)}
-                className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                disabled={loading}
+                value={selectedDotThu || ''}
+                onChange={(e) => setSelectedDotThu(parseInt(e.target.value) || null)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
-                <option value="">-- Chọn hộ khẩu --</option>
-                {hoKhauList.map(ho => (
-                  <option key={ho.id} value={ho.id}>
-                    {ho.maHoKhau} - {ho.chuHo} {ho.soPhong && `(Phòng ${ho.soPhong})`}
+                <option value="">-- Chọn đợt thu --</option>
+                {dotThuList.map((dotThu) => (
+                  <option key={dotThu.id} value={dotThu.id}>
+                    {dotThu.tenDotThu} ({formatDate(dotThu.ngayTao)} - {formatDate(dotThu.thoiHan)})
                   </option>
                 ))}
               </select>
             </div>
-          )}
 
-          {/* Thông tin tổng tiền */}
-          {tongTienInfo && (
-            <div className="bg-gray-50 rounded-lg p-4">
-              <div 
-                className="flex items-center justify-between cursor-pointer"
-                onClick={() => setShowChiTiet(!showChiTiet)}
+            {/* Chọn hộ khẩu */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Chọn hộ khẩu
+              </label>
+              <select
+                value={selectedHoKhau || ''}
+                onChange={(e) => setSelectedHoKhau(parseInt(e.target.value) || null)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                disabled={!selectedDotThu}
               >
-                <div>
-                  <h3 className="font-semibold text-gray-800">Thông tin thanh toán</h3>
-                  <div className="grid grid-cols-3 gap-4 mt-2 text-sm">
-                    <div>
-                      <span className="text-gray-600">Tổng tiền: </span>
-                      <span className="font-semibold text-blue-600">
-                        {tongTienInfo.tongTien.toLocaleString('vi-VN')} VNĐ
-                      </span>
-                    </div>
-                    <div>
-                      <span className="text-gray-600">Đã thanh toán: </span>
-                      <span className="font-semibold text-green-600">
-                        {tongTienInfo.daThanhToan.toLocaleString('vi-VN')} VNĐ
-                      </span>
-                    </div>
-                    <div>
-                      <span className="text-gray-600">Còn lại: </span>
-                      <span className="font-semibold text-red-600">
-                        {tongTienInfo.conLai.toLocaleString('vi-VN')} VNĐ
-                      </span>
-                    </div>
-                  </div>
-                </div>
-                <div className="text-gray-500">
-                  {showChiTiet ? (
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                    </svg>
-                  ) : (
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                    </svg>
-                  )}
-                </div>
-              </div>
+                <option value="">-- Chọn hộ khẩu --</option>
+                {hoKhauList.map((hoKhau) => (
+                  <option key={hoKhau.id} value={hoKhau.id}>
+                    HK{hoKhau.soHoKhau.toString().padStart(3, '0')} - {hoKhau.chuHo}
+                  </option>
+                ))}
+              </select>
+            </div>
 
-              {/* Chi tiết các khoản thu */}
-              {showChiTiet && (
-                <div className="mt-4 border-t border-gray-200 pt-4">
-                  <h4 className="text-sm font-medium text-gray-700 mb-3">Chi tiết các khoản thu:</h4>
-                  <div className="space-y-2">
-                    {tongTienInfo.chiTiet.map(item => (
-                      <div key={item.id} className="flex items-center justify-between text-sm">
-                        <span className="text-gray-700">{item.tenKhoan}</span>
-                        <div className="flex items-center gap-3">
-                          <span className="font-medium">
-                            {item.soTien.toLocaleString('vi-VN')} VNĐ
-                          </span>
-                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                            item.trangThai === 'Đã nộp' 
-                              ? 'bg-green-100 text-green-800' 
-                              : 'bg-red-100 text-red-800'
+            {/* Danh sách khoản thu */}
+            {khoanThuInfo.length > 0 && (
+              <div>
+                <h3 className="text-lg font-medium text-gray-800 mb-4">Danh sách khoản thu</h3>
+                <div className="space-y-3">
+                  {khoanThuInfo.map((khoan) => (
+                    <div key={khoan.id} className="border border-gray-200 rounded-lg p-4">
+                      <div className="flex justify-between items-start mb-3">
+                        <div>
+                          <h4 className="font-medium text-gray-800">{khoan.tenKhoanThu}</h4>
+                          <div className="text-sm text-gray-600 mt-1">
+                            <p>Tổng tiền: <span className="font-medium">{formatCurrency(khoan.soTien)}</span></p>
+                            <p>Đã nộp: <span className="font-medium text-green-600">{formatCurrency(khoan.soTienDaNop)}</span></p>
+                            <p>Còn lại: <span className="font-medium text-red-600">{formatCurrency(khoan.soTien - khoan.soTienDaNop)}</span></p>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <span className={`px-2 py-1 text-xs font-medium rounded-full ${
+                            khoan.trangThai === 'da_nop_du' 
+                              ? 'bg-green-100 text-green-600'
+                              : khoan.trangThai === 'nop_mot_phan'
+                              ? 'bg-yellow-100 text-yellow-600'
+                              : 'bg-red-100 text-red-600'
                           }`}>
-                            {item.trangThai}
+                            {khoan.trangThai === 'da_nop_du' ? 'Đã nộp đủ' : 
+                             khoan.trangThai === 'nop_mot_phan' ? 'Nộp một phần' : 'Chưa nộp'}
                           </span>
                         </div>
                       </div>
-                    ))}
+
+                      {khoan.soTien > khoan.soTienDaNop && (
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Số tiền thanh toán
+                          </label>
+                          <div className="flex gap-2">
+                            <input
+                              type="number"
+                              min="0"
+                              max={khoan.soTien - khoan.soTienDaNop}
+                              step="1000"
+                              value={selectedPayments[khoan.id] || ''}
+                              onChange={(e) => handlePaymentChange(khoan.id, e.target.value)}
+                              className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                              placeholder="Nhập số tiền"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => handlePaymentChange(khoan.id, (khoan.soTien - khoan.soTienDaNop).toString())}
+                              className="px-3 py-2 text-sm bg-blue-100 text-blue-700 rounded-md hover:bg-blue-200"
+                            >
+                              Toàn bộ
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+
+                {/* Ghi chú */}
+                <div className="mt-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Ghi chú
+                  </label>
+                  <textarea
+                    value={ghiChu}
+                    onChange={(e) => setGhiChu(e.target.value)}
+                    rows={2}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="Ghi chú về thanh toán (tùy chọn)"
+                  />
+                </div>
+
+                {/* Tổng tiền */}
+                <div className="mt-4 p-4 bg-gray-50 rounded-lg">
+                  <div className="flex justify-between items-center">
+                    <span className="font-medium text-gray-800">Tổng tiền thanh toán:</span>
+                    <span className="text-xl font-bold text-blue-600">
+                      {formatCurrency(Object.values(selectedPayments).reduce((sum, amount) => sum + amount, 0))}
+                    </span>
                   </div>
                 </div>
-              )}
-            </div>
-          )}
+              </div>
+            )}
 
-          {/* Người nộp */}
-          {tongTienInfo && (
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Người nộp <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="text"
-                value={nguoiNop}
-                onChange={(e) => setNguoiNop(e.target.value)}
-                className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="Nhập tên người nộp..."
-              />
-              <p className="text-sm text-gray-500 mt-1">
-                Mặc định là chủ hộ, có thể chỉnh sửa nếu người nộp khác
-              </p>
-            </div>
-          )}
-
-          {/* Ngày nộp */}
-          {tongTienInfo && (
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Ngày nộp <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="date"
-                value={ngayNop}
-                onChange={(e) => setNgayNop(e.target.value)}
-                className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-          )}
+            {loading && (
+              <div className="flex items-center justify-center py-4">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+                <span className="ml-2 text-gray-600">Đang xử lý...</span>
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-end gap-3 p-6 border-t border-gray-200">
+        <div className="flex justify-end gap-3 p-6 border-t border-gray-200">
           <button
             onClick={handleClose}
-            className="px-4 py-2 text-sm font-medium text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="px-4 py-2 text-gray-600 border border-gray-300 rounded-md hover:bg-gray-50"
             disabled={loading}
           >
             Hủy
           </button>
           <button
             onClick={handleSubmit}
-            disabled={loading || !tongTienInfo || !nguoiNop || !ngayNop}
-            className="px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+            disabled={loading || !selectedDotThu || !selectedHoKhau || khoanThuInfo.length === 0 || Object.values(selectedPayments).every(amount => amount === 0)}
+            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed"
           >
-            {loading ? 'Đang xử lý...' : 'Ghi nhận thanh toán'}
+            {loading ? 'Đang xử lý...' : 'Xác nhận thanh toán'}
           </button>
         </div>
       </div>

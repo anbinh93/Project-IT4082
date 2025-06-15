@@ -17,12 +17,35 @@ const residentController = {
         ];
       }
 
-      const { count, rows: residents } = await NhanKhau.findAndCountAll({
+      const { count, rows } = await NhanKhau.findAndCountAll({
         where: whereClause,
         attributes: ['id', 'hoTen', 'ngaySinh', 'gioiTinh', 'cccd', 'danToc', 'ngheNghiep', 'soDienThoai'],
+        include: [
+          {
+            model: HoKhau,
+            as: 'hoKhauChuHo', // Association from NhanKhau to HoKhau where NhanKhau is chuHo
+            attributes: ['soHoKhau'], // Only need to confirm existence
+            required: false // LEFT JOIN to include all NhanKhau
+          }
+        ],
         limit: parseInt(limit),
         offset: parseInt(offset),
         order: [['hoTen', 'ASC']]
+      });
+
+      const residents = rows.map(nk => {
+        const nkData = nk.get({ plain: true });
+        return {
+          id: nkData.id,
+          hoTen: nkData.hoTen,
+          ngaySinh: nkData.ngaySinh,
+          gioiTinh: nkData.gioiTinh,
+          cccd: nkData.cccd,
+          danToc: nkData.danToc,
+          ngheNghiep: nkData.ngheNghiep,
+          soDienThoai: nkData.soDienThoai,
+          isHeadOfHousehold: !!nkData.hoKhauChuHo // True if hoKhauChuHo object exists
+        };
       });
 
       res.json({
@@ -330,6 +353,19 @@ const residentController = {
         });
       }
 
+      // Check if resident is head of household first
+      const householdAsHead = await HoKhau.findOne({
+        where: { chuHo: id },
+        attributes: ['soHoKhau', 'soNha', 'duong', 'phuong', 'quan', 'thanhPho', 'ngayLamHoKhau'],
+        include: [
+          {
+            model: NhanKhau,
+            as: 'chuHoInfo',
+            attributes: ['id', 'hoTen', 'cccd']
+          }
+        ]
+      });
+
       // Get current household membership with detailed info
       const currentMembership = await ThanhVienHoKhau.findOne({
         where: { nhanKhauId: id },
@@ -349,18 +385,20 @@ const residentController = {
         ]
       });
 
-      // Check if resident is head of household
-      const isHeadOfHousehold = currentMembership && 
-        currentMembership.hoKhau && 
-        currentMembership.hoKhau.chuHoInfo &&
-        currentMembership.hoKhau.chuHoInfo.id === parseInt(id);
+      // Determine if resident is head of household
+      const isHeadOfHousehold = householdAsHead !== null;
+      
+      // Use household data from head position or membership
+      const householdData = householdAsHead || currentMembership?.hoKhau;
 
       // Get other household members if resident is head
       let otherMembers = [];
-      if (currentMembership && isHeadOfHousehold) {
+      const householdId = householdAsHead?.soHoKhau || currentMembership?.hoKhauId;
+      
+      if (isHeadOfHousehold && householdId) {
         otherMembers = await ThanhVienHoKhau.findAll({
           where: { 
-            hoKhauId: currentMembership.hoKhauId,
+            hoKhauId: householdId,
             nhanKhauId: { [Op.ne]: id }
           },
           include: [
@@ -382,15 +420,15 @@ const residentController = {
           gioiTinh: resident.gioiTinh,
           ngheNghiep: resident.ngheNghiep
         },
-        householdStatus: currentMembership ? 'in_household' : 'no_household',
+        householdStatus: (householdAsHead || currentMembership) ? 'in_household' : 'no_household',
         isHeadOfHousehold: isHeadOfHousehold,
-        currentHousehold: currentMembership ? {
-          soHoKhau: currentMembership.hoKhau.soHoKhau,
-          diaChi: `${currentMembership.hoKhau.soNha}, ${currentMembership.hoKhau.duong}, ${currentMembership.hoKhau.phuong}, ${currentMembership.hoKhau.quan}, ${currentMembership.hoKhau.thanhPho}`,
-          chuHo: currentMembership.hoKhau.chuHoInfo?.hoTen || 'Chưa có',
-          quanHeVoiChuHo: currentMembership.quanHeVoiChuHo,
-          ngayThemVaoHo: currentMembership.ngayThemNhanKhau,
-          ngayLamHoKhau: currentMembership.hoKhau.ngayLamHoKhau
+        currentHousehold: householdData ? {
+          soHoKhau: householdData.soHoKhau,
+          diaChi: `${householdData.soNha}, ${householdData.duong}, ${householdData.phuong}, ${householdData.quan}, ${householdData.thanhPho}`,
+          chuHo: householdData.chuHoInfo?.hoTen || resident.hoTen, // If this person is the head, use their name
+          quanHeVoiChuHo: isHeadOfHousehold ? 'chủ hộ' : currentMembership?.quanHeVoiChuHo,
+          ngayThemVaoHo: currentMembership?.ngayThemNhanKhau || householdData.ngayLamHoKhau,
+          ngayLamHoKhau: householdData.ngayLamHoKhau
         } : null,
         otherHouseholdMembers: otherMembers.map(member => ({
           id: member.nhanKhau.id,
@@ -399,8 +437,8 @@ const residentController = {
           quanHeVoiChuHo: member.quanHeVoiChuHo,
           ngayThemVaoHo: member.ngayThemNhanKhau
         })),
-        canSeparate: currentMembership !== null,
-        separationNotes: currentMembership ? 
+        canSeparate: (householdAsHead || currentMembership) !== null,
+        separationNotes: (householdAsHead || currentMembership) ? 
           (isHeadOfHousehold ? 
             (otherMembers.length > 0 ? 
               'Nhân khẩu này là chủ hộ. Khi tách hộ, thành viên khác sẽ được chọn làm chủ hộ mới.' : 
@@ -806,6 +844,29 @@ const residentController = {
       };
 
       await resident.update(updatedData);
+
+      // Record the information update in change history
+      // Check if resident belongs to any household
+      const householdMembership = await ThanhVienHoKhau.findOne({
+        where: { nhanKhauId: id }
+      });
+
+      // Also check if resident is head of household
+      const householdAsHead = await HoKhau.findOne({
+        where: { chuHo: id }
+      });
+
+      const householdId = householdMembership?.hoKhauId || householdAsHead?.soHoKhau;
+
+      if (householdId) {
+        // Record the information update in history
+        await LichSuThayDoiHoKhau.create({
+          nhanKhauId: id,
+          hoKhauId: householdId,
+          loaiThayDoi: 3, // Information update
+          thoiGian: new Date()
+        });
+      }
 
       res.json({
         success: true,

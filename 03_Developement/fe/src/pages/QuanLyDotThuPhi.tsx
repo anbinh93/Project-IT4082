@@ -211,7 +211,7 @@ const QuanLyDotThuPhi: React.FC = () => {
   // Thêm các state mới
   const [isDeleteBatchConfirmOpen, setIsDeleteBatchConfirmOpen] = useState(false); // Xác nhận xóa đợt thu
   const [isAddFeePopupOpen, setIsAddFeePopupOpen] = useState(false); // Thêm khoản thu
-  const [isEditFeePopupOpen, setIsEditFeePopupOpen] = useState(false); // Sửa khoản thu
+  const [isEditFeePopup, setIsEditFeePopup] = useState(false); // Sửa khoản thu
   const [isDeleteFeeConfirmOpen, setIsDeleteFeeConfirmOpen] = useState(false); // Xác nhận xóa khoản thu
   const [selectedFee, setSelectedFee] = useState<any | null>(null); // Khoản thu được chọn để sửa/xóa
   const [activeBatchForFee, setActiveBatchForFee] = useState<any | null>(null); // Đợt thu đang được thao tác với khoản thu
@@ -255,7 +255,7 @@ const QuanLyDotThuPhi: React.FC = () => {
         
         console.log('📊 API Response:', response);
         
-        if (response && response.dotThus) {
+        if (response && response.success && response.dotThus) {
           // Transform API data to match frontend structure
           const transformedBatches = response.dotThus.map((dotThu: any) => {
             // Transform khoanThu from API format to frontend format
@@ -263,20 +263,30 @@ const QuanLyDotThuPhi: React.FC = () => {
               id: khoanthu.id,
               type: mapFeeNameToType(khoanthu.tenkhoanthu), // Use mapping function
               tenKhoan: khoanthu.tenkhoanthu, // Fix field name to match interface
-              chiTiet: khoanthu.tenkhoanthu, // Use name as description for now
-              batBuoc: 'Bắt buộc', // Default to mandatory
-              soTien: khoanthu.DotThu_KhoanThu?.soTien || '0',
+              chiTiet: khoanthu.ghichu || khoanthu.tenkhoanthu, // Use ghiChu as description, fallback to name
+              batBuoc: khoanthu.batbuoc ? 'Bắt buộc' : 'Không bắt buộc', // Convert boolean to string
+              soTien: khoanthu.DotThu_KhoanThu && khoanthu.DotThu_KhoanThu.soTien !== undefined && khoanthu.DotThu_KhoanThu.soTien !== null ? Number(khoanthu.DotThu_KhoanThu.soTien) : undefined,
               householdFees: {} // Empty for now, can be populated later
             }));
 
             console.log('🔄 Transformed khoanThu for dotThu', dotThu.id, ':', transformedKhoanThu);
+
+            // Map backend status to frontend display
+            const mapStatus = (backendStatus: string) => {
+              switch (backendStatus) {
+                case 'DANG_MO': return 'Đang mở';
+                case 'DA_DONG': return 'Đã đóng';
+                case 'HOAN_THANH': return 'Hoàn thành';
+                default: return isDatePast(dotThu.thoiHan) ? 'Đã đóng' : 'Đang mở';
+              }
+            };
 
             return {
               maDot: dotThu.id,
               tenDot: dotThu.tenDotThu,
               ngayTao: formatDate(dotThu.ngayTao),
               hanCuoi: formatDate(dotThu.thoiHan),
-              trangThai: isDatePast(dotThu.thoiHan) ? 'Đã đóng' : 'Đang mở',
+              trangThai: mapStatus(dotThu.trangThai),
               details: {
                 maDot: dotThu.id,
                 tenDot: dotThu.tenDotThu,
@@ -291,7 +301,7 @@ const QuanLyDotThuPhi: React.FC = () => {
           console.log('✅ Transformed batches:', transformedBatches);
           setBatches(transformedBatches);
         } else {
-          console.log('⚠️  No data returned from API, setting empty array');
+          console.log('⚠️  No data returned from API or invalid response structure:', response);
           setBatches([]);
         }
       } catch (apiError) {
@@ -326,6 +336,35 @@ const QuanLyDotThuPhi: React.FC = () => {
     return compareDate < today;
   };
 
+  const formatDateForAPI = (dateInput: string | Date | undefined): string | undefined => {
+    if (!dateInput) return undefined;
+    let dateObj: Date;
+
+    if (typeof dateInput === 'string') {
+      if (dateInput.includes('/')) { // Format: dd/MM/yyyy
+        const parts = dateInput.split('/');
+        if (parts.length === 3) {
+          // new Date(year, monthIndex, day)
+          dateObj = new Date(parseInt(parts[2], 10), parseInt(parts[1], 10) - 1, parseInt(parts[0], 10));
+        } else {
+          dateObj = new Date(dateInput); // Try parsing directly if not dd/MM/yyyy with 3 parts
+        }
+      } else { // Assumed yyyy-MM-dd or other Date.parse compatible format
+        dateObj = new Date(dateInput);
+      }
+    } else { // Date object
+      dateObj = dateInput;
+    }
+
+    if (dateObj && !isNaN(dateObj.getTime())) {
+      return dateObj.toISOString().split('T')[0]; // Returns YYYY-MM-DD
+    }
+    console.warn('Invalid date input for formatDateForAPI:', dateInput);
+    // Return undefined or original string if it might be pre-formatted correctly and parsing failed
+    // For now, returning undefined to prevent sending malformed data.
+    return undefined;
+  };
+
   // Hàm kiểm tra và cập nhật trạng thái đợt thu
   const updateBatchStatus = (batch: any) => {
     const today = new Date().toISOString().slice(0, 10);
@@ -344,7 +383,7 @@ const QuanLyDotThuPhi: React.FC = () => {
     .map(updateBatchStatus) // Cập nhật trạng thái trước khi filter
     .filter(batch => {
       const matchSearch = batch.tenDot.toLowerCase().includes(search.toLowerCase());
-      const matchFilter = filter === 'Tất cả' ? true : (filter === 'Đang mở' ? batch.trangThai === 'Đang mở' : batch.trangThai === 'Đã đóng');
+      const matchFilter = filter === 'Tất cả' ? true : batch.trangThai === filter;
       return matchSearch && matchFilter;
     });
 
@@ -402,7 +441,7 @@ const QuanLyDotThuPhi: React.FC = () => {
           console.log('✅ Batch deleted successfully');
           
           // Reload data from API to get fresh data
-          await loadDotThuData();
+          await loadDotThuData(); // Ensure data is reloaded
           
           closeDeleteBatchConfirm();
           alert('Đã xóa đợt thu thành công!');
@@ -414,6 +453,7 @@ const QuanLyDotThuPhi: React.FC = () => {
         alert('Có lỗi xảy ra khi xóa đợt thu: ' + (error.message || 'Lỗi không xác định'));
         
         // Fallback: remove from local state if API fails
+        // Ensure state update triggers re-render
         setBatches(prev => prev.filter(batch => batch.maDot !== selectedBatch.maDot));
         closeDeleteBatchConfirm();
       }
@@ -423,8 +463,8 @@ const QuanLyDotThuPhi: React.FC = () => {
   // Thêm khoản thu vào đợt thu
   const openAddFeePopup = (batch: any, e: React.MouseEvent) => {
     e.stopPropagation();
-    if (batch.trangThai === 'Đã đóng') {
-      setAddFeeError('Không thể thêm khoản thu vào đợt thu đã đóng.');
+    if (batch.trangThai === 'Đã đóng' || batch.trangThai === 'Hoàn thành') {
+      setAddFeeError('Không thể thêm khoản thu vào đợt thu đã đóng hoặc hoàn thành.');
       return;
     }
     setSelectedBatch(batch);
@@ -438,7 +478,7 @@ const QuanLyDotThuPhi: React.FC = () => {
   const handleAddFee = async (newFee: any) => {
     if (activeBatchForFee) {
       try {
-        // First, create the fee type in the backend
+        // 1. Tạo loại khoản thu mới (nếu cần)
         const response = await api.khoanThu.create({
           tenKhoan: newFee.tenKhoan,
           batBuoc: newFee.batBuoc === 'Bắt buộc',
@@ -446,14 +486,32 @@ const QuanLyDotThuPhi: React.FC = () => {
         });
 
         if (response.success) {
-          console.log('✅ Fee created successfully:', response.data);
-          
-          // Reload data from API to get fresh data
-          await loadDotThuData();
-          closeAddFeePopup();
-          
-          // Show success message
-          alert('Đã tạo khoản thu thành công!');
+          const feeId = response.data.id;
+
+          // Calculate total amount from householdFees
+          const totalAmount = newFee.householdFees ? 
+            Object.values(newFee.householdFees).reduce((sum: number, h: any) => sum + (h.amount || 0), 0) : 0;
+
+          // 2. Gọi API updateDotThu để gắn khoản thu này vào đợt thu với số tiền
+          const updatedKhoanThu = [
+            ...activeBatchForFee.details.khoanThu.map((fee: any) => ({
+              khoanThuId: String(fee.id), // Convert to string for API
+              soTien: fee.soTien !== undefined ? parseFloat(fee.soTien) : 0,
+            })),
+            { khoanThuId: String(feeId), soTien: totalAmount }
+          ];
+
+          const updateResponse = await api.dotThu.update(activeBatchForFee.maDot, {
+            khoanThu: updatedKhoanThu
+          });
+
+          if (updateResponse.success) {
+            await loadDotThuData(); // Ensure data is reloaded
+            closeAddFeePopup();
+            alert('Đã tạo khoản thu thành công!');
+          } else {
+            alert('Có lỗi xảy ra khi gắn khoản thu vào đợt thu: ' + (updateResponse.message || 'Lỗi không xác định'));
+          }
         } else {
           alert('Có lỗi xảy ra khi tạo khoản thu: ' + (response.message || 'Lỗi không xác định'));
         }
@@ -469,37 +527,64 @@ const QuanLyDotThuPhi: React.FC = () => {
     e.stopPropagation();
     setSelectedFee(fee);
     setActiveBatchForFee(batch);
-    setIsEditFeePopupOpen(true);
+    setIsEditFeePopup(true);
   };
   const closeEditFeePopup = () => {
-    setIsEditFeePopupOpen(false);
+    setIsEditFeePopup(false);
     setSelectedFee(null);
   };
   const handleEditFee = async (updatedFee: any) => {
     if (activeBatchForFee && selectedFee) {
       try {
-        // Update the fee type in the backend if it has a backendId
-        if (selectedFee.backendId) {
-          const response = await api.khoanThu.update(selectedFee.backendId, {
+        // 1. Update fee type if needed
+        // Assuming selectedFee.id is the ID of the KhoanThu itself (from KhoanThu table)
+        // and updatedFee.soTien is the new amount for DotThu_KhoanThu
+        // We need to ensure we are updating the correct KhoanThu if its details (tenKhoan, batBuoc, ghiChu) changed.
+        // And then update the DotThu_KhoanThu association with the new soTien.
+
+        // If the fee name or other details changed, update the KhoanThu item itself
+        if (selectedFee.id && (selectedFee.tenKhoan !== updatedFee.tenKhoan || selectedFee.batBuoc !== (updatedFee.batBuoc === 'Bắt buộc') || selectedFee.chiTiet !== updatedFee.chiTiet)) {
+          const khoanThuUpdateResponse = await api.khoanThu.update(selectedFee.id, {
             tenKhoan: updatedFee.tenKhoan,
             batBuoc: updatedFee.batBuoc === 'Bắt buộc',
             ghiChu: updatedFee.chiTiet || '',
           });
-
-          if (!response.success) {
-            alert('Có lỗi xảy ra khi cập nhật khoản thu: ' + (response.message || 'Lỗi không xác định'));
+          if (!khoanThuUpdateResponse.success) {
+            alert('Có lỗi xảy ra khi cập nhật chi tiết khoản thu: ' + (khoanThuUpdateResponse.message || 'Lỗi không xác định'));
             return;
           }
         }
 
-        console.log('✅ Fee updated successfully');
-        
-        // Reload data from API to get fresh data
-        await loadDotThuData();
-        closeEditFeePopup();
-        
-        // Show success message
-        alert('Đã cập nhật khoản thu thành công!');
+        // 2. Update DotThu_KhoanThu: send all khoảnThu for the current đợt thu, with the updated soTien for the edited one.
+        const updatedKhoanThuList = activeBatchForFee.details.khoanThu.map((fee: any) => {
+          if (fee.id === selectedFee.id) { // selectedFee.id should be the ID of the KhoanThu
+            // Calculate total amount from householdFees if provided, otherwise use updatedFee.soTien
+            const totalAmount = updatedFee.householdFees ? 
+              Object.values(updatedFee.householdFees).reduce((sum: number, h: any) => sum + (h.amount || 0), 0) :
+              (updatedFee.soTien ? parseFloat(updatedFee.soTien) : 0);
+            
+            return {
+              khoanThuId: String(fee.id), // Convert to string for API
+              soTien: totalAmount
+            };
+          }
+          return {
+            khoanThuId: String(fee.id), // Convert to string for API
+            soTien: (fee.soTien !== undefined && fee.soTien !== null) ? parseFloat(fee.soTien) : 0
+          };
+        });
+
+        const dotThuUpdateResponse = await api.dotThu.update(activeBatchForFee.maDot, {
+          khoanThu: updatedKhoanThuList
+        });
+
+        if (dotThuUpdateResponse.success) {
+            await loadDotThuData(); // Ensure data is reloaded
+            closeEditFeePopup();
+            alert('Đã cập nhật khoản thu thành công!');
+        } else {
+            alert('Có lỗi xảy ra khi cập nhật số tiền khoản thu trong đợt thu: ' + (dotThuUpdateResponse.message || 'Lỗi không xác định'));
+        }
       } catch (error: any) {
         console.error('Error updating fee type:', error);
         alert('Có lỗi xảy ra khi cập nhật khoản thu: ' + (error.message || 'Lỗi không xác định'));
@@ -521,26 +606,31 @@ const QuanLyDotThuPhi: React.FC = () => {
   const handleDeleteFee = async () => {
     if (activeBatchForFee && selectedFee) {
       try {
-        // Delete from backend if it has a backendId
-        if (selectedFee.backendId) {
-          const response = await api.khoanThu.delete(selectedFee.backendId);
-          
-          if (!response.success) {
-            alert('Có lỗi xảy ra khi xóa khoản thu: ' + (response.message || 'Lỗi không xác định'));
-            return;
-          }
-        }
+        // We need to remove the association DotThu_KhoanThu
+        // Then, optionally, if the KhoanThu is not used by any other DotThu, we could delete it from KhoanThu table.
+        // For simplicity, let's just update the DotThu with the KhoanThu removed.
 
-        console.log('✅ Fee deleted successfully');
+        const remainingKhoanThu = activeBatchForFee.details.khoanThu
+          .filter((fee: any) => fee.id !== selectedFee.id)
+          .map((fee: any) => ({
+            khoanThuId: String(fee.id), // Convert to string for API
+            soTien: (fee.soTien !== undefined && fee.soTien !== null) ? parseFloat(fee.soTien) : 0,
+          }));
+
+        const response = await api.dotThu.update(activeBatchForFee.maDot, {
+          khoanThu: remainingKhoanThu,
+        });
         
-        // Reload data from API to get fresh data
-        await loadDotThuData();
-        closeDeleteFeeConfirm();
-        
-        // Show success message
-        alert('Đã xóa khoản thu thành công!');
+        if (response.success) {
+            console.log('✅ Fee association removed successfully from DotThu');
+            await loadDotThuData(); // Ensure data is reloaded
+            closeDeleteFeeConfirm();
+            alert('Đã xóa khoản thu khỏi đợt thu thành công!');
+        } else {
+            alert('Có lỗi xảy ra khi xóa khoản thu khỏi đợt thu: ' + (response.message || 'Lỗi không xác định'));
+        }
       } catch (error: any) {
-        console.error('Error deleting fee type:', error);
+        console.error('Error deleting fee from DotThu:', error);
         alert('Có lỗi xảy ra khi xóa khoản thu: ' + (error.message || 'Lỗi không xác định'));
       }
     }
@@ -554,15 +644,15 @@ const QuanLyDotThuPhi: React.FC = () => {
       // Call API to create new batch
       const response = await api.dotThu.create({
         tenDotThu: data.tenDot,
-        ngayTao: data.ngayTao,
-        thoiHan: data.hanThu,
+        ngayTao: formatDateForAPI(data.ngayTao) || data.ngayTao,
+        thoiHan: formatDateForAPI(data.hanThu) || data.hanThu,
       });
 
       if (response.success) {
         console.log('✅ Batch created successfully:', response.data);
         
         // Reload data from API to get fresh data
-        await loadDotThuData();
+        await loadDotThuData(); // Ensure data is reloaded
         
         alert('Đã tạo đợt thu mới thành công!');
       } else {
@@ -598,60 +688,112 @@ const QuanLyDotThuPhi: React.FC = () => {
   };
 
   // Cập nhật thông tin đợt thu
-  const handleEditBatch = async (data: { maDot: string; tenDot: string; ngayTao: string; hanThu: string }) => {
-    if (!selectedBatch) return;
-    
-    try {
-      console.log('🔄 Updating batch:', selectedBatch.maDot, data);
-      
-      // Call API to update batch
-      const response = await api.dotThu.update(selectedBatch.maDot, {
-        tenDotThu: data.tenDot,
-        ngayTao: data.ngayTao,
-        thoiHan: data.hanThu,
-      });
+  const handleEditBatch = async (data: {
+    maDot: string; // Added maDot as it's part of the incoming data from the popup
+    tenDot: string;
+    ngayTao: string;
+    hanThu: string; // Changed from hanCuoi to hanThu to match popup data
+    khoanThu?: Array<{ khoanThuId: number; tenKhoan?: string; soTien: number }>; // Adjusted to match popup data
+    // soTien?: number; // This is total amount from popup, not directly used in this payload structure
+  }) => {
+    // selectedBatch.maDot is the ID of the batch being edited.
+    // data.maDot from the popup should ideally be the same, but we use selectedBatch.maDot for consistency.
+    if (selectedBatch && selectedBatch.maDot) {
+      try {
+        const payload: {
+          tenDotThu?: string;
+          ngayTao?: string;
+          thoiHan?: string;
+          khoanThu?: Array<{ khoanThuId: string; soTien?: number }>;
+        } = {
+          tenDotThu: data.tenDot,
+          ngayTao: formatDateForAPI(data.ngayTao),
+          thoiHan: formatDateForAPI(data.hanThu), // Use data.hanThu
+          // Ensure data.khoanThu is an array before mapping
+          khoanThu: Array.isArray(data.khoanThu) 
+            ? data.khoanThu.map(kt => ({
+                khoanThuId: String(kt.khoanThuId), // Convert number to string
+                soTien: kt.soTien, 
+              }))
+            : [], // Default to empty array if data.khoanThu is undefined or not an array
+        };
+        
+        const cleanedPayload = Object.fromEntries(
+          Object.entries(payload).filter(([_, v]) => v !== undefined)
+        ) as Partial<typeof payload>;
 
-      if (response.success) {
-        console.log('✅ Batch updated successfully:', response.data);
-        
-        // Reload data from API to get fresh data
-        await loadDotThuData();
-        
-        closeEditPopup();
-        alert('Đã cập nhật đợt thu thành công!');
-      } else {
-        throw new Error(response.message || 'Không thể cập nhật đợt thu');
-      }
-    } catch (error: any) {
-      console.error('❌ Error updating batch:', error);
-      alert('Có lỗi xảy ra khi cập nhật đợt thu: ' + (error.message || 'Lỗi không xác định'));
-      
-      // Fallback: update local state if API fails
-      const today = new Date().toISOString().slice(0, 10);
-      const trangThai = data.hanThu >= today ? 'Đang mở' : 'Đã đóng';
-      
-      setBatches(prev => prev.map(batch => {
-        if (batch.maDot === selectedBatch.maDot) {
-          return {
-            maDot: data.maDot,
-            tenDot: data.tenDot,
-            ngayTao: data.ngayTao,
-            hanCuoi: data.hanThu,
-            trangThai: trangThai,
-            details: {
-              ...batch.details,
-              maDot: data.maDot,
-              tenDot: data.tenDot,
-              ngayTao: data.ngayTao,
-              hanCuoi: data.hanThu
-            },
-            isExpanded: batch.isExpanded
-          };
+
+        const response = await api.dotThu.update(selectedBatch.maDot, cleanedPayload);
+
+        if (response.success) {
+          await loadDotThuData(); // Refresh data
+          closeEditPopup();
+          alert('Đã cập nhật đợt thu thành công!');
+        } else {
+          alert('Có lỗi xảy ra khi cập nhật đợt thu: ' + (response.message || 'Lỗi không xác định'));
         }
-        return batch;
-      }));
-      
-      closeEditPopup();
+      } catch (error: any) {
+        console.error('Error updating batch:', error);
+        alert('Có lỗi xảy ra khi cập nhật đợt thu: ' + (error.message || 'Lỗi không xác định'));
+      }
+    }
+  };
+
+  // Closure/reopening handlers
+  const handleCloseDotThu = async (batch: any, e: React.MouseEvent) => {
+    e.stopPropagation();
+    
+    if (window.confirm(`Bạn có chắc chắn muốn đóng đợt thu "${batch.tenDot}" không? Sau khi đóng, sẽ không thể thêm hoặc chỉnh sửa khoản thu nữa.`)) {
+      try {
+        const response = await api.dotThu.close(batch.maDot);
+        if (response.success) {
+          await loadDotThuData();
+          alert('Đã đóng đợt thu thành công!');
+        } else {
+          alert('Có lỗi xảy ra khi đóng đợt thu: ' + (response.message || 'Lỗi không xác định'));
+        }
+      } catch (error: any) {
+        console.error('Error closing batch:', error);
+        alert('Có lỗi xảy ra khi đóng đợt thu: ' + (error.message || 'Lỗi không xác định'));
+      }
+    }
+  };
+
+  const handleReopenDotThu = async (batch: any, e: React.MouseEvent) => {
+    e.stopPropagation();
+    
+    if (window.confirm(`Bạn có chắc chắn muốn mở lại đợt thu "${batch.tenDot}" không?`)) {
+      try {
+        const response = await api.dotThu.reopen(batch.maDot);
+        if (response.success) {
+          await loadDotThuData();
+          alert('Đã mở lại đợt thu thành công!');
+        } else {
+          alert('Có lỗi xảy ra khi mở lại đợt thu: ' + (response.message || 'Lỗi không xác định'));
+        }
+      } catch (error: any) {
+        console.error('Error reopening batch:', error);
+        alert('Có lỗi xảy ra khi mở lại đợt thu: ' + (error.message || 'Lỗi không xác định'));
+      }
+    }
+  };
+
+  const handleMarkCompleted = async (batch: any, e: React.MouseEvent) => {
+    e.stopPropagation();
+    
+    if (window.confirm(`Bạn có chắc chắn muốn đánh dấu đợt thu "${batch.tenDot}" là hoàn thành không?`)) {
+      try {
+        const response = await api.dotThu.markCompleted(batch.maDot);
+        if (response.success) {
+          await loadDotThuData();
+          alert('Đã đánh dấu đợt thu hoàn thành!');
+        } else {
+          alert('Có lỗi xảy ra khi đánh dấu hoàn thành: ' + (response.message || 'Lỗi không xác định'));
+        }
+      } catch (error: any) {
+        console.error('Error marking completed:', error);
+        alert('Có lỗi xảy ra khi đánh dấu hoàn thành: ' + (error.message || 'Lỗi không xác định'));
+      }
     }
   };
 
@@ -722,6 +864,7 @@ const QuanLyDotThuPhi: React.FC = () => {
                 <option value="Tất cả">Tất cả</option>
                 <option value="Đang mở">Đang mở</option>
                 <option value="Đã đóng">Đã đóng</option>
+                <option value="Hoàn thành">Hoàn thành</option>
               </select>
             </div>
             {/* Add New Batch Button */}
@@ -789,12 +932,16 @@ const QuanLyDotThuPhi: React.FC = () => {
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{batch.ngayTao}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{batch.hanCuoi}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm">
-                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${batch.trangThai === 'Đang mở' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                          batch.trangThai === 'Đang mở' ? 'bg-green-100 text-green-800' : 
+                          batch.trangThai === 'Hoàn thành' ? 'bg-blue-100 text-blue-800' :
+                          'bg-red-100 text-red-800'
+                        }`}>
                           {batch.trangThai}
                         </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        <div className="flex space-x-4">
+                        <div className="flex space-x-2">
                           <button 
                             onClick={(e) => openEditPopup(batch, e)}
                             className="text-indigo-600 hover:text-indigo-900"
@@ -804,6 +951,43 @@ const QuanLyDotThuPhi: React.FC = () => {
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                             </svg>
                           </button>
+                          
+                          {/* Closure controls based on status */}
+                          {batch.trangThai === 'Đang mở' ? (
+                            <button 
+                              onClick={(e) => handleCloseDotThu(batch, e)}
+                              className="text-orange-600 hover:text-orange-800"
+                              title="Đóng đợt thu"
+                            >
+                              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                              </svg>
+                            </button>
+                          ) : (
+                            <button 
+                              onClick={(e) => handleReopenDotThu(batch, e)}
+                              className="text-green-600 hover:text-green-800"
+                              title="Mở lại đợt thu"
+                            >
+                              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 11V7a4 4 0 118 0m-4 8v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2z" />
+                              </svg>
+                            </button>
+                          )}
+                          
+                          {/* Mark as completed button - only show if open or closed */}
+                          {(batch.trangThai === 'Đang mở' || batch.trangThai === 'Đã đóng') && (
+                            <button 
+                              onClick={(e) => handleMarkCompleted(batch, e)}
+                              className="text-blue-600 hover:text-blue-800"
+                              title="Đánh dấu hoàn thành"
+                            >
+                              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                              </svg>
+                            </button>
+                          )}
+                          
                           <button 
                             onClick={(e) => openDeleteBatchConfirm(batch, e)}
                             className="text-red-600 hover:text-red-800"
@@ -847,8 +1031,9 @@ const QuanLyDotThuPhi: React.FC = () => {
                                   <tbody className="bg-white divide-y divide-gray-200">
                                     {batch.details.khoanThu.map((fee: any) => {
                                       const feeType = FEE_TYPES[fee.type];
-                                      // Use soTien directly from API data, fallback to householdFees calculation
-                                      const total = fee.soTien ? parseFloat(fee.soTien) : 
+                                      // Use soTien directly from API data if it exists and is a valid number, otherwise calculate from householdFees
+                                      const total = (fee.soTien !== undefined && fee.soTien !== null) ? 
+                                                   parseFloat(fee.soTien) : 
                                                    (fee.householdFees ? Object.values(fee.householdFees).reduce((sum: number, h: any) => sum + (h.amount || 0), 0) : 0);
                                       return (
                                         <tr key={fee.id} className="hover:bg-gray-50">
@@ -910,7 +1095,7 @@ const QuanLyDotThuPhi: React.FC = () => {
 
       {/* Popup sửa khoản thu */}
       <AddEditFeePopup 
-        isOpen={isEditFeePopupOpen}
+        isOpen={isEditFeePopup}
         onClose={closeEditFeePopup}
         onSave={handleEditFee}
         initialData={selectedFee}

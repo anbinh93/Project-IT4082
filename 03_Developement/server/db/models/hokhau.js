@@ -38,7 +38,7 @@ module.exports = (sequelize, DataTypes) => {
       
       // HoKhau has one Canho
       HoKhau.hasOne(models.Canho, {
-        foreignKey: 'hoKhauId',
+        foreignKey: 'hoKhauId' ,
         sourceKey: 'soHoKhau',
         as: 'canho'
       });
@@ -48,6 +48,13 @@ module.exports = (sequelize, DataTypes) => {
         foreignKey: 'hoKhauId',
         sourceKey: 'soHoKhau',
         as: 'room'
+      });
+      
+      // Has many HouseholdFee
+      HoKhau.hasMany(models.HouseholdFee, {
+        foreignKey: 'hoKhauId',
+        sourceKey: 'soHoKhau',
+        as: 'householdFees'
       });
     }
   }
@@ -81,4 +88,4 @@ module.exports = (sequelize, DataTypes) => {
     tableName: 'HoKhau'
   });
   return HoKhau;
-}; 
+};

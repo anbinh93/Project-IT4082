@@ -13,6 +13,7 @@ interface EditDotThuPhiPopupProps {
       khoanThuId: number;
       soTien: number;
     }>;
+    soTien?: number; // Thêm tổng số tiền
   }) => void;
   batch?: any | null;
 }
@@ -172,12 +173,15 @@ const EditDotThuPhiPopup: React.FC<EditDotThuPhiPopupProps> = ({ isOpen, onClose
 
   // Lưu thật sự
   const handleSaveConfirmed = () => {
+    // Tính tổng số tiền của tất cả khoản thu đã chọn
+    const tongSoTien = selectedKhoanThu.reduce((sum, kt) => sum + (kt.soTien || 0), 0);
     if (onSave) onSave({ 
       maDot, 
       tenDot, 
       ngayTao: formatDateForSave(ngayTao), 
       hanThu: formatDateForSave(hanThu),
-      khoanThu: selectedKhoanThu
+      khoanThu: selectedKhoanThu,
+      soTien: tongSoTien // Thêm tổng số tiền vào data gửi về
     });
     handleClose();
   };
@@ -358,4 +362,4 @@ const EditDotThuPhiPopup: React.FC<EditDotThuPhiPopupProps> = ({ isOpen, onClose
   );
 };
 
-export default EditDotThuPhiPopup; 
+export default EditDotThuPhiPopup;

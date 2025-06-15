@@ -376,12 +376,15 @@ const QuanLyPhong: React.FC = () => {
                       <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Diện tích (m²)
                       </th>
+                      {/* Temporarily hidden: Chủ hộ and Người thuê columns */}
+                      {/*
                       <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Chủ hộ
                       </th>
                       <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Người thuê
                       </th>
+                      */}
                       <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Trạng thái
                       </th>
@@ -396,7 +399,7 @@ const QuanLyPhong: React.FC = () => {
                   <tbody className="bg-white divide-y divide-gray-200">
                     {filteredRooms.length === 0 ? (
                       <tr>
-                        <td colSpan={9} className="px-4 py-4 text-center text-gray-500">
+                        <td colSpan={7} className="px-4 py-4 text-center text-gray-500">
                           Không tìm thấy phòng nào
                         </td>
                       </tr>
@@ -412,6 +415,8 @@ const QuanLyPhong: React.FC = () => {
                           <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-700">
                             {room.dienTich}
                           </td>
+                          {/* Temporarily hidden: Chủ hộ and Người thuê data columns */}
+                          {/*
                           <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-700">
                             {room.hoKhau?.chuHoInfo?.hoTen || (
                               <span className="text-gray-400 italic">Chưa có chủ hộ</span>
@@ -422,6 +427,7 @@ const QuanLyPhong: React.FC = () => {
                               <span className="text-gray-400 italic">Chưa có người thuê</span>
                             )}
                           </td>
+                          */}
                           <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-700">
                             {room.trangThai === 'da_thue' && (
                               <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">

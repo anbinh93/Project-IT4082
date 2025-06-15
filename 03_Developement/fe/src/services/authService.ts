@@ -1,4 +1,4 @@
-import { setAuthToken, clearAuthToken } from './api';
+import { setAuthToken } from './api';
 
 // Token validation utility (duplicate from api.ts for authService)
 const isTokenExpired = (token: string): boolean => {

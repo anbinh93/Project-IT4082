@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { vehicleService } from '../services/vehicleService';
 import type { Vehicle, VehicleType } from '../services/vehicleService';
 import { X } from 'lucide-react';
 
@@ -123,7 +122,7 @@ export const VehicleForm: React.FC<VehicleFormProps> = ({
               <option value="">Chọn loại xe</option>
               {vehicleTypes.map(type => (
                 <option key={type.id} value={type.id}>
-                  {type.tenLoaiXe} - {Number(type.phiThue).toLocaleString()} VNĐ
+                  {type.ten} - {Number(type.phiThue).toLocaleString()} VNĐ
                 </option>
               ))}
             </select>
@@ -240,10 +239,10 @@ export const VehicleTypeForm: React.FC<VehicleTypeFormProps> = ({
   useEffect(() => {
     if (vehicleType) {
       setFormData({
-        tenLoaiXe: vehicleType.tenLoaiXe,
-        phiThue: vehicleType.phiThue,
+        tenLoaiXe: vehicleType.ten,
+        phiThue: vehicleType.phiThue.toString(),
         moTa: vehicleType.moTa || '',
-        trangThai: vehicleType.trangThai
+        trangThai: true
       });
     } else {
       setFormData({

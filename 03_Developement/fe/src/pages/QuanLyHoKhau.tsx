@@ -95,8 +95,13 @@ const QuanLyHoKhau: React.FC = () => {
     console.log('Adding member:', member);
   };
 
-  const handleAssignChuHo = (newChuHoId: string) => {
-    console.log('Assigning new head of household with ID:', newChuHoId, 'to household:', selectedHouseholdForAssign);
+  // const handleAssignChuHo = (newChuHoId: string) => {
+  //   console.log('Assigning new head of household with ID:', newChuHoId, 'to household:', selectedHouseholdForAssign);
+  // };
+
+  const handleAssignSuccess = () => {
+    loadHouseholds(); // Refresh the household list
+    closeAssignChuHoPopup();
   };
 
   const handleDelete = () => {
@@ -317,7 +322,7 @@ const QuanLyHoKhau: React.FC = () => {
       <GanchuhoPopup
         isOpen={isAssignChuHoPopupOpen}
         onClose={closeAssignChuHoPopup}
-        onAssign={handleAssignChuHo}
+        onSuccess={handleAssignSuccess}
         currentHousehold={selectedHouseholdForAssign ? {
           soHoKhau: `HK${selectedHouseholdForAssign.soHoKhau.toString().padStart(3, '0')}`,
           chuHo: selectedHouseholdForAssign.chuHoInfo?.hoTen || '',

@@ -501,14 +501,43 @@ export const dotThuAPI = {
   // Record payment for a household
   recordPayment: async (data: {
     dotThuId: string;
+    khoanThuId: string;
     hoKhauId: string;
-    nguoiNop: string;
-    ngayNop: string;
-    khoanThuIds: string[];
+    nguoiNopId: string;
+    soTien: number;
+    ngayNop?: string;
+    hinhThucNop?: string;
+    ghiChu?: string;
   }) => {
     return await apiRequest('/dot-thu/record-payment', {
       method: 'POST',
       body: JSON.stringify(data),
+    });
+  },
+
+  // Manual closure/reopening functions
+  close: async (id: string) => {
+    return await apiRequest(`/dot-thu/${id}/close`, {
+      method: 'PATCH',
+    });
+  },
+
+  reopen: async (id: string) => {
+    return await apiRequest(`/dot-thu/${id}/reopen`, {
+      method: 'PATCH',
+    });
+  },
+
+  markCompleted: async (id: string) => {
+    return await apiRequest(`/dot-thu/${id}/complete`, {
+      method: 'PATCH',
+    });
+  },
+
+  // Auto-closure function
+  autoClose: async () => {
+    return await apiRequest('/dot-thu/auto-close', {
+      method: 'POST',
     });
   },
 };

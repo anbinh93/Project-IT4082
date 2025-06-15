@@ -120,8 +120,12 @@ const QuanLyNhanKhau: React.FC = () => {
           residents.map(async (resident: Resident) => {
             try {
               const householdResponse = await residentAPI.getHouseholdInfo(resident.id);
+              console.log(`Household info for resident ${resident.id}:`, householdResponse);
+              
               if (householdResponse.success && householdResponse.data) {
                 const householdData = householdResponse.data;
+                console.log('Household data:', householdData);
+                
                 return {
                   ...resident,
                   householdStatus: householdData.householdStatus,

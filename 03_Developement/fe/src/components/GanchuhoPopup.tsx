@@ -146,17 +146,17 @@ const GanchuhoPopup: React.FC<AssignChuHoPopupProps> = ({
       ...member.nhanKhau,
       quanHeVoiChuHo: member.quanHeVoiChuHo,
       isCurrentMember: true
-    })) || []),
+    })).filter(member => member.hoTen && member.cccd) || []),
     ...availableResidents.map(resident => ({
       ...resident,
       quanHeVoiChuHo: 'Ngoài hộ',
       isCurrentMember: false
-    }))
+    })).filter(resident => resident.hoTen && resident.cccd)
   ];
 
   const filteredMembers = allPotentialHeads.filter(member =>
-    member.hoTen.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    member.cccd.includes(searchTerm)
+    (member.hoTen?.toLowerCase().includes(searchTerm.toLowerCase()) || false) ||
+    (member.cccd?.includes(searchTerm) || false)
   );
 
   if (!isOpen) return null;
@@ -270,16 +270,16 @@ const GanchuhoPopup: React.FC<AssignChuHoPopupProps> = ({
                           />
                         </td>
                         <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">
-                          {member.hoTen}
+                          {member.hoTen || 'N/A'}
                         </td>
                         <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
-                          {new Date(member.ngaySinh).toLocaleDateString('vi-VN')}
+                          {member.ngaySinh ? new Date(member.ngaySinh).toLocaleDateString('vi-VN') : 'N/A'}
                         </td>
                         <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
-                          {member.gioiTinh}
+                          {member.gioiTinh || 'N/A'}
                         </td>
                         <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
-                          {member.cccd}
+                          {member.cccd || 'N/A'}
                         </td>
                         <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
                           <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${

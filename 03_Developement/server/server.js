@@ -5,15 +5,29 @@ const app = express();
 require('dotenv').config();
 
 // CORS configuration
+const corsOrigins = process.env.NODE_ENV === 'production' 
+  ? [process.env.CORS_ORIGIN || 'http://localhost:5173']
+  : ['http://localhost:5173', 'http://localhost:5174', 'http://localhost:5175', 'http://localhost:5176', 'http://localhost:5177', 'http://localhost:5178'];
+
 app.use(cors({
-    origin: ['http://localhost:5173', 'http://localhost:5174', 'http://localhost:5175', 'http://localhost:5176', 'http://localhost:5177', 'http://localhost:5178'],
+    origin: corsOrigins,
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
+// Security headers for production
+if (process.env.NODE_ENV === 'production') {
+    app.use((req, res, next) => {
+        res.setHeader('X-Content-Type-Options', 'nosniff');
+        res.setHeader('X-Frame-Options', 'DENY');
+        res.setHeader('X-XSS-Protection', '1; mode=block');
+        next();
+    });
+}
+
 // Đặt express.json() SAU dotenv
-app.use(express.json({ limit: '10mb' })); 
+app.use(express.json({ limit: '10mb' }));
 
 const authRoutes = require('./routes/authRoutes');
 const householdRoutes = require('./routes/households');
@@ -32,19 +46,31 @@ const roomRoutes = require('./routes/roomRoutes');
 
 const port = process.env.PORT || 8000;
 
-// Enhanced Debug middleware
-app.use((req, res, next) => {
-    console.log('\n=== INCOMING REQUEST ===');
-    console.log('Timestamp:', new Date().toISOString());
-    console.log('Method:', req.method);
-    console.log('URL:', req.url);
-    console.log('Original URL:', req.originalUrl);
-    console.log('Path:', req.path);
-    console.log('Query:', req.query);
-    console.log('Headers:', req.headers);
-    console.log('Body:', req.body);
-    console.log('========================\n');
-    next();
+// Request logging middleware (only in development)
+if (process.env.NODE_ENV !== 'production') {
+    app.use((req, res, next) => {
+        console.log('\n=== INCOMING REQUEST ===');
+        console.log('Timestamp:', new Date().toISOString());
+        console.log('Method:', req.method);
+        console.log('URL:', req.url);
+        console.log('Original URL:', req.originalUrl);
+        console.log('Path:', req.path);
+        console.log('Query:', req.query);
+        console.log('Headers:', req.headers);
+        console.log('Body:', req.body);
+        console.log('========================\n');
+        next();
+    });
+}
+
+// Health check endpoint
+app.get('/api/health', (req, res) => {
+    res.status(200).json({
+        status: 'healthy',
+        timestamp: new Date().toISOString(),
+        uptime: process.uptime(),
+        environment: process.env.NODE_ENV || 'development'
+    });
 });
 
 // Root route
@@ -86,6 +112,33 @@ app.use('/api/tam-tru', tamTruRoutes);
 app.use('/api/canho', canhoRoutes);
 app.use('/api/rooms', roomRoutes);
 
+// 404 handler for API routes
+app.use('/api/*', (req, res) => {
+    res.status(404).json({
+        success: false,
+        message: 'API endpoint not found',
+        requestedUrl: req.originalUrl
+    });
+});
+
+// Global error handling middleware
+app.use((err, req, res, next) => {
+    console.error('Global error handler:', err);
+    
+    // Don't leak error details in production
+    const message = process.env.NODE_ENV === 'production' 
+        ? 'Internal server error' 
+        : err.message;
+    
+    res.status(err.status || 500).json({
+        success: false,
+        message: message,
+        ...(process.env.NODE_ENV !== 'production' && { stack: err.stack })
+    });
+});
+
 app.listen(port, () => {
     console.log(`Server running on port ${port}`);
+    console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
+    console.log(`Health check available at: http://localhost:${port}/api/health`);
 });

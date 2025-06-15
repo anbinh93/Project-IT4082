@@ -460,7 +460,7 @@ const NopNhanhMultiplePopup: React.FC<NopNhanhMultiplePopupProps> = ({
                               
                               {/* Fee details */}
                               <div className="mt-2 space-y-1">
-                                {household.feeDetails.map((fee, index) => (
+                                {household.feeDetails.map((fee) => (
                                   <div key={fee.id} className="flex justify-between text-xs text-gray-600">
                                     <span>• {fee.tenKhoanThu}</span>
                                     <span>{formatCurrency(fee.remaining)}</span>

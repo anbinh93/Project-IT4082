@@ -54,12 +54,17 @@ const getAllDotThuWithKhoanThu = async (req, res) => {
       const paidHouseholds = Math.floor(Math.random() * totalHouseholds);
       const completionRate = totalHouseholds > 0 ? (paidHouseholds / totalHouseholds * 100).toFixed(1) : 0;
 
-      // Determine dotThu status
-      const currentDate = new Date();
-      const deadline = new Date(dotThu.thoiHan);
-      let trangThai = 'Đang mở';
-      if (currentDate > deadline) {
-        trangThai = completionRate == 100 ? 'Hoàn thành' : 'Đã đóng';
+      // Use database status directly, with fallback calculation for null values
+      let trangThai = dotThu.trangThai || 'DANG_MO';
+      if (!dotThu.trangThai || dotThu.dongTuDong) {
+        // Auto-calculate status if not manually set or if auto-closure is enabled
+        const currentDate = new Date();
+        const deadline = new Date(dotThu.thoiHan);
+        if (currentDate > deadline) {
+          trangThai = completionRate == 100 ? 'HOAN_THANH' : 'DA_DONG';
+        } else {
+          trangThai = 'DANG_MO';
+        }
       }
 
       return {
@@ -67,7 +72,8 @@ const getAllDotThuWithKhoanThu = async (req, res) => {
         tenDotThu: dotThu.tenDotThu,
         ngayTao: dotThu.ngayTao,
         thoiHan: dotThu.thoiHan,
-        trangThai,
+        trangThai, // Return raw database status (DANG_MO, DA_DONG, HOAN_THANH)
+        dongTuDong: dotThu.dongTuDong,
         khoanThu: khoanThuList,
         thongKe: {
           tongHoKhau: totalHouseholds,
@@ -286,6 +292,14 @@ const updateDotThu = async (req, res) => {
     if (!dotThu) {
       return res.status(404).json({
         message: 'Không tìm thấy đợt thu phí'
+      });
+    }
+
+    // Check if period is closed and prevent modifications
+    if (dotThu.trangThai === 'DA_DONG' || dotThu.trangThai === 'HOAN_THANH') {
+      return res.status(400).json({
+        success: false,
+        message: 'Không thể chỉnh sửa đợt thu phí đã đóng hoặc hoàn thành. Vui lòng mở lại đợt thu trước khi chỉnh sửa.'
       });
     }
 
@@ -552,6 +566,22 @@ const recordPayment = async (req, res) => {
         message: 'Thiếu thông tin bắt buộc'
       });
     }
+
+    // Check if the fee collection period is closed
+    const dotThu = await db.DotThu.findByPk(dotThuId);
+    if (!dotThu) {
+      return res.status(404).json({
+        success: false,
+        message: 'Không tìm thấy đợt thu phí'
+      });
+    }
+
+    if (dotThu.trangThai === 'DA_DONG' || dotThu.trangThai === 'HOAN_THANH') {
+      return res.status(400).json({
+        success: false,
+        message: 'Không thể thêm thanh toán vào đợt thu phí đã đóng hoặc hoàn thành'
+      });
+    }
     
     // Check if payment already exists
     const existingPayment = await db.ThanhToan.findOne({
@@ -714,6 +744,162 @@ const getPaymentStatistics = async (req, res) => {
   }
 };
 
+// Manual closure/reopening functions
+const closeDotThu = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const dotThu = await db.DotThu.findByPk(id);
+    if (!dotThu) {
+      return res.status(404).json({
+        success: false,
+        message: 'Không tìm thấy đợt thu phí'
+      });
+    }
+
+    // Update status to closed
+    await dotThu.update({
+      trangThai: 'DA_DONG',
+      dongTuDong: false // Mark as manually closed
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: 'Đã đóng đợt thu phí thành công',
+      data: dotThu
+    });
+
+  } catch (error) {
+    console.error('Error closing fee collection period:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Lỗi server khi đóng đợt thu phí',
+      error: error.message
+    });
+  }
+};
+
+const reopenDotThu = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const dotThu = await db.DotThu.findByPk(id);
+    if (!dotThu) {
+      return res.status(404).json({
+        success: false,
+        message: 'Không tìm thấy đợt thu phí'
+      });
+    }
+
+    // Update status to open
+    await dotThu.update({
+      trangThai: 'DANG_MO',
+      dongTuDong: false // Mark as manually opened
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: 'Đã mở lại đợt thu phí thành công',
+      data: dotThu
+    });
+
+  } catch (error) {
+    console.error('Error reopening fee collection period:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Lỗi server khi mở lại đợt thu phí',
+      error: error.message
+    });
+  }
+};
+
+const markCompleted = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const dotThu = await db.DotThu.findByPk(id);
+    if (!dotThu) {
+      return res.status(404).json({
+        success: false,
+        message: 'Không tìm thấy đợt thu phí'
+      });
+    }
+
+    // Update status to completed
+    await dotThu.update({
+      trangThai: 'HOAN_THANH',
+      dongTuDong: false // Mark as manually completed
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: 'Đã đánh dấu đợt thu phí hoàn thành',
+      data: dotThu
+    });
+
+  } catch (error) {
+    console.error('Error marking fee collection period as completed:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Lỗi server khi đánh dấu hoàn thành đợt thu phí',
+      error: error.message
+    });
+  }
+};
+
+// Auto-closure function (can be called by cron job)
+const autoCloseDotThu = async (req, res) => {
+  try {
+    const currentDate = new Date();
+    
+    // Find all open periods that should be auto-closed
+    const openPeriods = await db.DotThu.findAll({
+      where: {
+        trangThai: 'DANG_MO',
+        dongTuDong: true,
+        thoiHan: {
+          [Op.lt]: currentDate
+        }
+      }
+    });
+
+    let closedCount = 0;
+    for (const dotThu of openPeriods) {
+      // Calculate completion rate to determine if it should be marked as completed or just closed
+      const totalHouseholds = await db.HoKhau.count();
+      
+      // Count paid households for this period
+      const paidHouseholds = await db.ThanhToan.count({
+        where: { dotThuId: dotThu.id },
+        distinct: true,
+        col: 'hoKhauId'
+      });
+
+      const completionRate = totalHouseholds > 0 ? (paidHouseholds / totalHouseholds) : 0;
+      
+      // Mark as completed if 100% paid, otherwise just closed
+      const newStatus = completionRate >= 1.0 ? 'HOAN_THANH' : 'DA_DONG';
+      
+      await dotThu.update({ trangThai: newStatus });
+      closedCount++;
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: `Đã tự động đóng ${closedCount} đợt thu phí`,
+      closedCount
+    });
+
+  } catch (error) {
+    console.error('Error auto-closing fee collection periods:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Lỗi server khi tự động đóng đợt thu phí',
+      error: error.message
+    });
+  }
+};
+
 module.exports = {
   getAllDotThu,
   getAllDotThuWithKhoanThu,
@@ -724,5 +910,9 @@ module.exports = {
   getDotThuStatistics,
   getPaymentInfo,
   recordPayment,
-  getPaymentStatistics
+  getPaymentStatistics,
+  closeDotThu,
+  reopenDotThu,
+  markCompleted,
+  autoCloseDotThu
 };

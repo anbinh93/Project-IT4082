@@ -4,12 +4,32 @@ import { residentAPI } from '../services/api';
 
 const CHANGE_TYPES = [
   { label: 'Tất cả', value: '' },
-  { label: 'Thêm vào hộ', value: '1' },
-  { label: 'Xóa khỏi hộ', value: '2' },
+  { label: 'Thêm vào hộ khẩu', value: '1' },
+  { label: 'Tách/rời khỏi hộ khẩu', value: '2' },
   { label: 'Cập nhật thông tin', value: '3' },
   { label: 'Tạm vắng', value: '4' },
   { label: 'Tạm trú', value: '5' },
 ];
+
+// Helper function to get detailed change description
+const getDetailedChangeDescription = (record: ChangeHistoryItem) => {
+  const { loaiThayDoiCode, tenNhanKhau, soHoKhau } = record;
+  
+  switch (loaiThayDoiCode) {
+    case 1:
+      return `${tenNhanKhau} đã được thêm vào hộ khẩu ${soHoKhau}. Nguyên nhân: Thành viên mới tham gia hộ khẩu (kết hôn, nhận nuôi, hoặc chuyển đến).`;
+    case 2:
+      return `${tenNhanKhau} đã tách khỏi hộ khẩu ${soHoKhau}. Nguyên nhân: Tách hộ để thành lập hộ khẩu riêng hoặc chuyển sang hộ khẩu khác.`;
+    case 3:
+      return `Thông tin của ${tenNhanKhau} trong hộ khẩu ${soHoKhau} đã được cập nhật. Nguyên nhân: Thay đổi thông tin cá nhân như nghề nghiệp, số điện thoại.`;
+    case 4:
+      return `${tenNhanKhau} tạm vắng khỏi hộ khẩu ${soHoKhau}. Nguyên nhân: Đi công tác, học tập hoặc làm việc xa nhà trong thời gian dài.`;
+    case 5:
+      return `${tenNhanKhau} tạm trú tại hộ khẩu ${soHoKhau}. Nguyên nhân: Lưu trú tạm thời do công tác, học tập.`;
+    default:
+      return `${tenNhanKhau} có thay đổi trong hộ khẩu ${soHoKhau}.`;
+  }
+};
 
 interface ChangeHistoryItem {
   id: number;
@@ -145,16 +165,84 @@ const LichSuThayDoiNhanKhau: React.FC = () => {
         {/* Popup chi tiết */}
         {selectedRow && (
           <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50">
-            <div className="bg-white rounded-lg shadow-lg p-6 min-w-[320px] max-w-[90vw]">
-              <h3 className="text-lg font-bold mb-2">Chi tiết thay đổi</h3>
-              <div className="mb-2"><b>Tên nhân khẩu:</b> {selectedRow.tenNhanKhau}</div>
-              <div className="mb-2"><b>CCCD:</b> {selectedRow.cccd}</div>
-              <div className="mb-2"><b>Số hộ khẩu:</b> {selectedRow.soHoKhau}</div>
-              <div className="mb-2"><b>Địa chỉ:</b> {selectedRow.diaChi}</div>
-              <div className="mb-2"><b>Loại thay đổi:</b> {selectedRow.loaiThayDoi}</div>
-              <div className="mb-2"><b>Thời gian:</b> {selectedRow.thoiGian}</div>
-              <div className="mb-2"><b>Nội dung chi tiết:</b> {selectedRow.chiTiet}</div>
-              <button className="mt-4 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600" onClick={() => setSelectedRow(null)}>Đóng</button>
+            <div className="bg-white rounded-lg shadow-lg p-6 min-w-[500px] max-w-[90vw] max-h-[80vh] overflow-y-auto">
+              <h3 className="text-lg font-bold mb-4 text-blue-600">Chi tiết thay đổi hộ khẩu</h3>
+              
+              {/* Basic Information */}
+              <div className="grid grid-cols-2 gap-4 mb-4">
+                <div className="bg-gray-50 p-3 rounded">
+                  <div className="text-sm font-medium text-gray-600">Tên nhân khẩu</div>
+                  <div className="text-base font-semibold">{selectedRow.tenNhanKhau}</div>
+                </div>
+                <div className="bg-gray-50 p-3 rounded">
+                  <div className="text-sm font-medium text-gray-600">CCCD</div>
+                  <div className="text-base">{selectedRow.cccd}</div>
+                </div>
+                <div className="bg-gray-50 p-3 rounded">
+                  <div className="text-sm font-medium text-gray-600">Số hộ khẩu</div>
+                  <div className="text-base font-semibold">{selectedRow.soHoKhau}</div>
+                </div>
+                <div className="bg-gray-50 p-3 rounded">
+                  <div className="text-sm font-medium text-gray-600">Thời gian</div>
+                  <div className="text-base">{selectedRow.thoiGian}</div>
+                </div>
+              </div>
+
+              {/* Address */}
+              <div className="bg-gray-50 p-3 rounded mb-4">
+                <div className="text-sm font-medium text-gray-600">Địa chỉ hộ khẩu</div>
+                <div className="text-base">{selectedRow.diaChi}</div>
+              </div>
+
+              {/* Change Type with Color Coding */}
+              <div className="mb-4">
+                <div className="text-sm font-medium text-gray-600 mb-2">Loại thay đổi</div>
+                <div className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
+                  selectedRow.loaiThayDoiCode === 1 ? 'bg-green-100 text-green-800' :
+                  selectedRow.loaiThayDoiCode === 2 ? 'bg-red-100 text-red-800' :
+                  selectedRow.loaiThayDoiCode === 3 ? 'bg-blue-100 text-blue-800' :
+                  selectedRow.loaiThayDoiCode === 4 ? 'bg-yellow-100 text-yellow-800' :
+                  selectedRow.loaiThayDoiCode === 5 ? 'bg-purple-100 text-purple-800' :
+                  'bg-gray-100 text-gray-800'
+                }`}>
+                  {selectedRow.loaiThayDoi}
+                </div>
+              </div>
+
+              {/* Detailed Description */}
+              <div className="bg-blue-50 border-l-4 border-blue-400 p-4 mb-4">
+                <div className="text-sm font-medium text-blue-800 mb-2">Mô tả chi tiết</div>
+                <div className="text-sm text-blue-700">
+                  {getDetailedChangeDescription(selectedRow)}
+                </div>
+              </div>
+
+              {/* Original Details */}
+              {selectedRow.chiTiet && (
+                <div className="bg-gray-50 p-3 rounded mb-4">
+                  <div className="text-sm font-medium text-gray-600 mb-2">Thông tin gốc từ hệ thống</div>
+                  <div className="text-sm text-gray-700">{selectedRow.chiTiet}</div>
+                </div>
+              )}
+
+              {/* Action Buttons */}
+              <div className="flex justify-end space-x-3">
+                <button 
+                  className="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600 transition-colors" 
+                  onClick={() => setSelectedRow(null)}
+                >
+                  Đóng
+                </button>
+                <button 
+                  className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors"
+                  onClick={() => {
+                    // Could add functionality to view related household or resident details
+                    console.log('View related details for:', selectedRow);
+                  }}
+                >
+                  Xem chi tiết hộ khẩu
+                </button>
+              </div>
             </div>
           </div>
         )}

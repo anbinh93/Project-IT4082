@@ -7,6 +7,7 @@ import {
 
 // Import components
 import Login from "./pages/Login";
+import ForgetPassword from "./pages/ForgetPassword";
 import HomepageKeToan from "./pages/HomepageKeToan";
 import HomepageToTruong from "./pages/HomepageToTruong";
 import QuanLyHoKhau from "./pages/QuanLyHoKhau";
@@ -31,6 +32,7 @@ function App() {
     <Router basename="/KTPM_FE">
       <Routes>
         <Route path="/login" element={<Login />} />
+        <Route path="/forget-password" element={<ForgetPassword />} />
         
         {/* Test route for debugging */}
         <Route path="/test" element={<div>Test Page Works!</div>} />

@@ -166,7 +166,7 @@ const AddEditFeePopup: React.FC<AddEditFeePopupProps> = ({
   const showFileImport = selectedFeeType?.importable;
 
   // Flag for showing description field (always true except for voluntary contributions)
-  const showDescription = !selectedFeeType?.voluntary;
+  // const showDescription = !selectedFeeType?.voluntary;
   
   // Định dạng số tiền (dấu phẩy)
   const formatCurrency = (value: number): string => {
@@ -175,11 +175,11 @@ const AddEditFeePopup: React.FC<AddEditFeePopupProps> = ({
   };
 
   // Chỉ lấy số, format lại khi nhập
-  const formatInputValue = (value: string): string => {
-    const numeric = value.replace(/[^\d]/g, '');
-    if (!numeric) return '';
-    return new Intl.NumberFormat('vi-VN').format(Number(numeric));
-  };
+  // const formatInputValue = (value: string): string => {
+  //   const numeric = value.replace(/[^\d]/g, '');
+  //   if (!numeric) return '';
+  //   return new Intl.NumberFormat('vi-VN').format(Number(numeric));
+  // };
 
   // Tính lại số tiền từng hộ khi chọn loại phí
   const calculateHouseholdFees = (type: string) => {

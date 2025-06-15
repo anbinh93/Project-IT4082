@@ -36,4 +36,12 @@ router.put('/:id', dotThuController.updateDotThu);
 // Delete fee collection period
 router.delete('/:id', dotThuController.deleteDotThu);
 
+// Manual closure/reopening endpoints
+router.patch('/:id/close', dotThuController.closeDotThu);
+router.patch('/:id/reopen', dotThuController.reopenDotThu);
+router.patch('/:id/complete', dotThuController.markCompleted);
+
+// Auto-closure endpoint (for cron jobs or manual trigger)
+router.post('/auto-close', dotThuController.autoCloseDotThu);
+
 module.exports = router;

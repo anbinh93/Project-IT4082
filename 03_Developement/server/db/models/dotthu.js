@@ -31,7 +31,17 @@ module.exports = (sequelize, DataTypes) => {
       allowNull: false
     },
     ngayTao: DataTypes.DATE,
-    thoiHan: DataTypes.DATE
+    thoiHan: DataTypes.DATE,
+    trangThai: {
+      type: DataTypes.STRING,
+      allowNull: false,
+      defaultValue: 'DANG_MO'
+    },
+    dongTuDong: {
+      type: DataTypes.BOOLEAN,
+      allowNull: false,
+      defaultValue: true
+    }
   }, {
     sequelize,
     modelName: 'DotThu',

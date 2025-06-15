@@ -1,7 +1,8 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Link } from 'react-router-dom';
 import Logo from '../assets/logo.png';
+import { authService } from '../services/authService';
 
 const roles = [
   { label: "Kế toán", value: "ketoan" },
@@ -15,24 +16,72 @@ const Login: React.FC = () => {
   const [error, setError] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
+  const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  // Check if user is already logged in and redirect
+  useEffect(() => {
+    if (authService.isAuthenticated()) {
+      const user = authService.getCurrentUser();
+      if (user?.role === 'admin' || user?.role === 'accountant') {
+        navigate("/homepage-ketoan", { replace: true });
+      } else if (user?.role === 'manager') {
+        navigate("/homepage-totruong", { replace: true });
+      }
+    }
+    
+    // Load remembered login info
+    const savedLoginInfo = localStorage.getItem('loginInfo');
+    if (savedLoginInfo) {
+      const { username: savedUsername, role: savedRole } = JSON.parse(savedLoginInfo);
+      setUsername(savedUsername);
+      setRole(savedRole);
+      setRememberMe(true);
+    }
+  }, [navigate]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!username || !password || !role) {
       setError("Vui lòng nhập đầy đủ thông tin và chọn vai trò.");
       return;
     }
+    
     setError("");
-    if (rememberMe) {
-      localStorage.setItem('loginInfo', JSON.stringify({ username, role }));
-    } else {
-      localStorage.removeItem('loginInfo');
-    }
-    if (role === "ketoan") {
-      navigate("/homepage-ketoan");
-    } else {
-      navigate("/homepage-totruong");
+    setLoading(true);
+    
+    try {
+      // Gọi API đăng nhập
+      const response = await authService.login({ username, password });
+      
+      // Kiểm tra role phù hợp
+      const userRole = response.user.role;
+      const isRoleMatch = (role === "ketoan" && (userRole === "admin" || userRole === "accountant")) ||
+                         (role === "totruong" && (userRole === "admin" || userRole === "manager"));
+      
+      if (!isRoleMatch) {
+        setError("Vai trò được chọn không phù hợp với tài khoản.");
+        return;
+      }
+      
+      // Lưu thông tin nếu chọn ghi nhớ
+      if (rememberMe) {
+        localStorage.setItem('loginInfo', JSON.stringify({ username, role }));
+      } else {
+        localStorage.removeItem('loginInfo');
+      }
+      
+      // Điều hướng theo role
+      if (role === "ketoan") {
+        navigate("/homepage-ketoan");
+      } else {
+        navigate("/homepage-totruong");
+      }
+    } catch (error: any) {
+      console.error('Login error:', error);
+      setError(error.message || "Đăng nhập thất bại. Vui lòng kiểm tra thông tin đăng nhập.");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -126,9 +175,10 @@ const Login: React.FC = () => {
           {error && <div className="text-red-500 text-sm">{error}</div>}
           <button
             type="submit"
-            className="w-full bg-[#2196F3] text-white font-medium text-[14px] py-2 rounded-lg shadow-md hover:bg-[#1976D2] transition uppercase tracking-wider font-['Roboto']"
+            disabled={loading}
+            className="w-full bg-[#2196F3] text-white font-medium text-[14px] py-2 rounded-lg shadow-md hover:bg-[#1976D2] transition uppercase tracking-wider font-['Roboto'] disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            Đăng nhập
+            {loading ? 'Đang đăng nhập...' : 'Đăng nhập'}
           </button>
           <div className="flex items-center justify-between">
             <Link to="/forget-password" className="text-[15px] font-bold text-[#2196F3] hover:underline font-['Roboto']">

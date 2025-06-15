@@ -1,199 +1,366 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { householdAPI, residentAPI } from '../services/api';
 
 interface AddEditHoKhauPopupProps {
   isOpen: boolean;
   onClose: () => void;
+  onSuccess?: () => void;
 }
 
-const RequiredLabel: React.FC<{ children: React.ReactNode }> = ({ children }) => (
-  <label className="flex items-center gap-1 text-sm font-medium text-gray-700">
-    {children} <span className="text-red-500 text-base leading-none">*</span>
-  </label>
-);
+interface Resident {
+  id: number;
+  hoTen: string;
+  cccd: string;
+  ngaySinh: string;
+  gioiTinh: string;
+  ngheNghiep: string;
+}
 
-const AddEditHoKhauPopup: React.FC<AddEditHoKhauPopupProps> = ({ isOpen, onClose }) => {
+const AddEditHoKhauPopup: React.FC<AddEditHoKhauPopupProps> = ({ 
+  isOpen, 
+  onClose, 
+  onSuccess 
+}) => {
   const [formData, setFormData] = useState({
-    khoanThu: '',
-    hoKhau: '',
-    nguoiNop: '',
-    soTien: '',
-    ngayNop: '',
-    daHoanThanh: false
+    maHoKhau: '',
+    soPhong: '',
+    soNha: '',
+    duong: '',
+    phuong: 'Nhân Chính',
+    quan: 'Thanh Xuân',
+    thanhPho: 'Hà Nội',
+    chuHoId: '',
+    ngayLap: new Date().toISOString().split('T')[0]
   });
 
+  const [availableResidents, setAvailableResidents] = useState<Resident[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string>('');
+  
   const [errors, setErrors] = useState({
-    khoanThu: false,
-    hoKhau: false,
-    nguoiNop: false,
-    soTien: false,
-    ngayNop: false
+    maHoKhau: false,
+    soPhong: false,
+    soNha: false,
+    duong: false,
+    chuHoId: false
   });
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value, type, checked } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: type === 'checkbox' ? checked : value
-    }));
+  // Load danh sách tất cả nhân khẩu có thể làm chủ hộ
+  useEffect(() => {
+    if (isOpen) {
+      loadAvailableResidents();
+      generateHouseholdCode();
+      resetForm();
+      setError('');
+    }
+  }, [isOpen]);
 
-    if (value.trim() !== '') {
-      setErrors(prev => ({ ...prev, [name]: false }));
+  const resetForm = () => {
+    setFormData({
+      maHoKhau: '',
+      soPhong: '',
+      soNha: '',
+      duong: '',
+      phuong: 'Nhân Chính',
+      quan: 'Thanh Xuân',
+      thanhPho: 'Hà Nội',
+      chuHoId: '',
+      ngayLap: new Date().toISOString().split('T')[0]
+    });
+    setErrors({
+      maHoKhau: false,
+      soPhong: false,
+      soNha: false,
+      duong: false,
+      chuHoId: false
+    });
+  };
+
+  const generateHouseholdCode = () => {
+    // Tạo mã hộ khẩu tự động dựa trên thời gian
+    const now = new Date();
+    const year = now.getFullYear().toString().slice(-2);
+    const month = (now.getMonth() + 1).toString().padStart(2, '0');
+    const day = now.getDate().toString().padStart(2, '0');
+    const hours = now.getHours().toString().padStart(2, '0');
+    const minutes = now.getMinutes().toString().padStart(2, '0');
+    
+    const code = `HK${year}${month}${day}${hours}${minutes}`;
+    setFormData(prev => ({ ...prev, maHoKhau: code }));
+  };
+
+  const loadAvailableResidents = async () => {
+    setLoading(true);
+    try {
+      // Lấy tất cả nhân khẩu thay vì chỉ những người chưa có hộ khẩu
+      const response = await residentAPI.getAll();
+      if (response.success && response.data) {
+        // Fix: response.data.residents thay vì response.data
+        setAvailableResidents(response.data.residents || []);
+      }
+    } catch (err) {
+      console.error('Lỗi khi tải danh sách nhân khẩu:', err);
+      setError('Không thể tải danh sách nhân khẩu');
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: value
+    }));
+    
+    // Xóa lỗi khi người dùng nhập liệu
+    if (errors[name as keyof typeof errors]) {
+      setErrors(prev => ({
+        ...prev,
+        [name]: false
+      }));
+    }
+  };
 
+  const validateForm = () => {
     const newErrors = {
-      khoanThu: formData.khoanThu.trim() === '',
-      hoKhau: formData.hoKhau.trim() === '',
-      nguoiNop: formData.nguoiNop.trim() === '',
-      soTien: formData.soTien.trim() === '',
-      ngayNop: formData.ngayNop.trim() === ''
+      maHoKhau: !formData.maHoKhau.trim(),
+      soPhong: !formData.soPhong.trim(),
+      soNha: !formData.soNha.trim(),
+      duong: !formData.duong.trim(),
+      chuHoId: false // Chủ hộ có thể để trống
     };
 
     setErrors(newErrors);
+    return !Object.values(newErrors).some(err => err);
+  };
 
-    const hasError = Object.values(newErrors).some(err => err);
-    if (hasError) return;
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!validateForm()) {
+      setError('Vui lòng điền đầy đủ thông tin bắt buộc');
+      return;
+    }
 
-    console.log('Form submitted:', formData);
-    onClose();
+    setSubmitting(true);
+    setError('');
+
+    try {
+      // Tạo địa chỉ đầy đủ
+      const diaChi = `${formData.soNha}, ${formData.duong}, ${formData.phuong}, ${formData.quan}, ${formData.thanhPho}`;
+      
+      const householdData = {
+        chuHoId: formData.chuHoId || null, // Có thể để trống
+        diaChi: diaChi,
+        ngayLap: formData.ngayLap,
+        soPhong: formData.soPhong
+      };
+
+      const response = await householdAPI.create(householdData);
+      
+      if (response.success) {
+        if (onSuccess) onSuccess();
+        onClose();
+      } else {
+        setError(response.message || 'Có lỗi xảy ra khi tạo hộ khẩu');
+      }
+    } catch (err: any) {
+      console.error('Lỗi khi tạo hộ khẩu:', err);
+      setError(err.response?.data?.message || 'Có lỗi xảy ra khi tạo hộ khẩu');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-gray-600 bg-opacity-50 backdrop-blur-sm overflow-y-auto h-full w-full z-50">
-      <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
-        <div className="mt-3 text-center">
-          <h3 className="text-lg leading-6 font-medium text-gray-900">Nhập Thông tin Nộp phí</h3>
-          <div className="mt-2 px-7 py-3">
-            <form onSubmit={handleSubmit} noValidate>
-              {/* Khoản thu */}
-              <div className="mb-4 text-left">
-                <RequiredLabel>Khoản thu</RequiredLabel>
-                <input
-                  name="khoanThu"
-                  value={formData.khoanThu}
-                  onChange={handleChange}
-                  className={`mt-1 block w-full px-3 py-2 border ${
-                    errors.khoanThu ? 'border-red-500' : 'border-gray-300'
-                  } rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm`}
-                  placeholder="Chọn khoản thu"
-                />
-                {errors.khoanThu && (
-                  <p className="text-red-500 text-xs mt-1">Trường này là bắt buộc.</p>
-                )}
-              </div>
+    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+      <div className="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-4xl max-h-[90vh] overflow-y-auto relative">
+        {/* Header */}
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-2xl font-bold text-gray-900">Thêm hộ khẩu mới</h2>
+          <button onClick={onClose} className="w-10 h-10 flex items-center justify-center rounded-full bg-gray-100 hover:bg-gray-200 transition">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
 
-              {/* Hộ khẩu */}
-              <div className="mb-4 text-left">
-                <RequiredLabel>Hộ khẩu</RequiredLabel>
-                <input
-                  name="hoKhau"
-                  value={formData.hoKhau}
-                  onChange={handleChange}
-                  className={`mt-1 block w-full px-3 py-2 border ${
-                    errors.hoKhau ? 'border-red-500' : 'border-gray-300'
-                  } rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm`}
-                  placeholder="Chọn hộ khẩu"
-                />
-                {errors.hoKhau && (
-                  <p className="text-red-500 text-xs mt-1">Trường này là bắt buộc.</p>
-                )}
-              </div>
+        {/* Error Message */}
+        {error && (
+          <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
+            <p className="text-red-600">{error}</p>
+          </div>
+        )}
 
-              {/* Người nộp */}
-              <div className="mb-4 text-left">
-                <RequiredLabel>Người nộp</RequiredLabel>
+        {/* Form */}
+        <form onSubmit={handleSubmit} className="space-y-6">
+          {/* Basic Information */}
+          <div className="bg-gray-50 rounded-xl p-6">
+            <h3 className="text-lg font-semibold text-gray-800 mb-4">Thông tin cơ bản</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-1">
+                  Mã hộ khẩu <span className="text-red-500">*</span>
+                </label>
                 <input
-                  name="nguoiNop"
-                  value={formData.nguoiNop}
+                  type="text"
+                  name="maHoKhau"
+                  value={formData.maHoKhau}
                   onChange={handleChange}
-                  className={`mt-1 block w-full px-3 py-2 border ${
-                    errors.nguoiNop ? 'border-red-500' : 'border-gray-300'
-                  } rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm`}
-                  placeholder="Người nộp"
+                  className={`block w-full rounded-xl border px-4 py-2 text-[15px] shadow-sm focus:ring-2 focus:ring-blue-200 outline-none ${
+                    errors.maHoKhau ? 'border-red-500' : 'border-gray-300 focus:border-blue-500'
+                  }`}
+                  placeholder="Ví dụ: HK2501120830"
                 />
-                {errors.nguoiNop && (
-                  <p className="text-red-500 text-xs mt-1">Trường này là bắt buộc.</p>
-                )}
               </div>
-
-              {/* Số tiền */}
-              <div className="mb-4 text-left">
-                <RequiredLabel>Số tiền</RequiredLabel>
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-1">
+                  Số phòng <span className="text-red-500">*</span>
+                </label>
                 <input
-                  type="number"
-                  name="soTien"
-                  value={formData.soTien}
+                  type="text"
+                  name="soPhong"
+                  value={formData.soPhong}
                   onChange={handleChange}
-                  min="0"
-                  className={`mt-1 block w-full px-3 py-2 border ${
-                    errors.soTien ? 'border-red-500' : 'border-gray-300'
-                  } rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm`}
-                  placeholder="Số tiền"
+                  className={`block w-full rounded-xl border px-4 py-2 text-[15px] shadow-sm focus:ring-2 focus:ring-blue-200 outline-none ${
+                    errors.soPhong ? 'border-red-500' : 'border-gray-300 focus:border-blue-500'
+                  }`}
+                  placeholder="Ví dụ: 101, 202, A301..."
                 />
-                {errors.soTien && (
-                  <p className="text-red-500 text-xs mt-1">Trường này là bắt buộc.</p>
-                )}
               </div>
-
-              {/* Ngày nộp */}
-              <div className="mb-4 text-left">
-                <RequiredLabel>Ngày nộp</RequiredLabel>
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-1">Ngày lập</label>
                 <input
                   type="date"
-                  name="ngayNop"
-                  value={formData.ngayNop}
+                  name="ngayLap"
+                  value={formData.ngayLap}
                   onChange={handleChange}
-                  className={`mt-1 block w-full px-3 py-2 border ${
-                    errors.ngayNop ? 'border-red-500' : 'border-gray-300'
-                  } rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm`}
+                  className="block w-full rounded-xl border border-gray-300 px-4 py-2 text-[15px] shadow-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none"
                 />
-                {errors.ngayNop && (
-                  <p className="text-red-500 text-xs mt-1">Trường này là bắt buộc.</p>
-                )}
               </div>
-
-              {/* Checkbox */}
-              <div className="flex items-center justify-start mb-2">
-                <input
-                  id="completed-checkbox"
-                  name="daHoanThanh"
-                  type="checkbox"
-                  checked={formData.daHoanThanh}
-                  onChange={handleChange}
-                  className="form-checkbox h-4 w-4 text-blue-600"
-                />
-                <label htmlFor="completed-checkbox" className="ml-2 block text-sm text-gray-900">
-                  Ghi nhận hoàn thành
-                </label>
-              </div>
-              <p className="text-left text-sm text-gray-600 mb-4">
-                Tích nếu muốn đợt thu này là hoàn toàn hoàn thành
-              </p>
-
-              {/* Nút hành động */}
-              <div className="items-center px-4 py-3">
-                <button
-                  type="submit"
-                  className="px-4 py-2 bg-blue-500 text-white text-base font-medium rounded-md w-full shadow-sm hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-                >
-                  Lưu
-                </button>
-                <button
-                  type="button"
-                  onClick={onClose}
-                  className="mt-3 px-4 py-2 bg-gray-500 text-white text-base font-medium rounded-md w-full shadow-sm hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2"
-                >
-                  Hủy
-                </button>
-              </div>
-            </form>
+            </div>
           </div>
-        </div>
+
+          {/* Address Information */}
+          <div className="bg-blue-50 rounded-xl p-6">
+            <h3 className="text-lg font-semibold text-gray-800 mb-4">Thông tin địa chỉ</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-1">
+                  Số nhà <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  name="soNha"
+                  value={formData.soNha}
+                  onChange={handleChange}
+                  className={`block w-full rounded-xl border px-4 py-2 text-[15px] shadow-sm focus:ring-2 focus:ring-blue-200 outline-none ${
+                    errors.soNha ? 'border-red-500' : 'border-gray-300 focus:border-blue-500'
+                  }`}
+                  placeholder="Ví dụ: 123, 45A, số 67..."
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-1">
+                  Đường <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  name="duong"
+                  value={formData.duong}
+                  onChange={handleChange}
+                  className={`block w-full rounded-xl border px-4 py-2 text-[15px] shadow-sm focus:ring-2 focus:ring-blue-200 outline-none ${
+                    errors.duong ? 'border-red-500' : 'border-gray-300 focus:border-blue-500'
+                  }`}
+                  placeholder="Ví dụ: Nguyễn Trãi, Lê Lợi..."
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-1">Phường</label>
+                <input
+                  type="text"
+                  name="phuong"
+                  value={formData.phuong}
+                  onChange={handleChange}
+                  className="block w-full rounded-xl border border-gray-300 px-4 py-2 text-[15px] shadow-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-1">Quận</label>
+                <input
+                  type="text"
+                  name="quan"
+                  value={formData.quan}
+                  onChange={handleChange}
+                  className="block w-full rounded-xl border border-gray-300 px-4 py-2 text-[15px] shadow-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-1">Thành phố</label>
+                <input
+                  type="text"
+                  name="thanhPho"
+                  value={formData.thanhPho}
+                  onChange={handleChange}
+                  className="block w-full rounded-xl border border-gray-300 px-4 py-2 text-[15px] shadow-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Head of Household */}
+          <div className="bg-green-50 rounded-xl p-6">
+            <h3 className="text-lg font-semibold text-gray-800 mb-4">Chủ hộ (tùy chọn)</h3>
+            <div className="grid grid-cols-1 gap-4">
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-1">
+                  Chọn chủ hộ
+                </label>
+                <select
+                  name="chuHoId"
+                  value={formData.chuHoId}
+                  onChange={handleChange}
+                  className="block w-full rounded-xl border border-gray-300 px-4 py-2 text-[15px] shadow-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none appearance-none"
+                  disabled={loading}
+                >
+                  <option value="">
+                    {loading ? 'Đang tải...' : 'Để trống nếu chưa có chủ hộ'}
+                  </option>
+                  {availableResidents.map((resident) => (
+                    <option key={resident.id} value={resident.id}>
+                      {resident.hoTen} - {resident.cccd}
+                    </option>
+                  ))}
+                </select>
+                <p className="text-sm text-gray-500 mt-1">
+                  Lưu ý: Có thể để trống nếu căn hộ chưa có chủ hộ xác định
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Action Buttons */}
+          <div className="flex justify-end space-x-3 pt-6 border-t">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-6 py-2 border border-gray-300 rounded-xl text-gray-700 font-semibold hover:bg-gray-50 transition"
+            >
+              Hủy
+            </button>
+            <button
+              type="submit"
+              disabled={submitting || loading}
+              className="px-6 py-2 bg-blue-500 text-white rounded-xl font-semibold hover:bg-blue-600 transition disabled:opacity-50"
+            >
+              {submitting ? 'Đang tạo...' : 'Tạo hộ khẩu'}
+            </button>
+          </div>
+        </form>
       </div>
     </div>
   );

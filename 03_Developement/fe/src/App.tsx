@@ -1,61 +1,111 @@
 import {
   BrowserRouter as Router,
   Routes,
-  Route
-  // Link
+  Route,
+  Navigate
 } from "react-router-dom";
-import {
-  Login,
-  ForgetPassword,
-  HomepageKeToan,
-  HomepageToTruong,
-  QuanLyKhoanThu,
-  QuanLyDotThuPhi,
-  ThongKeKhoanThu,
-  QuanLyHoKhau,
-  QuanLyNhanKhau,
-  QuanLyPhong,
-  QuanLyXe,
-  QuanLyTamTru,
-  LichSuThayDoiNhanKhau,
-  ThongKeNhanKhau
-} from "./pages";
+
+// Import components
+import Login from "./pages/Login";
+import HomepageKeToan from "./pages/HomepageKeToan";
+import HomepageToTruong from "./pages/HomepageToTruong";
+import QuanLyHoKhau from "./pages/QuanLyHoKhau";
+import QuanLyNhanKhau from "./pages/QuanLyNhanKhau";
+import QuanLyKhoanThu from "./pages/QuanLyKhoanThu";
+import QuanLyDotThuPhi from "./pages/QuanLyDotThuPhi";
+import QuanLyTamTru from "./pages/QuanLyTamTru";
+import LichSuThayDoiNhanKhau from "./pages/LichSuThayDoiNhanKhau";
+import QuanLyXe from "./pages/QuanLyXe";
+import QuanLyPhong from "./pages/QuanLyPhong";
+import ThongKeNhanKhau from "./pages/ThongKeNhanKhau";
+import ThongKeKhoanThu from "./pages/ThongKeKhoanThu";
+import ProtectedRoute from "./components/ProtectedRoute";
 
 function App() {
+  // Always start with login page as the main entry point
+  const getDefaultRoute = () => {
+    return "/login";
+  };
+
   return (
     <Router basename="/KTPM_FE">
-      {/* <nav className="flex flex-wrap gap-2 p-4 bg-gray-100 border-b mb-4 text-sm">
-        <Link to="/login" className="hover:underline">Login</Link>
-        <Link to="/forget-password" className="hover:underline">Quên mật khẩu</Link>
-        <Link to="/homepage-ketoan" className="hover:underline">Trang chủ Kế toán</Link>
-        <Link to="/homepage-totruong" className="hover:underline">Trang chủ Tổ trưởng</Link>
-        <Link to="/quan-ly-khoan-thu" className="hover:underline">Quản lý khoản thu</Link>
-        <Link to="/quan-ly-dot-thu-phi" className="hover:underline">Quản lý đợt thu phí</Link>
-        <Link to="/thong-ke-khoan-thu" className="hover:underline">Thống kê khoản thu</Link>
-        <Link to="/quan-ly-ho-khau" className="hover:underline">Quản lý hộ khẩu</Link>
-        <Link to="/quan-ly-nhan-khau" className="hover:underline">Quản lý nhân khẩu</Link>
-        <Link to="/quan-ly-phong" classNameclassName="hover:underline">Quản lý phòng</Link>
-        <Link to="/quan-ly-xe" className="hover:underline">Quản lý xe</Link>
-        <Link to="/quan-ly-tam-tru" className="hover:underline">Quản lý tạm trú/tạm vắng</Link>
-        <Link to="/lich-su-thay-doi-nhan-khau" className="hover:underline">Lịch sử thay đổi nhân khẩu</Link>
-        <Link to="/thong-ke-nhan-khau" className="hover:underline">Thống kê nhân khẩu</Link>
-      </nav> */}
       <Routes>
         <Route path="/login" element={<Login />} />
-        <Route path="/forget-password" element={<ForgetPassword />} />
-        <Route path="/homepage-ketoan" element={<HomepageKeToan />} />
-        <Route path="/homepage-totruong" element={<HomepageToTruong />} />
-        <Route path="/quan-ly-khoan-thu" element={<QuanLyKhoanThu />} />
-        <Route path="/quan-ly-dot-thu-phi" element={<QuanLyDotThuPhi />} />
-        <Route path="/thong-ke-khoan-thu" element={<ThongKeKhoanThu />} />
-        <Route path="/quan-ly-ho-khau" element={<QuanLyHoKhau />} />
-        <Route path="/quan-ly-nhan-khau" element={<QuanLyNhanKhau />} />
-        <Route path="/quan-ly-phong" element={<QuanLyPhong/>} />
-        <Route path="/quan-ly-xe" element={<QuanLyXe/>} />
-        <Route path="/quan-ly-tam-tru" element={<QuanLyTamTru />} />
-        <Route path="/lich-su-thay-doi-nhan-khau" element={<LichSuThayDoiNhanKhau />} />
-        <Route path="/thong-ke-nhan-khau" element={<ThongKeNhanKhau />} />
-        <Route path="*" element={<Login />} />
+        
+        {/* Test route for debugging */}
+        <Route path="/test" element={<div>Test Page Works!</div>} />
+        
+        {/* Kế toán routes - accessible by admin and accountant */}
+        <Route path="/homepage-ketoan" element={
+          <ProtectedRoute requiredRoles={['admin', 'accountant']}>
+            <HomepageKeToan />
+          </ProtectedRoute>
+        } />
+        <Route path="/quan-ly-khoan-thu" element={
+          <ProtectedRoute requiredRoles={['admin', 'accountant']}>
+            <QuanLyKhoanThu />
+          </ProtectedRoute>
+        } />
+        <Route path="/quan-ly-dot-thu-phi" element={
+          <ProtectedRoute requiredRoles={['admin', 'accountant']}>
+            <QuanLyDotThuPhi />
+          </ProtectedRoute>
+        } />
+        <Route path="/thong-ke-khoan-thu" element={
+          <ProtectedRoute requiredRoles={['admin', 'accountant']}>
+            <ThongKeKhoanThu />
+          </ProtectedRoute>
+        } />
+        
+        {/* Tổ trưởng routes - accessible by admin and manager */}
+        <Route path="/homepage-totruong" element={
+          <ProtectedRoute requiredRoles={['admin', 'manager']}>
+            <HomepageToTruong />
+          </ProtectedRoute>
+        } />
+        <Route path="/quan-ly-ho-khau" element={
+          <ProtectedRoute requiredRoles={['admin', 'manager']}>
+            <QuanLyHoKhau />
+          </ProtectedRoute>
+        } />
+        <Route path="/quan-ly-nhan-khau" element={
+          <ProtectedRoute requiredRoles={['admin', 'manager']}>
+            <QuanLyNhanKhau />
+          </ProtectedRoute>
+        } />
+
+        <Route path="/quan-ly-tam-tru" element={
+          <ProtectedRoute requiredRoles={['admin', 'manager']}>
+            <QuanLyTamTru />
+          </ProtectedRoute>
+        } />
+        
+        <Route path="/lich-su-thay-doi-nhan-khau" element={
+          <ProtectedRoute requiredRoles={['admin', 'manager']}>
+            <LichSuThayDoiNhanKhau />
+          </ProtectedRoute>
+        } />
+
+        <Route path="/quan-ly-phong" element={
+          <ProtectedRoute requiredRoles={['admin', 'manager']}>
+            <QuanLyPhong />
+          </ProtectedRoute>
+        } />
+
+        <Route path="/quan-ly-xe" element={
+          <ProtectedRoute requiredRoles={['admin', 'manager']}>
+            <QuanLyXe />
+          </ProtectedRoute>
+        } />
+        <Route path="/thong-ke-nhan-khau" element={
+          <ProtectedRoute requiredRoles={['admin', 'manager']}>
+            <ThongKeNhanKhau />
+          </ProtectedRoute>
+        } />
+        
+        {/* Default routes */}
+        <Route path="/" element={<Navigate to={getDefaultRoute()} replace />} />
+        <Route path="*" element={<Navigate to={getDefaultRoute()} replace />} />
       </Routes>
     </Router>
   );

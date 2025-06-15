@@ -8,27 +8,54 @@ module.exports = (sequelize, DataTypes) => {
         foreignKey: 'khoanthu_id',
         as: 'nopPhi'
       });
+      KhoanThu.belongsToMany(models.DotThu, {
+        through: 'DotThu_KhoanThu',
+        foreignKey: 'khoanThuId',
+        otherKey: 'dotThuId',
+        as: 'dotThu'
+      });
+      
+      // KhoanThu has many ThanhToan
+      KhoanThu.hasMany(models.ThanhToan, {
+        foreignKey: 'khoanThuId',
+        as: 'thanhToan'
+      });
     }
   }
   KhoanThu.init({
-    ngaytao: {
-      type: DataTypes.DATE,
+    id: {
+      type: DataTypes.INTEGER,
+      primaryKey: true,
+      autoIncrement: true,
       allowNull: false
     },
-    thoihan: DataTypes.DATE,
     tenkhoanthu: {
       type: DataTypes.STRING,
       allowNull: false
     },
+    ngaytao: {
+      type: DataTypes.DATE,
+      allowNull: false,
+      defaultValue: DataTypes.NOW
+    },
+    thoihan: {
+      type: DataTypes.DATE,
+      allowNull: true
+    },
     batbuoc: {
       type: DataTypes.BOOLEAN,
+      allowNull: false,
       defaultValue: false
     },
-    ghichu: DataTypes.TEXT
+    ghichu: {
+      type: DataTypes.TEXT,
+      allowNull: true
+    }
   }, {
     sequelize,
     modelName: 'KhoanThu',
-    tableName: 'khoanthu'
+    tableName: 'KhoanThu',
+    timestamps: true
   });
   return KhoanThu;
 }; 

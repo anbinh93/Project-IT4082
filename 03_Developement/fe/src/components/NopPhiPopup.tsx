@@ -97,17 +97,14 @@ const NopPhiPopup: React.FC<NopPhiPopupProps> = ({
     if (selectedFee) {
       setKhoanThuId(selectedFee.id);
       
-      // Cập nhật số tiền nếu khoản thu được chọn
-      const selectedKhoanThu = sampleKhoanThu.find(item => item.id === selectedFee.id);
-      if (selectedKhoanThu) {
-        setSoTien(selectedKhoanThu.soTien);
-      }
+      // Không cần tìm trong sampleKhoanThu nữa, dùng trực tiếp selectedFee
+      // setSoTien sẽ được cập nhật khi chọn hộ khẩu
     }
     
     if (selectedHoKhau) {
       setHoKhauId(selectedHoKhau.maHo);
       
-      // Tìm và cập nhật thông tin hộ khẩu
+      // Tìm và cập nhật thông tin hộ khẩu từ sampleHoKhau
       const hoKhau = sampleHoKhau.find(item => item.maHo === selectedHoKhau.maHo);
       if (hoKhau) {
         setCurrentHoKhau(hoKhau);
@@ -123,24 +120,29 @@ const NopPhiPopup: React.FC<NopPhiPopupProps> = ({
             // Mặc định chọn chủ hộ nếu không tìm thấy
             setNguoiNop(hoKhau.thanhVien[0].id);
           }
-          // Cập nhật số tiền và ngày nộp
-          setSoTien(selectedHoKhau.soTien || '');
+          // Cập nhật số tiền và ngày nộp từ selectedHoKhau
+          setSoTien(typeof selectedHoKhau.soTien === 'number' ? 
+            new Intl.NumberFormat('vi-VN').format(selectedHoKhau.soTien) + ' VND' : 
+            selectedHoKhau.soTien?.toString() || '');
           setNgayNop(parseDate(selectedHoKhau.ngayNop) || today);
         } else {
           // Mặc định chọn chủ hộ làm người nộp
           setNguoiNop(hoKhau.thanhVien[0].id);
+          // Lấy số tiền từ selectedHoKhau
+          if (selectedHoKhau.soTien !== undefined) {
+            setSoTien(typeof selectedHoKhau.soTien === 'number' ? 
+              new Intl.NumberFormat('vi-VN').format(selectedHoKhau.soTien) + ' VND' : 
+              selectedHoKhau.soTien?.toString() || '');
+          }
         }
       }
     }
 
-    if (selectedFee && selectedHoKhau) {
-      // Lấy số tiền đúng của hộ khẩu trong khoản thu
-      const ho = selectedFee.hoKhauList?.find((h: any) => h.maHo === selectedHoKhau.maHo);
-      if (ho && ho.soTien !== undefined) {
-        setSoTien(typeof ho.soTien === 'number' ? new Intl.NumberFormat('vi-VN').format(ho.soTien) : ho.soTien);
-      }
-    } else if (selectedFee) {
-      // ... giữ nguyên logic cũ nếu chỉ có selectedFee
+    // Nếu có cả selectedFee và selectedHoKhau thì lấy số tiền từ selectedHoKhau
+    if (selectedFee && selectedHoKhau && selectedHoKhau.soTien !== undefined) {
+      setSoTien(typeof selectedHoKhau.soTien === 'number' ? 
+        new Intl.NumberFormat('vi-VN').format(selectedHoKhau.soTien) + ' VND' : 
+        selectedHoKhau.soTien?.toString() || '');
     }
   }, [selectedFee, selectedHoKhau, isOpen, today, isEditMode]);
 
@@ -269,9 +271,6 @@ const NopPhiPopup: React.FC<NopPhiPopupProps> = ({
     if (!khoanThuId && !selectedFee) {
       return sampleHoKhau;
     }
-
-    // ID của khoản thu đã chọn (từ tham số hoặc từ trạng thái)
-    const currentFeeId = selectedFee ? selectedFee.id : khoanThuId;
     
     // Nếu đang ở chế độ chỉnh sửa và đã chọn hộ khẩu, luôn hiển thị hộ đó
     if (isEditMode && selectedHoKhau) {

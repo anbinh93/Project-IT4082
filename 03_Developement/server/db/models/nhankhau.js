@@ -4,51 +4,75 @@ const { Model } = require('sequelize');
 module.exports = (sequelize, DataTypes) => {
   class NhanKhau extends Model {
     static associate(models) {
+      // NhanKhau can be chuHo of a HoKhau
       NhanKhau.hasOne(models.HoKhau, {
-        foreignKey: 'chuho',
+        foreignKey: 'chuHo',
         as: 'hoKhauChuHo'
       });
+      
+      // NhanKhau has many TamTruTamVang
       NhanKhau.hasMany(models.TamTruTamVang, {
-        foreignKey: 'nhankhau_id',
+        foreignKey: 'nhanKhauId',
         as: 'tamTruTamVang'
       });
+      
+      // NhanKhau has one ThanhVienHoKhau
       NhanKhau.hasOne(models.ThanhVienHoKhau, {
-        foreignKey: 'nhankhau_id',
+        foreignKey: 'nhanKhauId',
         as: 'thanhVienHoKhau'
       });
+      
+      // NhanKhau has many LichSuThayDoiHoKhau
       NhanKhau.hasMany(models.LichSuThayDoiHoKhau, {
-        foreignKey: 'nhankhau_id',
+        foreignKey: 'nhanKhauId',
         as: 'lichSuThayDoi'
       });
     }
   }
   NhanKhau.init({
-    hoten: {
+    id: {
+      type: DataTypes.INTEGER,
+      primaryKey: true,
+      autoIncrement: true,
+      allowNull: false
+    },
+    hoTen: {
       type: DataTypes.STRING,
       allowNull: false
     },
-    ngaysinh: {
+    ngaySinh: {
       type: DataTypes.DATE,
       allowNull: false
     },
-    gioitinh: {
+    gioiTinh: {
       type: DataTypes.STRING,
       allowNull: false
     },
-    dantoc: DataTypes.STRING,
-    tongiao: DataTypes.STRING,
+    danToc: DataTypes.STRING,
+    tonGiao: DataTypes.STRING,
     cccd: {
       type: DataTypes.STRING,
       unique: true
     },
-    ngaycap: DataTypes.DATE,
-    noicap: DataTypes.STRING,
-    nghenghiep: DataTypes.STRING,
-    ghichu: DataTypes.TEXT
+    ngayCap: DataTypes.DATE,
+    noiCap: DataTypes.STRING,
+    ngheNghiep: {
+      type: DataTypes.STRING,
+      allowNull: true
+    },
+    ghiChu: {
+      type: DataTypes.TEXT,
+      allowNull: true
+    },
+    soDienThoai: {
+      type: DataTypes.STRING(15),
+      allowNull: true,
+      comment: 'Số điện thoại liên lạc'
+    }
   }, {
     sequelize,
     modelName: 'NhanKhau',
-    tableName: 'nhankhau'
+    tableName: 'NhanKhau'
   });
   return NhanKhau;
 }; 

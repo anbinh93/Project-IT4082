@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { householdAPI } from '../services/api';
 
 interface DoiChuHoPopupProps {
   isOpen: boolean;
@@ -15,54 +16,68 @@ interface DoiChuHoPopupProps {
   } | null;
 }
 
+interface HouseholdMember {
+  id: number;
+  hoTen: string;
+  gioiTinh: string;
+  ngaySinh: string;
+  cccd: string;
+  ngheNghiep: string;
+  quanHe: string;
+  tuoi: number;
+}
+
 const DoiChuHoPopup: React.FC<DoiChuHoPopupProps> = ({ isOpen, onClose, selectedResident }) => {
   const [selectedNewHead, setSelectedNewHead] = useState('');
   const [reason, setReason] = useState('');
   const [effectiveDate, setEffectiveDate] = useState(new Date().toISOString().split('T')[0]);
+  const [householdMembers, setHouseholdMembers] = useState<HouseholdMember[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
 
-  // Sample data - Danh sách thành viên trong cùng hộ gia đình
-  const householdMembers = [
-    { 
-      id: 2, 
-      hoTen: 'Trần Thị Bình', 
-      gioiTinh: 'Nữ', 
-      ngaySinh: '1987-07-15', 
-      cccd: '0173054376', 
-      ngheNghiep: 'Nhân viên văn phòng',
-      quanHe: 'Vợ',
-      tuoi: 37
-    },
-    { 
-      id: 6, 
-      hoTen: 'Nguyễn Văn Bình', 
-      gioiTinh: 'Nam', 
-      ngaySinh: '2010-03-12', 
-      cccd: '', 
-      ngheNghiep: 'Học sinh',
-      quanHe: 'Con trai',
-      tuoi: 14
-    },
-    { 
-      id: 7, 
-      hoTen: 'Nguyễn Thị Cúc', 
-      gioiTinh: 'Nữ', 
-      ngaySinh: '2015-08-20', 
-      cccd: '', 
-      ngheNghiep: 'Học sinh',
-      quanHe: 'Con gái',
-      tuoi: 9
-    },
-    { 
-      id: 8, 
-      hoTen: 'Nguyễn Văn Dũng', 
-      gioiTinh: 'Nam', 
-      ngaySinh: '1965-01-10', 
-      cccd: '0173012345', 
-      ngheNghiep: 'Hưu trí',
-      quanHe: 'Cha',
-      tuoi: 59
+  // Fetch household members when popup opens
+  useEffect(() => {
+    if (isOpen && selectedResident?.maHoGiaDinh) {
+      fetchHouseholdMembers();
     }
-  ];
+  }, [isOpen, selectedResident]);
+
+  const fetchHouseholdMembers = async () => {
+    if (!selectedResident?.maHoGiaDinh) return;
+    
+    try {
+      setLoading(true);
+      setError('');
+      
+      // Fetch household information including members
+      const response = await householdAPI.getById(selectedResident.maHoGiaDinh);
+      
+      if (response.success && response.data.thanhVien) {
+        // Transform the data to match our HouseholdMember interface
+        const members: HouseholdMember[] = response.data.thanhVien.map((tv: any) => ({
+          id: tv.nhanKhau.id,
+          hoTen: tv.nhanKhau.hoTen,
+          gioiTinh: tv.nhanKhau.gioiTinh,
+          ngaySinh: tv.nhanKhau.ngaySinh,
+          cccd: tv.nhanKhau.cccd,
+          ngheNghiep: tv.nhanKhau.ngheNghiep || '',
+          quanHe: tv.quanHeVoiChuHo,
+          tuoi: new Date().getFullYear() - new Date(tv.nhanKhau.ngaySinh).getFullYear()
+        }));
+        
+        setHouseholdMembers(members);
+      } else {
+        setHouseholdMembers([]);
+      }
+      
+    } catch (err: any) {
+      console.error('Error fetching household members:', err);
+      setError('Không thể tải danh sách thành viên hộ khẩu');
+      setHouseholdMembers([]);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // Lọc ra những thành viên đủ điều kiện làm chủ hộ (>= 18 tuổi và có CCCD)
   const eligibleMembers = householdMembers.filter(member => 
@@ -84,7 +99,7 @@ const DoiChuHoPopup: React.FC<DoiChuHoPopupProps> = ({ isOpen, onClose, selected
     };
 
     console.log('Đổi chủ hộ data:', formData);
-    // TODO: Xử lý logic đổi chủ hộ ở đây
+    // TODO: Implement API call for changing household head
     
     // Reset form và đóng popup
     resetForm();
@@ -210,19 +225,41 @@ const DoiChuHoPopup: React.FC<DoiChuHoPopupProps> = ({ isOpen, onClose, selected
               Chọn chủ hộ mới:
             </h3>
             
-            {eligibleMembers.length === 0 ? (
+            {loading && (
+              <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                <p className="text-gray-600">Đang tải danh sách thành viên...</p>
+              </div>
+            )}
+            
+            {error && (
+              <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                <p className="text-red-600">{error}</p>
+              </div>
+            )}
+            
+            {!loading && !error && householdMembers.length === 0 && (
               <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-                <div className="flex items-center space-x-2 text-yellow-800">
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 19c-.77.833.192 2.5 1.732 2.5z" />
-                  </svg>
-                  <span className="font-medium">Không có thành viên đủ điều kiện</span>
-                </div>
+                <p className="text-yellow-800">
+                  <strong>Chưa có thành viên khác trong hộ gia đình</strong>
+                </p>
                 <p className="text-yellow-700 text-sm mt-1">
-                  Không có thành viên nào trong hộ gia đình đủ điều kiện làm chủ hộ (≥18 tuổi và có CCCD).
+                  Để đổi chủ hộ, cần có ít nhất một thành viên khác đủ điều kiện (≥ 18 tuổi và có CCCD).
                 </p>
               </div>
-            ) : (
+            )}
+            
+            {!loading && !error && eligibleMembers.length === 0 && householdMembers.length > 0 && (
+              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                <p className="text-yellow-800">
+                  <strong>Không có thành viên nào đủ điều kiện làm chủ hộ</strong>
+                </p>
+                <p className="text-yellow-700 text-sm mt-1">
+                  Chỉ những thành viên từ 18 tuổi trở lên và có CCCD mới đủ điều kiện làm chủ hộ.
+                </p>
+              </div>
+            )}
+
+            {!loading && !error && eligibleMembers.length > 0 && (
               <>
                 <div className="grid gap-3">
                   {eligibleMembers.map((member) => (

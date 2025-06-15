@@ -5,13 +5,19 @@ module.exports = (sequelize, DataTypes) => {
   class TamTruTamVang extends Model {
     static associate(models) {
       TamTruTamVang.belongsTo(models.NhanKhau, {
-        foreignKey: 'nhankhau_id',
+        foreignKey: 'nhanKhauId',
         as: 'nhanKhau'
       });
     }
   }
   TamTruTamVang.init({
-    nhankhau_id: {
+    id: {
+      type: DataTypes.INTEGER,
+      primaryKey: true,
+      autoIncrement: true,
+      allowNull: false
+    },
+    nhanKhauId: {
       type: DataTypes.INTEGER,
       allowNull: false,
       references: {
@@ -19,17 +25,30 @@ module.exports = (sequelize, DataTypes) => {
         key: 'id'
       }
     },
-    trangthai: {
+    trangThai: {
+      type: DataTypes.STRING,
+      allowNull: false,
+      validate: {
+        isIn: [['đang tạm trú', 'đã kết thúc', 'tạm vắng']]
+      }
+    },
+    diaChi: {
       type: DataTypes.STRING,
       allowNull: false
     },
-    diachi: DataTypes.STRING,
-    thoigian: DataTypes.DATE,
-    noidungdenghi: DataTypes.TEXT
+    tuNgay: {
+      type: DataTypes.DATE,
+      allowNull: false
+    },
+    thoiGian: {
+      type: DataTypes.DATE,
+      allowNull: false
+    },
+    noiDungDeNghi: DataTypes.TEXT
   }, {
     sequelize,
     modelName: 'TamTruTamVang',
-    tableName: 'tamtrutamvang'
+    tableName: 'TamTruTamVang'
   });
   return TamTruTamVang;
 }; 

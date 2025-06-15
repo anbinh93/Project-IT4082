@@ -10,5 +10,4 @@ export { default as QuanLyNhanKhau } from "./QuanLyNhanKhau";
 export { default as QuanLyTamTru } from "./QuanLyTamTru";
 export { default as LichSuThayDoiNhanKhau } from "./LichSuThayDoiNhanKhau";
 export { default as ThongKeNhanKhau } from "./ThongKeNhanKhau"; 
-export { default as QuanLyPhong } from './QuanLyPhong';
 export { default as QuanLyXe } from './QuanLyXe';

@@ -3,13 +3,7 @@ const db = require('../db/models');
 // Lấy danh sách khoản thu
 exports.getKhoanThu = async (req, res) => {
     try {
-        const khoanthu = await db.KhoanThu.findAll({
-            include: [{
-                model: db.NopPhi,
-                as: 'nopPhi'
-            }],
-            order: [['ngaytao', 'DESC']]
-        });
+        const khoanthu = await db.KhoanThu.findAll();
         return res.status(200).json(khoanthu);
     } catch (error) {
         return res.status(500).json({ message: error.message });
@@ -40,14 +34,12 @@ exports.getKhoanThuById = async (req, res) => {
 // Thêm khoản thu mới
 exports.createKhoanThu = async (req, res) => {
     try {
-        const { tenkhoanthu, thoihan, batbuoc, ghichu } = req.body;
+        const { tenKhoanThu, batBuoc, ghiChu } = req.body;
         
         const khoanthu = await db.KhoanThu.create({
-            tenkhoanthu,
-            ngaytao: new Date(),
-            thoihan,
-            batbuoc,
-            ghichu
+            tenKhoanThu,
+            batBuoc,
+            ghiChu
         });
 
         return res.status(201).json(khoanthu);
@@ -157,8 +149,8 @@ exports.getChuaNopPhi = async (req, res) => {
             include: [
                 {
                     model: db.NhanKhau,
-                    as: 'chuHo',
-                    attributes: ['id', 'hoten']
+                    as: 'chuHoInfo',
+                    attributes: ['id', 'hoTen']
                 }
             ]
         });
@@ -172,12 +164,12 @@ exports.getChuaNopPhi = async (req, res) => {
         const daNopHoKhauIds = daNopIds.map(item => item.hokhau_id);
         
         // Lọc ra những hộ chưa nộp
-        const chuaNop = hokhau.filter(hk => !daNopHoKhauIds.includes(hk.sohokhau));
+        const chuaNop = hokhau.filter(hk => !daNopHoKhauIds.includes(hk.soHoKhau));
         
         // Format lại dữ liệu trả về
         const result = chuaNop.map(hk => ({
-            sohokhau: hk.sohokhau,
-            tenchuho: hk.chuHo ? hk.chuHo.hoten : 'Chưa có chủ hộ'
+            soHoKhau: hk.soHoKhau,
+            tenchuho: hk.chuHoInfo ? hk.chuHoInfo.hoTen : 'Chưa có chủ hộ'
         }));
 
         return res.status(200).json({

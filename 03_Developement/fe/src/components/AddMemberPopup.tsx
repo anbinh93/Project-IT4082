@@ -1,27 +1,66 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { residentAPI } from '../services/api';
+
+interface Resident {
+  id: number;
+  name: string;
+  ngaySinh: string;
+  gioiTinh: string;
+  cccd: string;
+}
 
 interface AddMemberPopupProps {
   isOpen: boolean;
   onClose: () => void;
   onAdd: (member: {
+    residentId: number;
     tenNhanKhau: string;
     quanHeVoiChuHo: string;
     ngayThem: string;
   }) => void;
-  residents?: { id: string; name: string }[];
+  householdId?: number;
 }
 
 const AddMemberPopup: React.FC<AddMemberPopupProps> = ({
   isOpen,
   onClose,
   onAdd,
-  residents = []
+  householdId
 }) => {
+  const [availableResidents, setAvailableResidents] = useState<Resident[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string>('');
   const [formData, setFormData] = useState({
-    tenNhanKhau: '',
+    selectedResidentId: '',
     quanHeVoiChuHo: '',
     ngayThem: ''
   });
+
+  // Fetch available residents when popup opens
+  useEffect(() => {
+    if (isOpen) {
+      fetchAvailableResidents();
+    }
+  }, [isOpen]);
+
+  const fetchAvailableResidents = async () => {
+    try {
+      setLoading(true);
+      setError('');
+      const response = await residentAPI.getAvailable();
+      
+      if (response.success) {
+        setAvailableResidents(response.data);
+      } else {
+        setError('Không thể lấy danh sách nhân khẩu');
+      }
+    } catch (err: any) {
+      console.error('Error fetching available residents:', err);
+      setError(err.message || 'Có lỗi xảy ra khi lấy danh sách nhân khẩu');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleInputChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
@@ -33,10 +72,55 @@ const AddMemberPopup: React.FC<AddMemberPopupProps> = ({
     }));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    onAdd(formData);
-    onClose();
+    setError('');
+
+    if (!formData.selectedResidentId || !formData.quanHeVoiChuHo || !formData.ngayThem) {
+      setError('Vui lòng điền đầy đủ thông tin');
+      return;
+    }
+
+    const selectedResident = availableResidents.find(r => r.id.toString() === formData.selectedResidentId);
+    if (!selectedResident) {
+      setError('Nhân khẩu không hợp lệ');
+      return;
+    }
+
+    try {
+      setLoading(true);
+      
+      // Call the API to add resident to household
+      if (householdId) {
+        await residentAPI.addToHousehold({
+          residentId: selectedResident.id,
+          householdId: householdId,
+          quanHeVoiChuHo: formData.quanHeVoiChuHo,
+          ngayThem: formData.ngayThem
+        });
+      }
+
+      // Call the parent callback
+      onAdd({
+        residentId: selectedResident.id,
+        tenNhanKhau: selectedResident.name,
+        quanHeVoiChuHo: formData.quanHeVoiChuHo,
+        ngayThem: formData.ngayThem
+      });
+
+      // Reset form and close
+      setFormData({
+        selectedResidentId: '',
+        quanHeVoiChuHo: '',
+        ngayThem: ''
+      });
+      onClose();
+    } catch (err: any) {
+      console.error('Error adding resident to household:', err);
+      setError(err.message || 'Có lỗi xảy ra khi thêm nhân khẩu vào hộ khẩu');
+    } finally {
+      setLoading(false);
+    }
   };
 
   if (!isOpen) return null;
@@ -71,24 +155,43 @@ const AddMemberPopup: React.FC<AddMemberPopupProps> = ({
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-6">
+          {error && (
+            <div className="bg-red-50 border border-red-200 rounded-xl p-4">
+              <p className="text-red-700 text-sm">{error}</p>
+            </div>
+          )}
+
           <div>
             <label className="block text-sm font-semibold text-gray-700 mb-1">
               Nhân khẩu <span className="text-red-500">*</span>
             </label>
             <select
-              name="tenNhanKhau"
-              value={formData.tenNhanKhau}
+              name="selectedResidentId"
+              value={formData.selectedResidentId}
               onChange={handleInputChange}
               className="block w-full rounded-xl border border-gray-300 px-4 py-2 text-[15px] shadow-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none appearance-none"
               required
+              disabled={loading}
             >
-              <option value="">Chọn nhân khẩu</option>
-              {residents.map(r => (
-                <option key={r.id} value={r.name}>
-                  {r.name}
+              <option value="">
+                {loading ? 'Đang tải...' : 'Chọn nhân khẩu'}
+              </option>
+              {availableResidents.map(resident => (
+                <option key={resident.id} value={resident.id.toString()}>
+                  {resident.name} - {resident.cccd}
                 </option>
               ))}
+              {availableResidents.length === 0 && !loading && (
+                <option value="" disabled>
+                  Không có nhân khẩu khả dụng
+                </option>
+              )}
             </select>
+            {availableResidents.length === 0 && !loading && (
+              <p className="text-sm text-gray-500 mt-1">
+                Tất cả nhân khẩu đã được phân bổ vào các hộ khẩu
+              </p>
+            )}
           </div>
 
           <div>
@@ -103,11 +206,10 @@ const AddMemberPopup: React.FC<AddMemberPopupProps> = ({
               required
             >
               <option value="">Chọn quan hệ</option>
-              <option value="Con">Con</option>
-              <option value="Vợ/Chồng">Vợ/Chồng</option>
-              <option value="Cha/Mẹ">Cha/Mẹ</option>
-              <option value="Anh/Chị/Em">Anh/Chị/Em</option>
-              <option value="Khác">Khác</option>
+              <option value="con">Con</option>
+              <option value="vợ/chồng">Vợ/Chồng</option>
+              <option value="bố/mẹ">Bố/Mẹ</option>
+              <option value="khác">Khác</option>
             </select>
           </div>
 
@@ -136,9 +238,14 @@ const AddMemberPopup: React.FC<AddMemberPopupProps> = ({
             </button>
             <button
               type="submit"
-              className="px-5 py-2 bg-blue-500 text-white rounded-xl font-semibold shadow hover:bg-blue-600 transition"
+              disabled={loading || availableResidents.length === 0}
+              className={`px-5 py-2 rounded-xl font-semibold shadow transition ${
+                loading || availableResidents.length === 0
+                  ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                  : 'bg-blue-500 text-white hover:bg-blue-600'
+              }`}
             >
-              Thêm
+              {loading ? 'Đang thêm...' : 'Thêm'}
             </button>
           </div>
         </form>

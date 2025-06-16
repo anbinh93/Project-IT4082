@@ -202,7 +202,18 @@ const householdController = {
           {
             model: NhanKhau,
             as: 'chuHoInfo',
-            attributes: ['id', 'hoTen']
+            attributes: ['id', 'hoTen', 'soDienThoai'] // Include số điện thoại
+          },
+          {
+            model: ThanhVienHoKhau,
+            as: 'thanhVien',
+            include: [
+              {
+                model: NhanKhau,
+                as: 'nhanKhau',
+                attributes: ['id', 'hoTen', 'ngaySinh', 'gioiTinh']
+              }
+            ]
           }
         ],
         limit: parseInt(limit),
@@ -213,7 +224,9 @@ const householdController = {
       // Format data for consistency with other endpoints
       const formattedHouseholds = households.map(household => ({
         ...household.toJSON(),
-        soHoKhauFormatted: `HK${household.soHoKhau.toString().padStart(3, '0')}`
+        soHoKhauFormatted: `HK${household.soHoKhau.toString().padStart(3, '0')}`,
+        // Calculate total members count
+        soThanhVien: household.thanhVien ? household.thanhVien.length : 0
       }));
 
       res.json({

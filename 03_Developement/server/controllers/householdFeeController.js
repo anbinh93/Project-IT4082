@@ -122,25 +122,22 @@ const getDashboardByDotThu = async (req, res) => {
       });
     }
 
-    // Lấy tất cả khoản thu trong đợt thu này
+    // Lấy tất cả khoản thu trong đợt thu này (dựa trên DotThu_KhoanThu association)
     const khoanThuStats = await db.sequelize.query(`
       SELECT 
         kt.id as khoan_thu_id,
         kt.tenkhoanthu,
         kt.batbuoc,
         kt.ghichu,
-        COUNT(hf.id) as tong_ho_khau,
-        COUNT(CASE WHEN hf."trangThai" = 'da_nop_du' THEN 1 END) as ho_da_nop,
-        COUNT(CASE WHEN hf."trangThai" = 'nop_mot_phan' THEN 1 END) as ho_nop_mot_phan,
-        COUNT(CASE WHEN hf."trangThai" = 'chua_nop' THEN 1 END) as ho_chua_nop,
+        COALESCE(COUNT(hf.id), 0) as tong_ho_khau,
+        COALESCE(COUNT(CASE WHEN hf."trangThai" = 'da_nop_du' THEN 1 END), 0) as ho_da_nop,
+        COALESCE(COUNT(CASE WHEN hf."trangThai" = 'nop_mot_phan' THEN 1 END), 0) as ho_nop_mot_phan,
+        COALESCE(COUNT(CASE WHEN hf."trangThai" = 'chua_nop' THEN 1 END), 0) as ho_chua_nop,
         COALESCE(SUM(hf."soTien"), 0) as tong_tien_du_kien,
         COALESCE(SUM(hf."soTienDaNop"), 0) as tong_tien_da_thu
       FROM "KhoanThu" kt
+      INNER JOIN "DotThu_KhoanThu" dtkt ON kt.id = dtkt."khoanThuId" AND dtkt."dotThuId" = :dotThuId
       LEFT JOIN "HouseholdFees" hf ON kt.id = hf."khoanThuId" AND hf."dotThuId" = :dotThuId
-      WHERE EXISTS (
-        SELECT 1 FROM "HouseholdFees" hf2 
-        WHERE hf2."khoanThuId" = kt.id AND hf2."dotThuId" = :dotThuId
-      )
       GROUP BY kt.id, kt.tenkhoanthu, kt.batbuoc, kt.ghichu
       ORDER BY kt.tenkhoanthu
     `, {

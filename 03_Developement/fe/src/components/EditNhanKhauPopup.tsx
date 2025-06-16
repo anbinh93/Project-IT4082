@@ -106,7 +106,20 @@ const EditNhanKhauPopup: React.FC<EditNhanKhauPopupProps> = ({
       setSubmitting(true);
       setError('');
       
-      const response = await residentAPI.update(residentId!, formData);
+      // Normalize form data
+      const normalizedFormData = {
+        ...formData,
+        hoTen: formData.hoTen.trim(),
+        cccd: formData.cccd.trim(),
+        ngheNghiep: formData.ngheNghiep?.trim() || '',
+        soDienThoai: formData.soDienThoai?.trim() || '',
+        danToc: formData.danToc?.trim() || 'Kinh',
+        tonGiao: formData.tonGiao?.trim() || 'Không',
+        noiCap: formData.noiCap?.trim() || '',
+        ghiChu: formData.ghiChu?.trim() || ''
+      };
+      
+      const response = await residentAPI.update(residentId!, normalizedFormData);
       
       if (response.success) {
         onSuccess?.();

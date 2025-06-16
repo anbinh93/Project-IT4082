@@ -245,12 +245,6 @@ export const householdAPI = {
     });
   },
 
-  delete: async (id: string | number) => {
-    return apiRequest(`/households/${id}`, {
-      method: 'DELETE',
-    });
-  },
-
   assignHead: async (householdId: string | number, newHeadId: string | number) => {
     return apiRequest('/households/assign-head', {
       method: 'POST',
@@ -337,7 +331,7 @@ export const residentAPI = {
 
   separateHousehold: async (data: {
     residentId: number;
-    targetType: 'new' | 'existing';
+    targetType: 'new' | 'existing' | 'remove'; // Updated type
     targetHouseholdId?: number;
     newHouseholdAddress?: string;
     reason: string;

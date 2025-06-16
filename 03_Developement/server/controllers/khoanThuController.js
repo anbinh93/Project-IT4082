@@ -12,6 +12,7 @@ const getAllKhoanThu = async (req, res) => {
       tenKhoan: khoan.tenkhoanthu,
       batBuoc: khoan.batbuoc,
       ghiChu: khoan.ghichu,
+      soTienToiThieu: khoan.soTienToiThieu || 0, // Include minimum amount
       ngayTao: khoan.ngaytao,
       thoiHan: khoan.thoihan,
       createdAt: khoan.createdAt,
@@ -52,6 +53,7 @@ const getKhoanThuById = async (req, res) => {
       tenKhoan: khoanThu.tenkhoanthu,
       batBuoc: khoanThu.batbuoc,
       ghiChu: khoanThu.ghichu,
+      soTienToiThieu: khoanThu.soTienToiThieu || 0, // Include minimum amount
       ngayTao: khoanThu.ngaytao,
       thoiHan: khoanThu.thoihan,
       createdAt: khoanThu.createdAt,
@@ -76,7 +78,7 @@ const getKhoanThuById = async (req, res) => {
 // Create new KhoanThu
 const createKhoanThu = async (req, res) => {
   try {
-    const { tenKhoan, batBuoc, ghiChu, thoiHan } = req.body;
+    const { tenKhoan, batBuoc, ghiChu, thoiHan, soTienToiThieu } = req.body;
 
     if (!tenKhoan) {
       return res.status(400).json({
@@ -89,6 +91,7 @@ const createKhoanThu = async (req, res) => {
       tenkhoanthu: tenKhoan,
       batbuoc: batBuoc || false,
       ghichu: ghiChu,
+      soTienToiThieu: soTienToiThieu || 0, // Add minimum amount field
       ngaytao: new Date(),
       thoihan: thoiHan
     });
@@ -98,11 +101,18 @@ const createKhoanThu = async (req, res) => {
       tenKhoan: khoanThu.tenkhoanthu,
       batBuoc: khoanThu.batbuoc,
       ghiChu: khoanThu.ghichu,
+      soTienToiThieu: khoanThu.soTienToiThieu, // Include in response
       ngayTao: khoanThu.ngaytao,
       thoiHan: khoanThu.thoihan,
       createdAt: khoanThu.createdAt,
       updatedAt: khoanThu.updatedAt
     };
+
+    console.log('📋 Formatted response data:', {
+      soTienToiThieu: formattedKhoanThu.soTienToiThieu,
+      soTienToiThieuType: typeof formattedKhoanThu.soTienToiThieu,
+      fullFormatted: formattedKhoanThu
+    });
 
     return res.status(201).json({
       success: true,
@@ -124,7 +134,7 @@ const createKhoanThu = async (req, res) => {
 const updateKhoanThu = async (req, res) => {
   try {
     const { id } = req.params;
-    const { tenKhoan, batBuoc, ghiChu, thoiHan } = req.body;
+    const { tenKhoan, batBuoc, ghiChu, thoiHan, soTienToiThieu } = req.body;
 
     const khoanThu = await db.KhoanThu.findByPk(id);
     
@@ -139,6 +149,7 @@ const updateKhoanThu = async (req, res) => {
       tenkhoanthu: tenKhoan || khoanThu.tenkhoanthu,
       batbuoc: batBuoc !== undefined ? batBuoc : khoanThu.batbuoc,
       ghichu: ghiChu !== undefined ? ghiChu : khoanThu.ghichu,
+      soTienToiThieu: soTienToiThieu !== undefined ? soTienToiThieu : khoanThu.soTienToiThieu,
       thoihan: thoiHan !== undefined ? thoiHan : khoanThu.thoihan
     });
 
@@ -147,6 +158,7 @@ const updateKhoanThu = async (req, res) => {
       tenKhoan: khoanThu.tenkhoanthu,
       batBuoc: khoanThu.batbuoc,
       ghiChu: khoanThu.ghichu,
+      soTienToiThieu: khoanThu.soTienToiThieu || 0, // Include minimum amount
       ngayTao: khoanThu.ngaytao,
       thoiHan: khoanThu.thoihan,
       createdAt: khoanThu.createdAt,

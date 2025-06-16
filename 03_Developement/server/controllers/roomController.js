@@ -94,24 +94,32 @@ const roomController = {
     try {
       const { soPhong, tang, dienTich, hoKhauId, ngayBatDau, ngayKetThuc, trangThai, ghiChu } = req.body;
       
+      console.log('Creating room with data:', {
+        soPhong, tang, dienTich, hoKhauId, trangThai
+      });
+      
       // Check if room with same number already exists
       const existingRoom = await Room.findOne({ where: { soPhong } });
       if (existingRoom) {
         return res.status(400).json({ message: 'Số phòng đã tồn tại' });
       }
       
+      // Convert hoKhauId to integer if provided
+      const hoKhauIdInt = hoKhauId ? parseInt(hoKhauId) : null;
+      
       // Create new room
       const newRoom = await Room.create({
         soPhong,
         tang,
         dienTich,
-        hoKhauId: hoKhauId || null,
+        hoKhauId: hoKhauIdInt,
         ngayBatDau: ngayBatDau || null,
         ngayKetThuc: ngayKetThuc || null,
         trangThai: trangThai || 'trong',
         ghiChu
       });
       
+      console.log('Room created successfully:', newRoom.id);
       res.status(201).json({ message: 'Tạo phòng mới thành công', room: newRoom });
     } catch (error) {
       console.error('Error creating room:', error);
@@ -138,12 +146,15 @@ const roomController = {
         }
       }
       
+      // Convert hoKhauId to integer if provided
+      const hoKhauIdInt = hoKhauId ? parseInt(hoKhauId) : null;
+      
       // Update room
       await room.update({
         soPhong,
         tang,
         dienTich,
-        hoKhauId: hoKhauId || null,
+        hoKhauId: hoKhauIdInt,
         ngayBatDau: ngayBatDau || null,
         ngayKetThuc: ngayKetThuc || null,
         trangThai,
@@ -179,37 +190,120 @@ const roomController = {
 
   // Assign a room to a household
   async assignRoom(req, res) {
+    const transaction = await db.sequelize.transaction();
+    
     try {
       const { id } = req.params;
       const { hoKhauId, ngayBatDau } = req.body;
       
-      const room = await Room.findByPk(id);
+      // Convert hoKhauId to integer for consistency
+      const hoKhauIdInt = parseInt(hoKhauId);
+      
+      console.log('Assigning room - Input data:', {
+        roomId: id,
+        hoKhauId: hoKhauIdInt,
+        originalHoKhauId: hoKhauId,
+        ngayBatDau
+      });
+      
+      // Find room with transaction
+      const room = await Room.findByPk(id, { transaction });
       if (!room) {
+        await transaction.rollback();
+        console.log('Room not found:', id);
         return res.status(404).json({ message: 'Không tìm thấy phòng' });
       }
       
-      // Check if the household exists
-      const hoKhau = await HoKhau.findByPk(hoKhauId);
+      console.log('Found room:', {
+        id: room.id,
+        soPhong: room.soPhong,
+        currentStatus: room.trangThai,
+        currentHoKhauId: room.hoKhauId
+      });
+      
+      // Check if the household exists with transaction
+      const hoKhau = await HoKhau.findOne({ 
+        where: { soHoKhau: hoKhauIdInt },
+        transaction 
+      });
+      
       if (!hoKhau) {
+        await transaction.rollback();
+        console.log('Household not found:', hoKhauIdInt);
         return res.status(404).json({ message: 'Không tìm thấy hộ khẩu' });
       }
       
-      // Check if room is already rented
-      if (room.trangThai === 'RENTED' && room.hoKhauId !== hoKhauId) {
-        return res.status(400).json({ message: 'Phòng đã được thuê' });
-      }
-      
-      // Assign room to household
-      await room.update({
-        hoKhauId,
-        ngayBatDau: ngayBatDau || new Date(),
-        trangThai: 'RENTED'
+      console.log('Found household:', {
+        soHoKhau: hoKhau.soHoKhau,
+        soNha: hoKhau.soNha
       });
       
-      res.json({ message: 'Gán phòng cho hộ khẩu thành công', room });
+      // Check if room is already rented to a different household
+      if (room.trangThai === 'da_thue' && room.hoKhauId !== null && room.hoKhauId !== hoKhauIdInt) {
+        await transaction.rollback();
+        console.log('Room already rented to different household:', {
+          currentHoKhauId: room.hoKhauId,
+          requestedHoKhauId: hoKhauIdInt
+        });
+        return res.status(400).json({ message: 'Phòng đã được thuê bởi hộ khẩu khác' });
+      }
+      
+      // Check if household already has any room assigned (excluding the current room being assigned)
+      const existingRoom = await Room.findOne({
+        where: { 
+          hoKhauId: hoKhauIdInt,
+          id: { [Op.ne]: id } // Exclude the current room
+        },
+        transaction
+      });
+      
+      if (existingRoom) {
+        await transaction.rollback();
+        console.log('Household already has a different room assigned:', {
+          hoKhauId: hoKhauIdInt,
+          existingRoomId: existingRoom.id,
+          currentRoomId: id,
+          existingRoomStatus: existingRoom.trangThai
+        });
+        return res.status(400).json({ message: 'Hộ khẩu này đã được gán căn hộ khác' });
+      }
+      
+      // Assign room to household with transaction
+      console.log('Updating room with household assignment...');
+      await room.update({
+        hoKhauId: hoKhauIdInt,
+        ngayBatDau: ngayBatDau || new Date(),
+        trangThai: 'da_thue'
+      }, { transaction });
+      
+      await transaction.commit();
+      console.log('Room assigned successfully');
+      
+      // Fetch updated room with associations
+      const updatedRoom = await Room.findByPk(id, {
+        include: [{
+          model: HoKhau,
+          as: 'hoKhau',
+          include: [{
+            model: db.NhanKhau,
+            as: 'chuHoInfo',
+            attributes: ['id', 'hoTen']
+          }]
+        }]
+      });
+      
+      res.json({ 
+        message: 'Gán phòng cho hộ khẩu thành công', 
+        room: updatedRoom 
+      });
     } catch (error) {
+      await transaction.rollback();
       console.error('Error assigning room:', error);
-      res.status(500).json({ message: 'Có lỗi xảy ra khi gán phòng cho hộ khẩu', error: error.message });
+      console.error('Error stack:', error.stack);
+      res.status(500).json({ 
+        message: 'Có lỗi xảy ra khi gán phòng cho hộ khẩu', 
+        error: error.message 
+      });
     }
   },
 
@@ -225,7 +319,7 @@ const roomController = {
       }
       
       // Check if room is actually rented
-      if (room.trangThai !== 'RENTED' || !room.hoKhauId) {
+      if (room.trangThai !== 'da_thue' || !room.hoKhauId) {
         return res.status(400).json({ message: 'Phòng không được thuê' });
       }
       
@@ -233,7 +327,7 @@ const roomController = {
       await room.update({
         hoKhauId: null,
         ngayKetThuc: ngayKetThuc || new Date(),
-        trangThai: 'AVAILABLE'
+        trangThai: 'trong'
       });
       
       res.json({ message: 'Giải phóng phòng thành công', room });

@@ -207,17 +207,23 @@ const residentController = {
         });
       }
 
+      // Normalize CCCD (trim spaces)
+      const normalizedCCCD = cccd.trim();
+      
       // Check if CCCD already exists
       const existingResident = await NhanKhau.findOne({
-        where: { cccd: cccd }
+        where: { cccd: normalizedCCCD }
       });
 
       if (existingResident) {
+        console.log(`🚫 CCCD validation failed: ${normalizedCCCD} already exists for resident ID ${existingResident.id} (${existingResident.hoTen})`);
         return res.status(400).json({
           success: false,
           message: 'Số CCCD này đã tồn tại trong hệ thống'
         });
       }
+      
+      console.log(`✅ CCCD validation passed: ${normalizedCCCD} is available`);
 
       // Create new resident
       const newResident = await NhanKhau.create({
@@ -226,7 +232,7 @@ const residentController = {
         gioiTinh,
         danToc: danToc || 'Kinh',
         tonGiao: tonGiao || 'Không',
-        cccd,
+        cccd: normalizedCCCD, // Use normalized CCCD
         ngayCap: ngayCap ? new Date(ngayCap) : null,
         noiCap: noiCap || null,
         ngheNghiep: ngheNghiep || null,
@@ -322,6 +328,14 @@ const residentController = {
         hoKhauId: householdId,
         quanHeVoiChuHo: quanHeVoiChuHo,
         ngayThemNhanKhau: ngayThem || new Date()
+      });
+
+      // Create change history entry
+      await LichSuThayDoiHoKhau.create({
+        nhanKhauId: residentId,
+        hoKhauId: householdId,
+        loaiThayDoi: 1, // 1: Thêm vào hộ
+        thoiGian: new Date()
       });
 
       res.json({
@@ -492,6 +506,19 @@ const residentController = {
         });
       }
 
+      // Check if resident is head of household - prevent separation/removal if they are the head
+      const isHeadOfHousehold = await HoKhau.findOne({
+        where: { chuHo: residentId }
+      });
+
+      if (isHeadOfHousehold) {
+        return res.status(400).json({
+          success: false,
+          // Updated message to be more general
+          message: 'Chủ hộ không thể tự xóa mình hoặc tách hộ. Vui lòng chuyển chức chủ hộ cho thành viên khác trước.'
+        });
+      }
+
       // Get current household membership with detailed info
       const currentMembership = await ThanhVienHoKhau.findOne({
         where: { nhanKhauId: residentId },
@@ -540,52 +567,28 @@ const residentController = {
       // Check if resident is currently head of household
       const currentHousehold = await HoKhau.findByPk(currentMembership.hoKhauId);
       const isCurrentHead = currentHousehold && currentHousehold.chuHo === residentId;
-      let targetHouseholdId_final;
+      let targetHouseholdId_final = null; // Initialize with null
 
       // STEP 1: Record the removal from current household
       await LichSuThayDoiHoKhau.create({
         nhanKhauId: residentId,
         hoKhauId: currentMembership.hoKhauId,
         loaiThayDoi: 2, // Removed from household
-        thoiGian: new Date()
+        thoiGian: new Date(),
+        ghiChu: reason // Add reason to history
       });
 
       // STEP 2: Remove from current household FIRST to avoid constraint violations
+      const oldHouseholdId = currentMembership.hoKhauId; // Store for later use if needed
       await currentMembership.destroy();
 
-      // STEP 3: Handle old household if resident was the head - UPDATE BEFORE CREATING NEW
-      if (isCurrentHead) {
-        // Check if there are other members in the current household
-        const otherMembers = await ThanhVienHoKhau.findAll({
-          where: { 
-            hoKhauId: currentMembership.hoKhauId,
-            nhanKhauId: { [Op.ne]: residentId }
-          }
-        });
+      // STEP 3: Handle old household if resident was the head - THIS LOGIC IS ALREADY GUARDED BY isHeadOfHousehold CHECK
+      // The existing check `if (isHeadOfHousehold)` prevents this block from running if the person is a head.
+      // So, no changes needed here for the 'remove' case regarding headship transfer, as heads cannot be removed this way.
 
-        if (otherMembers.length > 0) {
-          // There are other members, assign a new head IMMEDIATELY
-          const newHeadId = otherMembers[0].nhanKhauId;
-          
-          await HoKhau.update(
-            { chuHo: newHeadId },
-            { where: { soHoKhau: currentMembership.hoKhauId } }
-          );
+      let message = 'Xóa nhân khẩu khỏi hộ thành công';
 
-          // Update the new head's relationship
-          await ThanhVienHoKhau.update(
-            { quanHeVoiChuHo: 'chủ hộ' },
-            { where: { nhanKhauId: newHeadId, hoKhauId: currentMembership.hoKhauId } }
-          );
-        } else {
-          // No other members, delete the old household IMMEDIATELY
-          await HoKhau.destroy({
-            where: { soHoKhau: currentMembership.hoKhauId }
-          });
-        }
-      }
-
-      // STEP 4: Handle target household creation/assignment
+      // STEP 4: Handle target household creation/assignment OR just removal
       if (targetType === 'new') {
         // Create new household with resident as head
         if (!newHouseholdAddress) {
@@ -624,6 +627,7 @@ const residentController = {
         const newHousehold = await HoKhau.create(newHouseholdData);
 
         targetHouseholdId_final = newHousehold.soHoKhau;
+        message = 'Tách hộ và tạo hộ mới thành công';
       } else if (targetType === 'existing') {
         if (!targetHouseholdId) {
           return res.status(400).json({
@@ -642,27 +646,40 @@ const residentController = {
         }
 
         targetHouseholdId_final = targetHouseholdId;
+        message = 'Chuyển hộ thành công';
+      } else if (targetType === 'remove') {
+        // No further action needed, already removed from household
+        // targetHouseholdId_final remains null
+        message = 'Xóa nhân khẩu khỏi hộ thành công';
+      } else {
+        return res.status(400).json({
+          success: false,
+          message: 'Loại mục tiêu không hợp lệ.'
+        });
       }
 
-      // Add to new household
-      await ThanhVienHoKhau.create({
-        nhanKhauId: residentId,
-        hoKhauId: targetHouseholdId_final,
-        ngayThemNhanKhau: new Date(),
-        quanHeVoiChuHo: targetType === 'new' ? 'chủ hộ' : (quanHeVoiChuHoMoi || 'khác')
-      });
+      // Add to new household only if not just removing
+      if (targetType === 'new' || targetType === 'existing') {
+        await ThanhVienHoKhau.create({
+          nhanKhauId: residentId,
+          hoKhauId: targetHouseholdId_final,
+          ngayThemNhanKhau: new Date(),
+          quanHeVoiChuHo: targetType === 'new' ? 'chủ hộ' : (quanHeVoiChuHoMoi || 'khác')
+        });
 
-      // Record the addition in history
-      await LichSuThayDoiHoKhau.create({
-        nhanKhauId: residentId,
-        hoKhauId: targetHouseholdId_final,
-        loaiThayDoi: 1, // Added to household
-        thoiGian: new Date()
-      });
+        // Record the addition in history
+        await LichSuThayDoiHoKhau.create({
+          nhanKhauId: residentId,
+          hoKhauId: targetHouseholdId_final,
+          loaiThayDoi: 1, // Added to household
+          thoiGian: new Date(),
+          ghiChu: reason // Add reason to history
+        });
+      }
 
       res.json({
         success: true,
-        message: 'Tách hộ thành công',
+        message: message, // Use dynamic message
         data: {
           residentInfo: {
             id: resident.id,
@@ -670,7 +687,7 @@ const residentController = {
             cccd: resident.cccd
           },
           oldHousehold: currentHouseholdInfo,
-          newHouseholdId: targetHouseholdId_final,
+          newHouseholdId: targetHouseholdId_final, // Will be null if only removed
           separationType: targetType,
           reason: reason,
           timestamp: new Date()
@@ -758,7 +775,7 @@ const residentController = {
         diaChi: record.hoKhau ? `${record.hoKhau.soNha}, ${record.hoKhau.duong}, ${record.hoKhau.phuong}` : 'N/A',
         loaiThayDoi: changeTypeMap[record.loaiThayDoi] || 'Không xác định',
         loaiThayDoiCode: record.loaiThayDoi,
-        thoiGian: record.thoiGian ? new Date(record.thoiGian).toLocaleString('vi-VN') : 'N/A',
+        thoiGian: record.thoiGian ? new Date(record.thoiGian).toLocaleDateString('vi-VN') : 'N/A',
         chiTiet: `${changeTypeMap[record.loaiThayDoi] || 'Thay đổi'} nhân khẩu ${record.nhanKhau?.hoTen || ''} ${record.loaiThayDoi === 1 ? 'vào' : record.loaiThayDoi === 2 ? 'khỏi' : 'trong'} hộ khẩu ${record.hoKhau?.soHoKhau || ''}`
       }));
 
@@ -812,20 +829,24 @@ const residentController = {
       }
 
       // Check if CCCD already exists for another resident
-      if (cccd && cccd !== resident.cccd) {
+      if (cccd && cccd.trim() !== resident.cccd) {
+        const normalizedCCCD = cccd.trim();
         const existingResident = await NhanKhau.findOne({
           where: { 
-            cccd: cccd,
+            cccd: normalizedCCCD,
             id: { [Op.ne]: id }
           }
         });
 
         if (existingResident) {
+          console.log(`🚫 CCCD update failed: ${normalizedCCCD} already exists for resident ID ${existingResident.id} (${existingResident.hoTen})`);
           return res.status(400).json({
             success: false,
             message: 'Số CCCD này đã tồn tại trong hệ thống'
           });
         }
+        
+        console.log(`✅ CCCD update validation passed: ${normalizedCCCD} is available`);
       }
 
       // Update resident information
@@ -835,7 +856,7 @@ const residentController = {
         gioiTinh: gioiTinh || resident.gioiTinh,
         danToc: danToc || resident.danToc,
         tonGiao: tonGiao || resident.tonGiao,
-        cccd: cccd || resident.cccd,
+        cccd: (cccd && cccd.trim()) || resident.cccd, // Use trimmed CCCD
         ngayCap: ngayCap ? new Date(ngayCap) : resident.ngayCap,
         noiCap: noiCap || resident.noiCap,
         ngheNghiep: ngheNghiep || resident.ngheNghiep,
@@ -843,9 +864,7 @@ const residentController = {
         ghiChu: ghiChu || resident.ghiChu
       };
 
-      await resident.update(updatedData);
-
-      // Record the information update in change history
+      // Record the information update in change history BEFORE updating
       // Check if resident belongs to any household
       const householdMembership = await ThanhVienHoKhau.findOne({
         where: { nhanKhauId: id }
@@ -858,13 +877,30 @@ const residentController = {
 
       const householdId = householdMembership?.hoKhauId || householdAsHead?.soHoKhau;
 
-      if (householdId) {
-        // Record the information update in history
+      // Track what fields have changed for the history note
+      const changedFields = [];
+      if (hoTen && hoTen !== resident.hoTen) changedFields.push('Họ tên');
+      if (ngaySinh && new Date(ngaySinh).getTime() !== resident.ngaySinh?.getTime()) changedFields.push('Ngày sinh');
+      if (gioiTinh && gioiTinh !== resident.gioiTinh) changedFields.push('Giới tính');
+      if (danToc && danToc !== resident.danToc) changedFields.push('Dân tộc');
+      if (tonGiao && tonGiao !== resident.tonGiao) changedFields.push('Tôn giáo');
+      if (cccd && cccd.trim() !== resident.cccd) changedFields.push('CCCD');
+      if (ngayCap && new Date(ngayCap).getTime() !== resident.ngayCap?.getTime()) changedFields.push('Ngày cấp CCCD');
+      if (noiCap && noiCap !== resident.noiCap) changedFields.push('Nơi cấp CCCD');
+      if (ngheNghiep && ngheNghiep !== resident.ngheNghiep) changedFields.push('Nghề nghiệp');
+      if (soDienThoai && soDienThoai !== resident.soDienThoai) changedFields.push('Số điện thoại');
+      if (ghiChu && ghiChu !== resident.ghiChu) changedFields.push('Ghi chú');
+
+      await resident.update(updatedData);
+
+      if (householdId && changedFields.length > 0) {
+        // Record the information update in history with details of what changed
         await LichSuThayDoiHoKhau.create({
           nhanKhauId: id,
           hoKhauId: householdId,
           loaiThayDoi: 3, // Information update
-          thoiGian: new Date()
+          thoiGian: new Date(),
+          ghiChu: `Cập nhật thông tin: ${changedFields.join(', ')}`
         });
       }
 
@@ -915,15 +951,9 @@ const residentController = {
       });
 
       if (householdMembership) {
-        // Remove from household first
-        await householdMembership.destroy();
-        
-        // Record the removal in history
-        await LichSuThayDoiHoKhau.create({
-          nhanKhauId: id,
-          hoKhauId: householdMembership.hoKhauId,
-          loaiThayDoi: 2, // Removed from household
-          thoiGian: new Date()
+        return res.status(400).json({
+          success: false,
+          message: 'Không thể xóa nhân khẩu này vì đang thuộc về một hộ khẩu. Vui lòng loại bỏ khỏi hộ khẩu trước khi xóa.'
         });
       }
 

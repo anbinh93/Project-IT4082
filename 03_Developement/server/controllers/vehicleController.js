@@ -105,11 +105,11 @@ const vehicleController = {
       res.json({
         success: true,
         data: {
-          vehicles: result.rows,
+          vehicles: result.vehicles,
           pagination: {
-            currentPage: parseInt(options.page || 1),
-            totalPages: Math.ceil(result.count / (options.limit || 10)),
-            totalItems: result.count,
+            currentPage: result.currentPage,
+            totalPages: result.totalPages,
+            totalItems: result.total,
             itemsPerPage: parseInt(options.limit || 10)
           }
         }

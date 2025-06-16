@@ -1,6 +1,82 @@
 {
+  "name": "it4082-apartment-management",
+  "version": "1.0.0",
+  "description": "🏢 IT4082 Apartment Management System - Complete solution for managing apartments, residents, fees, and facilities",
+  "main": "server/server.js",
+  "scripts": {
+    "setup": "./setup.sh setup",
+    "clean": "./setup.sh clean",
+    "dev": "./setup.sh dev",
+    "build": "./setup.sh build",
+    "docker:up": "./setup.sh up",
+    "docker:down": "./setup.sh down",
+    "health": "./setup.sh health",
+    "info": "./setup.sh info",
+    "install:all": "npm run install:server && npm run install:frontend",
+    "install:server": "cd server && npm ci",
+    "install:frontend": "cd fe && npm ci",
+    "start": "cd server && npm start",
+    "test": "cd ../04_Testing && npm test",
+    "test:integration": "cd ../04_Testing && npm run test:integration",
+    "migrate": "cd server && npm run migrate",
+    "seed": "cd server && npm run seed",
+    "db:reset": "cd server && npm run db:reset",
+    "lint": "npm run lint:server && npm run lint:frontend",
+    "lint:server": "cd server && npm run lint",
+    "lint:frontend": "cd fe && npm run lint",
+    "format": "npm run format:server && npm run format:frontend",
+    "format:server": "cd server && npm run format",
+    "format:frontend": "cd fe && npm run format"
+  },
+  "keywords": [
+    "apartment-management",
+    "property-management",
+    "resident-management",
+    "fee-collection",
+    "household-management",
+    "nodejs",
+    "react",
+    "typescript",
+    "sqlite",
+    "postgresql"
+  ],
+  "author": "IT4082 Team",
+  "license": "MIT",
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=8.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/your-org/it4082-apartment-management.git"
+  },
+  "bugs": {
+    "url": "https://github.com/your-org/it4082-apartment-management/issues"
+  },
+  "homepage": "https://github.com/your-org/it4082-apartment-management#readme",
+  "workspaces": [
+    "server",
+    "fe"
+  ],
   "dependencies": {
     "axios": "^1.10.0",
     "colors": "^1.4.0"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2",
+    "cross-env": "^7.0.3"
+  },
+  "private": false,
+  "config": {
+    "development": {
+      "backend_port": 8000,
+      "frontend_port": 5173,
+      "database": "sqlite"
+    },
+    "production": {
+      "backend_port": 8000,
+      "frontend_port": 80,
+      "database": "postgresql"
+    }
   }
 }

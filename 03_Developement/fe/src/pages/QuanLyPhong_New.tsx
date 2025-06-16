@@ -1,9 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import Layout from '../components/Layout';
-import AddApartmentPopup from '../components/AddApartmentPopup';
-import { Home, Users, Plus, Loader2, AlertTriangle } from 'lucide-react';
+import { Home, Users, Plus, Loader2, AlertTriangle, Edit, Trash2 } from 'lucide-react';
 import { roomService } from '../services/roomService';
-import type { Room } from '../services/roomService';
+import type { Room, RoomStatistics } from '../services/roomService';
 import { householdAPI } from '../services/api';
 
 // Extended room interface for apartment management
@@ -16,15 +15,35 @@ interface ApartmentRoom extends Room {
   diaChiDayDu?: string; // Full address
 }
 
+// Definition for household data structure with apartment info
+interface HouseholdWithApartment {
+  soHoKhau: number;
+  soNha: string; // This should match Room.soPhong
+  duong: string;
+  phuong: string;
+  quan: string;
+  thanhPho: string;
+  chuHoInfo?: {
+    hoTen: string;
+    soDienThoai?: string;
+  };
+  thanhVien?: Array<{
+    nhanKhauId: number;
+    quanHeVoiChuHo: string;
+  }>;
+  ngayLamHoKhau: string;
+}
+
 const QuanLyPhong: React.FC = () => {
   // State management
   const [rooms, setRooms] = useState<ApartmentRoom[]>([]);
+  const [households, setHouseholds] = useState<HouseholdWithApartment[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterTang, setFilterTang] = useState("");
   const [filterTrangThai, setFilterTrangThai] = useState(""); // all, occupied, vacant
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [isAddApartmentPopupOpen, setIsAddApartmentPopupOpen] = useState(false);
+  const [statistics, setStatistics] = useState<RoomStatistics | null>(null);
 
   // Load room data from API and merge with household data
   const loadRooms = async () => {
@@ -32,12 +51,14 @@ const QuanLyPhong: React.FC = () => {
       setIsLoading(true);
       
       // Load rooms and households data in parallel
-      const [roomsResponse, householdsResponse] = await Promise.all([
+      const [roomsResponse, householdsResponse, statsResponse] = await Promise.all([
         roomService.getRooms(),
-        householdAPI.getAll()
+        householdAPI.getAll(),
+        roomService.getRoomStatistics()
       ]);
       
       const households = householdsResponse.data?.households || [];
+      setHouseholds(households);
       
       // Transform API data to include household information
       const extendedRooms: ApartmentRoom[] = roomsResponse.rooms.map(room => {
@@ -48,9 +69,9 @@ const QuanLyPhong: React.FC = () => {
           ...room,
           chuCanHo: matchingHousehold?.chuHoInfo?.hoTen || undefined,
           maHoKhau: matchingHousehold ? `HK${matchingHousehold.soHoKhau.toString().padStart(3, '0')}` : undefined,
-          soThanhVien: matchingHousehold?.soThanhVien || 0, // Sử dụng soThanhVien từ API
+          soThanhVien: matchingHousehold?.thanhVien?.length || 0,
           ngayVaoO: matchingHousehold?.ngayLamHoKhau || undefined,
-          soDienThoai: matchingHousehold?.chuHoInfo?.soDienThoai || undefined, // Số điện thoại chủ hộ
+          soDienThoai: matchingHousehold?.chuHoInfo?.soDienThoai || undefined,
           diaChiDayDu: matchingHousehold ? 
             `${matchingHousehold.soNha}, ${matchingHousehold.duong}, ${matchingHousehold.phuong}, ${matchingHousehold.quan}, ${matchingHousehold.thanhPho}` : 
             undefined
@@ -58,6 +79,7 @@ const QuanLyPhong: React.FC = () => {
       });
       
       setRooms(extendedRooms);
+      setStatistics(statsResponse);
       setError(null);
     } catch (err) {
       console.error('Error fetching room data:', err);
@@ -93,7 +115,9 @@ const QuanLyPhong: React.FC = () => {
       (filterTrangThai === 'vacant' && !room.chuCanHo);
     
     return matchesSearch && matchesFloor && matchesStatus;
-  });  return (
+  });
+
+  return (
     <Layout role="totruong">
       <div className="p-4 flex flex-col gap-6">
         {/* Header */}
@@ -181,7 +205,7 @@ const QuanLyPhong: React.FC = () => {
                   </label>
                   <input
                     type="text"
-                    placeholder="Tìm theo số căn hộ, tên chủ hộ hoặc mã hộ khẩu..."
+                    placeholder="Tìm theo số căn hộ, tên chủ hộ, mã hộ khẩu..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                     className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -196,7 +220,7 @@ const QuanLyPhong: React.FC = () => {
                     onChange={(e) => setFilterTang(e.target.value)}
                     className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
                   >
-                    <option value="">Tất cả</option>
+                    <option value="">Tất cả các tầng</option>
                     {uniqueTangs.map(tang => (
                       <option key={tang} value={tang}>Tầng {tang}</option>
                     ))}
@@ -215,15 +239,6 @@ const QuanLyPhong: React.FC = () => {
                     <option value="occupied">Có người ở</option>
                     <option value="vacant">Trống</option>
                   </select>
-                </div>
-                <div>
-                  <button 
-                    onClick={() => setIsAddApartmentPopupOpen(true)}
-                    className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors"
-                  >
-                    <Plus className="h-5 w-5" />
-                    Thêm căn hộ mới
-                  </button>
                 </div>
               </div>
             </div>
@@ -362,13 +377,6 @@ const QuanLyPhong: React.FC = () => {
           </>
         )}
       </div>
-
-      {/* Add Apartment Popup */}
-      <AddApartmentPopup
-        isOpen={isAddApartmentPopupOpen}
-        onClose={() => setIsAddApartmentPopupOpen(false)}
-        onSuccess={loadRooms}
-      />
     </Layout>
   );
 };

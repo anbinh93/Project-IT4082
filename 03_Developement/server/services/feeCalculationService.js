@@ -1,293 +1,213 @@
+// Fee calculation service for creating household fees automatically
 const db = require('../db/models');
 
 /**
- * Service để tính toán và tạo khoản thu cho hộ gia đình
+ * Create household fees for a fee collection period
+ * @param {number} dotThuId - Fee collection period ID
+ * @param {Array} selectedKhoanThu - Optional array of specific fee types to create
  */
-class FeeCalculationService {
-  
-  /**
-   * Tạo khoản thu cho tất cả hộ gia đình khi tạo đợt thu mới
-   * @param {number} dotThuId - ID của đợt thu
-   * @param {Array} khoanThuList - Danh sách các khoản thu bắt buộc
-   */
-  async createHouseholdFeesForDotThu(dotThuId, khoanThuList = null) {
-    try {
-      // Lấy tất cả hộ gia đình
-      const households = await db.HoKhau.findAll({
-        include: [
-          {
-            model: db.NhanKhau,
-            as: 'chuHoInfo'
-          },
-          {
-            model: db.QuanLyXe,
-            as: 'quanLyXe',
-            include: [
-              {
-                model: db.LoaiXe,
-                as: 'loaiXe'
-              }
-            ]
-          }
-        ]
-      });
+const createHouseholdFeesForDotThu = async (dotThuId, selectedKhoanThu = null) => {
+  try {
+    console.log(`Creating household fees for dotThu ${dotThuId}`);
+    
+    // Get all households
+    const households = await db.HoKhau.findAll({
+      include: [{
+        model: db.NhanKhau,
+        as: 'chuHoInfo'
+      }]
+    });
 
-      // Nếu không truyền vào khoanThuList, lấy tất cả khoản thu bắt buộc
-      if (!khoanThuList) {
-        khoanThuList = await db.KhoanThu.findAll({
-          where: { batbuoc: true }
+    if (households.length === 0) {
+      console.log('No households found, skipping fee creation');
+      return;
+    }
+
+    // Get fee types to create
+    let khoanThuList;
+    if (selectedKhoanThu && selectedKhoanThu.length > 0) {
+      // Use the specifically selected fee types (including non-mandatory ones)
+      khoanThuList = selectedKhoanThu;
+    } else {
+      // Get all mandatory fee types by default if no specific selection
+      khoanThuList = await db.KhoanThu.findAll({
+        where: {
+          batbuoc: true
+        }
+      });
+    }
+
+    if (khoanThuList.length === 0) {
+      console.log('No fee types found, skipping fee creation');
+      return;
+    }
+
+    // Get fee amounts from DotThu_KhoanThu associations
+    const dotThuKhoanThu = await db.DotThu_KhoanThu.findAll({
+      where: { dotThuId },
+      include: [{
+        model: db.KhoanThu,
+        as: 'khoanThu'
+      }]
+    });
+
+    const feeAmounts = {};
+    dotThuKhoanThu.forEach(assoc => {
+      // For voluntary contribution fees, use soTienToiThieu from KhoanThu if DotThu_KhoanThu amount is 0
+      let amount = assoc.soTien || 0;
+      if (amount === 0 && assoc.khoanThu && assoc.khoanThu.soTienToiThieu) {
+        amount = assoc.khoanThu.soTienToiThieu;
+      }
+      feeAmounts[assoc.khoanThuId] = amount;
+    });
+
+    // Create household fees
+    const householdFees = [];
+    for (const household of households) {
+      for (const khoanThu of khoanThuList) {
+        let amount = feeAmounts[khoanThu.id] || 0;
+        
+        // If amount is still 0, check if this is a voluntary contribution fee
+        if (amount === 0 && khoanThu.soTienToiThieu) {
+          amount = khoanThu.soTienToiThieu;
+        }
+        
+        householdFees.push({
+          dotThuId,
+          khoanThuId: khoanThu.id,
+          hoKhauId: household.soHoKhau,
+          soTien: amount,
+          soTienDaNop: 0,
+          trangThai: 'chua_nop',
+          createdAt: new Date(),
+          updatedAt: new Date()
         });
       }
-
-      const householdFees = [];
-
-      for (const household of households) {
-        for (const khoanThu of khoanThuList) {
-          // Check if household fee already exists for this combination
-          const existingFee = await db.HouseholdFee.findOne({
-            where: {
-              dotThuId,
-              khoanThuId: khoanThu.id,
-              hoKhauId: household.soHoKhau
-            }
-          });
-          
-          if (existingFee) {
-            console.log(`⚠️ Household fee already exists: dotThu=${dotThuId}, khoanThu=${khoanThu.id}, hoKhau=${household.soHoKhau}`);
-            continue; // Skip creating duplicate
-          }
-          
-          const feeCalculation = await this.calculateFeeForHousehold(household, khoanThu);
-          
-          if (feeCalculation.amount > 0) {
-            householdFees.push({
-              dotThuId,
-              khoanThuId: khoanThu.id,
-              hoKhauId: household.soHoKhau,
-              soTien: feeCalculation.amount,
-              soTienDaNop: 0,
-              trangThai: 'chua_nop',
-              chiTietTinhPhi: feeCalculation.details,
-              ghiChu: feeCalculation.note
-            });
-          }
-        }
-      }
-
-      // Bulk create để tối ưu performance với ignoreDuplicates option
-      const createdFees = await db.HouseholdFee.bulkCreate(householdFees, {
-        ignoreDuplicates: true // This will ignore any remaining duplicates
-      });
-      
-      console.log(`✅ Created ${createdFees.length} household fees for dot thu ${dotThuId}`);
-      return createdFees;
-
-    } catch (error) {
-      console.error('❌ Error creating household fees:', error);
-      throw error;
     }
-  }
 
-  /**
-   * Tính toán phí cho một hộ gia đình với một khoản thu cụ thể
-   * @param {Object} household - Thông tin hộ gia đình
-   * @param {Object} khoanThu - Thông tin khoản thu
-   * @returns {Object} - {amount, details, note}
-   */
-  async calculateFeeForHousehold(household, khoanThu) {
-    const feeType = khoanThu.tenkhoanthu.toLowerCase();
+    if (householdFees.length > 0) {
+      // Use upsert for better handling of existing records
+      for (const householdFee of householdFees) {
+        await db.HouseholdFee.upsert(householdFee, {
+          conflictFields: ['dotThuId', 'khoanThuId', 'hoKhauId']
+        });
+      }
+      console.log(`Created/Updated ${householdFees.length} household fees`);
+    }
+
+  } catch (error) {
+    console.error('Error creating household fees:', error);
+    // Don't throw error to avoid breaking fee collection period creation
+    console.log('Continuing without household fee creation...');
+  }
+};
+
+/**
+ * Calculate fee for a specific household
+ * @param {Object} household - Household object
+ * @param {Object} khoanThu - Fee type object
+ * @returns {Object} Fee calculation result
+ */
+const calculateFeeForHousehold = async (household, khoanThu) => {
+  try {
+    // This is a simplified calculation
+    // In a real system, this would consider area, vehicles, usage, etc.
     let amount = 0;
     let details = {};
     let note = '';
 
-    try {
-      switch (true) {
-        case feeType.includes('phí quản lý'):
-        case feeType.includes('phí dịch vụ'):
-          // Tính theo diện tích (giả sử 15,000 VND/m²)
-          const area = await this.getHouseholdArea(household.soHoKhau);
-          const ratePerSqm = 15000; // 15,000 VND/m²
-          amount = area * ratePerSqm;
-          details = { dienTich: area, giaMoiM2: ratePerSqm };
-          note = `Tính theo diện tích ${area}m² × ${ratePerSqm.toLocaleString()}đ/m²`;
-          break;
-
-        case feeType.includes('phí gửi xe'):
-        case feeType.includes('gửi xe'):
-          // Tính theo số xe và loại xe
-          const vehicleFee = await this.calculateVehicleFee(household);
-          amount = vehicleFee.total;
-          details = vehicleFee.details;
-          note = vehicleFee.note;
-          break;
-
-        case feeType.includes('phí điện'):
-          // Tính theo định mức hoặc số đo (giả sử 3,000đ/kWh, định mức 150kWh)
-          const electricUsage = await this.getElectricUsage(household.soHoKhau) || 150;
-          const electricRate = 3000; // 3,000đ/kWh
-          amount = electricUsage * electricRate;
-          details = { soDien: electricUsage, giaMoiKwh: electricRate };
-          note = `Tính theo ${electricUsage}kWh × ${electricRate.toLocaleString()}đ/kWh`;
-          break;
-
-        case feeType.includes('phí nước'):
-          // Tính theo định mức hoặc số đo (giả sử 25,000đ/m³, định mức 12m³)
-          const waterUsage = await this.getWaterUsage(household.soHoKhau) || 12;
-          const waterRate = 25000; // 25,000đ/m³
-          amount = waterUsage * waterRate;
-          details = { soNuoc: waterUsage, giaMoiM3: waterRate };
-          note = `Tính theo ${waterUsage}m³ × ${waterRate.toLocaleString()}đ/m³`;
-          break;
-
-        case feeType.includes('phí internet'):
-          // Phí cố định cho hộ đăng ký
-          const hasInternet = await this.checkInternetSubscription(household.soHoKhau);
-          amount = hasInternet ? 150000 : 0; // 150,000đ/tháng
-          details = { dangKyInternet: hasInternet };
-          note = hasInternet ? 'Phí internet cố định' : 'Không đăng ký internet';
-          break;
-
-        case feeType.includes('phí bảo vệ'):
-        case feeType.includes('phí vệ sinh'):
-          // Phí cố định cho tất cả hộ
-          amount = 200000; // 200,000đ/tháng
-          details = { phiCoDinh: true };
-          note = 'Phí cố định cho tất cả hộ gia đình';
-          break;
-
-        default:
-          // Các khoản thu khác - phí cố định
-          amount = 100000; // Mặc định 100,000đ
-          details = { phiMacDinh: true };
-          note = 'Khoản thu khác - phí mặc định';
-          break;
-      }
-
-      return {
-        amount: Math.round(amount),
-        details,
-        note
-      };
-
-    } catch (error) {
-      console.error(`❌ Error calculating fee for household ${household.soHoKhau}:`, error);
-      return { amount: 0, details: {}, note: 'Lỗi tính toán phí' };
+    // You can extend this with more complex calculations based on fee type
+    if (khoanThu.tenkhoanthu.toLowerCase().includes('quản lý')) {
+      // Management fee based on area (example: 15,000 VND per m²)
+      const area = 70; // Default area, should come from household data
+      amount = area * 15000;
+      details = { area, rate: 15000 };
+      note = `Phí quản lý cho diện tích ${area}m²`;
+    } else if (khoanThu.tenkhoanthu.toLowerCase().includes('xe')) {
+      // Vehicle fee (example: 70,000 VND per motorbike, 1,200,000 VND per car)
+      const motorbikes = 1; // Default, should come from household data
+      const cars = 0;
+      amount = motorbikes * 70000 + cars * 1200000;
+      details = { motorbikes, cars, rateMotorbike: 70000, rateCar: 1200000 };
+      note = `Phí gửi xe: ${motorbikes} xe máy, ${cars} ô tô`;
+    } else {
+      // Default amount for other fees
+      amount = khoanThu.soTienToiThieu || 0;
+      note = `Khoản thu: ${khoanThu.tenkhoanthu}`;
     }
-  }
 
-  /**
-   * Lấy diện tích của hộ gia đình (giả sử từ bảng Canho hoặc Room)
-   */
-  async getHouseholdArea(hoKhauId) {
-    try {
-      // Giả sử có bảng Room chứa thông tin diện tích
-      const room = await db.Room.findOne({
-        where: { hoKhauId }
-      });
-      
-      // Nếu không có thông tin, trả về diện tích mặc định
-      return room ? room.dienTich || 70 : 70; // Mặc định 70m²
-    } catch (error) {
-      console.log('Using default area for household', hoKhauId);
-      return 70; // Mặc định 70m²
+    return {
+      amount,
+      details,
+      note
+    };
+  } catch (error) {
+    console.error('Error calculating fee for household:', error);
+    return {
+      amount: 0,
+      details: {},
+      note: 'Lỗi tính toán phí'
+    };
+  }
+};
+
+/**
+ * Update payment status for a household fee
+ * @param {number} householdFeeId - Household fee ID
+ * @param {number} paymentAmount - Amount being paid
+ */
+const updatePaymentStatus = async (householdFeeId, paymentAmount) => {
+  try {
+    // Get the household fee record
+    const householdFee = await db.HouseholdFee.findByPk(householdFeeId);
+    if (!householdFee) {
+      throw new Error('Household fee not found');
     }
-  }
 
-  /**
-   * Tính phí gửi xe cho hộ gia đình
-   */
-  async calculateVehicleFee(household) {
-    try {
-      let totalFee = 0;
-      let details = {};
-      let vehicleCount = 0;
+    // Calculate new total paid amount
+    const newSoTienDaNop = parseFloat(householdFee.soTienDaNop || 0) + parseFloat(paymentAmount);
+    const soTien = parseFloat(householdFee.soTien || 0);
 
-      if (household.quanLyXe && household.quanLyXe.length > 0) {
-        for (const vehicle of household.quanLyXe) {
-          if (vehicle.trangThai === 'Hoạt động' && vehicle.loaiXe) {
-            totalFee += vehicle.loaiXe.phiThue || 0;
-            const vehicleType = vehicle.loaiXe.ten;
-            details[vehicleType] = (details[vehicleType] || 0) + 1;
-            vehicleCount++;
-          }
-        }
-      }
-
-      const note = vehicleCount > 0 
-        ? `Phí gửi ${vehicleCount} xe: ${Object.entries(details).map(([type, count]) => `${count} ${type}`).join(', ')}`
-        : 'Không có xe đăng ký';
-
-      return {
-        total: totalFee,
-        details: { ...details, tongSoXe: vehicleCount },
-        note
-      };
-    } catch (error) {
-      console.error('Error calculating vehicle fee:', error);
-      return { total: 0, details: {}, note: 'Lỗi tính phí xe' };
+    // Determine new status
+    let newTrangThai;
+    if (newSoTienDaNop >= soTien) {
+      newTrangThai = 'da_nop_du';
+    } else if (newSoTienDaNop > 0) {
+      newTrangThai = 'nop_mot_phan';
+    } else {
+      newTrangThai = 'chua_nop';
     }
+
+    // Update the household fee record
+    await householdFee.update({
+      soTienDaNop: newSoTienDaNop,
+      trangThai: newTrangThai,
+      updatedAt: new Date()
+    });
+
+    return householdFee;
+  } catch (error) {
+    console.error('Error updating payment status:', error);
+    throw error;
   }
+};
 
-  /**
-   * Lấy số điện tiêu thụ (có thể từ file Excel hoặc nhập thủ công)
-   */
-  async getElectricUsage(hoKhauId) {
-    // TODO: Implement logic to get electric usage from database or file
-    // For now, return random usage between 100-200 kWh
-    return Math.floor(Math.random() * 100) + 100;
-  }
+/**
+ * Calculate fee amount for a household based on fee type
+ * @param {Object} khoanThu - Fee type object
+ * @param {Object} household - Household object
+ * @returns {number} Calculated fee amount
+ */
+const calculateFeeAmount = (khoanThu, household) => {
+  // For now, return default amount
+  // In the future, this can be enhanced with complex calculations
+  // based on area, number of people, vehicles, etc.
+  return 0; // Default to 0, amounts will be set in DotThu_KhoanThu
+};
 
-  /**
-   * Lấy số nước tiêu thụ (có thể từ file Excel hoặc nhập thủ công)
-   */
-  async getWaterUsage(hoKhauId) {
-    // TODO: Implement logic to get water usage from database or file
-    // For now, return random usage between 8-15 m³
-    return Math.floor(Math.random() * 8) + 8;
-  }
-
-  /**
-   * Kiểm tra hộ có đăng ký internet không
-   */
-  async checkInternetSubscription(hoKhauId) {
-    // TODO: Implement logic to check internet subscription
-    // For now, assume 70% of households have internet
-    return Math.random() > 0.3;
-  }
-
-  /**
-   * Cập nhật trạng thái thanh toán khi có thanh toán mới
-   */
-  async updatePaymentStatus(householdFeeId, paymentAmount) {
-    try {
-      const householdFee = await db.HouseholdFee.findByPk(householdFeeId);
-      if (!householdFee) {
-        throw new Error('Household fee not found');
-      }
-
-      const newTotalPaid = parseFloat(householdFee.soTienDaNop) + parseFloat(paymentAmount);
-      const totalAmount = parseFloat(householdFee.soTien);
-
-      let newStatus;
-      if (newTotalPaid >= totalAmount) {
-        newStatus = 'da_nop_du';
-      } else if (newTotalPaid > 0) {
-        newStatus = 'nop_mot_phan';
-      } else {
-        newStatus = 'chua_nop';
-      }
-
-      await householdFee.update({
-        soTienDaNop: newTotalPaid,
-        trangThai: newStatus
-      });
-
-      return householdFee;
-    } catch (error) {
-      console.error('Error updating payment status:', error);
-      throw error;
-    }
-  }
-}
-
-module.exports = new FeeCalculationService();
+module.exports = {
+  createHouseholdFeesForDotThu,
+  calculateFeeAmount,
+  calculateFeeForHousehold,
+  updatePaymentStatus
+};

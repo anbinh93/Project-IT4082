@@ -11,12 +11,16 @@ module.exports = (sequelize, DataTypes) => {
       HoKhau.hasMany(models.ThanhVienHoKhau, {
         foreignKey: 'hoKhauId',
         sourceKey: 'soHoKhau',
-        as: 'thanhVien'
+        as: 'thanhVien',
+        onDelete: 'CASCADE', // Add this line
+        hooks: true // Ensure hooks are triggered for cascading deletes if needed
       });
       HoKhau.hasMany(models.LichSuThayDoiHoKhau, {
         foreignKey: 'hoKhauId',
         sourceKey: 'soHoKhau',
-        as: 'lichSuThayDoi'
+        as: 'lichSuThayDoi',
+        onDelete: 'CASCADE', // Also consider for history if appropriate
+        hooks: true
       });
       HoKhau.hasMany(models.NopPhi, {
         foreignKey: 'hokhau_id',

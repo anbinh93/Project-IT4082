@@ -8,7 +8,14 @@ import api from '../services/api';
 
 // Function to map fee names from database to fee types
 const mapFeeNameToType = (feeNameFromDB: string): string => {
-  const nameLower = feeNameFromDB.toLowerCase();
+  // Handle null/undefined/empty cases more robustly
+  if (!feeNameFromDB || typeof feeNameFromDB !== 'string' || feeNameFromDB.trim() === '') {
+    console.log('⚠️ mapFeeNameToType received invalid input:', feeNameFromDB, 'type:', typeof feeNameFromDB);
+    return 'PHI_DICH_VU'; // Default fallback
+  }
+  
+  const nameLower = feeNameFromDB.toLowerCase().trim();
+  console.log('🔄 mapFeeNameToType processing:', nameLower);
   
   if (nameLower.includes('dịch vụ') || nameLower.includes('dich vu')) {
     return 'PHI_DICH_VU';
@@ -24,9 +31,12 @@ const mapFeeNameToType = (feeNameFromDB: string): string => {
     return 'PHI_INTERNET';
   } else if (nameLower.includes('vệ sinh') || nameLower.includes('ve sinh')) {
     return 'PHI_VE_SINH';
+  } else if (nameLower.includes('đóng góp') || nameLower.includes('dong gop')) {
+    return 'KHOAN_DONG_GOP';
   }
   
   // Default to service fee if no match found
+  console.log('🔄 mapFeeNameToType: No match found for:', nameLower, '- defaulting to PHI_DICH_VU');
   return 'PHI_DICH_VU';
 };
 
@@ -245,8 +255,8 @@ const QuanLyDotThuPhi: React.FC = () => {
       }
       
       try {
-        // Load all fee collection periods
-        const response = await api.dotThu.getAll({
+        // Load all fee collection periods with khoanThu and trangThai
+        const response = await api.dotThu.getAllWithKhoanThu({
           page: 0,
           size: 100, // Load all for now
           sortBy: 'createdAt',
@@ -259,34 +269,51 @@ const QuanLyDotThuPhi: React.FC = () => {
           // Transform API data to match frontend structure
           const transformedBatches = response.dotThus.map((dotThu: any) => {
             // Transform khoanThu from API format to frontend format
-            const transformedKhoanThu = (dotThu.khoanThu || []).map((khoanthu: any) => ({
-              id: khoanthu.id,
-              type: mapFeeNameToType(khoanthu.tenkhoanthu), // Use mapping function
-              tenKhoan: khoanthu.tenkhoanthu, // Fix field name to match interface
-              chiTiet: khoanthu.ghichu || khoanthu.tenkhoanthu, // Use ghiChu as description, fallback to name
-              batBuoc: khoanthu.batbuoc ? 'Bắt buộc' : 'Không bắt buộc', // Convert boolean to string
-              soTien: khoanthu.DotThu_KhoanThu && khoanthu.DotThu_KhoanThu.soTien !== undefined && khoanthu.DotThu_KhoanThu.soTien !== null ? Number(khoanthu.DotThu_KhoanThu.soTien) : undefined,
-              householdFees: {} // Empty for now, can be populated later
-            }));
+            const transformedKhoanThu = (dotThu.khoanThu || []).map((khoanthu: any) => {
+              console.log('🔍 Debug khoanthu FULL object:', JSON.stringify(khoanthu, null, 2));
+              console.log('🔍 khoanthu.tenkhoanthu:', khoanthu.tenkhoanthu);
+              console.log('🔍 khoanthu.ghichu:', khoanthu.ghichu);
+              console.log('🔍 khoanthu.batbuoc:', khoanthu.batbuoc);
+              console.log('🔍 khoanthu.soTienMacDinh:', khoanthu.soTienMacDinh);
+              
+              // Use correct field names from backend API - handle both possible field names
+              const feeNameFromDB = khoanthu.tenkhoanthu || 'Không xác định';
+              const feeDescription = khoanthu.ghichu || '';
+              const isMandatory = khoanthu.batbuoc;
+              const feeAmount = khoanthu.soTienMacDinh;
+              
+              console.log('🔍 Processed values:');
+              console.log('  - feeNameFromDB:', feeNameFromDB);
+              console.log('  - feeDescription:', feeDescription);
+              console.log('  - isMandatory:', isMandatory);
+              console.log('  - feeAmount:', feeAmount);
+              
+              const mappedType = mapFeeNameToType(feeNameFromDB);
+              console.log('🔍 mappedType:', mappedType);
+              
+              return {
+                id: khoanthu.id,
+                type: mappedType, // Use mapping function with safe fallback
+                tenKhoan: feeNameFromDB, // Use the actual name from database
+                chiTiet: feeDescription || feeNameFromDB, // Use description or fallback to name
+                batBuoc: isMandatory !== undefined ? (isMandatory ? 'Bắt buộc' : 'Không bắt buộc') : 'Không xác định',
+                soTien: feeAmount !== undefined && feeAmount !== null ? Number(feeAmount) : undefined,
+                soTienToiThieu: khoanthu.soTienToiThieu || 0, // Add minimum amount field
+                householdFees: {} // Empty for now, can be populated later
+              };
+            });
 
             console.log('🔄 Transformed khoanThu for dotThu', dotThu.id, ':', transformedKhoanThu);
 
-            // Map backend status to frontend display
-            const mapStatus = (backendStatus: string) => {
-              switch (backendStatus) {
-                case 'DANG_MO': return 'Đang mở';
-                case 'DA_DONG': return 'Đã đóng';
-                case 'HOAN_THANH': return 'Hoàn thành';
-                default: return isDatePast(dotThu.thoiHan) ? 'Đã đóng' : 'Đang mở';
-              }
-            };
+            // Keep backend status format for logic, convert only for display
+            const backendStatus = dotThu.trangThai || (isDatePast(dotThu.thoiHan) ? 'DA_DONG' : 'DANG_MO');
 
             return {
               maDot: dotThu.id,
               tenDot: dotThu.tenDotThu,
               ngayTao: formatDate(dotThu.ngayTao),
               hanCuoi: formatDate(dotThu.thoiHan),
-              trangThai: mapStatus(dotThu.trangThai),
+              trangThai: backendStatus, // Keep backend format for logic consistency
               details: {
                 maDot: dotThu.id,
                 tenDot: dotThu.tenDotThu,
@@ -327,6 +354,16 @@ const QuanLyDotThuPhi: React.FC = () => {
       month: '2-digit',
       year: 'numeric'
     });
+  };
+
+  // Helper function to convert backend status to display text
+  const getDisplayStatus = (backendStatus: string) => {
+    switch (backendStatus) {
+      case 'DANG_MO': return 'Đang mở';
+      case 'DA_DONG': return 'Đã đóng';
+      case 'HOAN_THANH': return 'Hoàn thành';
+      default: return backendStatus;
+    }
   };
 
   // Helper function to check if date is past
@@ -463,7 +500,7 @@ const QuanLyDotThuPhi: React.FC = () => {
   // Thêm khoản thu vào đợt thu
   const openAddFeePopup = (batch: any, e: React.MouseEvent) => {
     e.stopPropagation();
-    if (batch.trangThai === 'Đã đóng' || batch.trangThai === 'Hoàn thành') {
+    if (batch.trangThai === 'DA_DONG' || batch.trangThai === 'HOAN_THANH') {
       setAddFeeError('Không thể thêm khoản thu vào đợt thu đã đóng hoặc hoàn thành.');
       return;
     }
@@ -479,18 +516,30 @@ const QuanLyDotThuPhi: React.FC = () => {
     if (activeBatchForFee) {
       try {
         // 1. Tạo loại khoản thu mới (nếu cần)
-        const response = await api.khoanThu.create({
+        const createData: any = {
           tenKhoan: newFee.tenKhoan,
           batBuoc: newFee.batBuoc === 'Bắt buộc',
           ghiChu: newFee.chiTiet || '',
-        });
+        };
+
+        // Add soTienToiThieu for voluntary contributions
+        if (newFee.soTienToiThieu !== undefined && newFee.soTienToiThieu > 0) {
+          createData.soTienToiThieu = newFee.soTienToiThieu;
+        }
+
+        const response = await api.khoanThu.create(createData);
 
         if (response.success) {
           const feeId = response.data.id;
 
-          // Calculate total amount from householdFees
-          const totalAmount = newFee.householdFees ? 
-            Object.values(newFee.householdFees).reduce((sum: number, h: any) => sum + (h.amount || 0), 0) : 0;
+          // Calculate total amount from householdFees, or use soTienToiThieu for voluntary contributions
+          let totalAmount = 0;
+          if (newFee.householdFees) {
+            totalAmount = Object.values(newFee.householdFees).reduce((sum: number, h: any) => sum + (h.amount || 0), 0);
+          } else if (newFee.soTienToiThieu !== undefined && newFee.soTienToiThieu > 0) {
+            // For voluntary contributions without specific household fees, use minimum amount
+            totalAmount = newFee.soTienToiThieu;
+          }
 
           // 2. Gọi API updateDotThu để gắn khoản thu này vào đợt thu với số tiền
           const updatedKhoanThu = [
@@ -543,12 +592,19 @@ const QuanLyDotThuPhi: React.FC = () => {
         // And then update the DotThu_KhoanThu association with the new soTien.
 
         // If the fee name or other details changed, update the KhoanThu item itself
-        if (selectedFee.id && (selectedFee.tenKhoan !== updatedFee.tenKhoan || selectedFee.batBuoc !== (updatedFee.batBuoc === 'Bắt buộc') || selectedFee.chiTiet !== updatedFee.chiTiet)) {
-          const khoanThuUpdateResponse = await api.khoanThu.update(selectedFee.id, {
+        if (selectedFee.id && (selectedFee.tenKhoan !== updatedFee.tenKhoan || selectedFee.batBuoc !== (updatedFee.batBuoc === 'Bắt buộc') || selectedFee.chiTiet !== updatedFee.chiTiet || updatedFee.soTienToiThieu !== undefined)) {
+          const updateData: any = {
             tenKhoan: updatedFee.tenKhoan,
             batBuoc: updatedFee.batBuoc === 'Bắt buộc',
             ghiChu: updatedFee.chiTiet || '',
-          });
+          };
+
+          // Add soTienToiThieu for voluntary contributions
+          if (updatedFee.soTienToiThieu !== undefined) {
+            updateData.soTienToiThieu = updatedFee.soTienToiThieu;
+          }
+
+          const khoanThuUpdateResponse = await api.khoanThu.update(selectedFee.id, updateData);
           if (!khoanThuUpdateResponse.success) {
             alert('Có lỗi xảy ra khi cập nhật chi tiết khoản thu: ' + (khoanThuUpdateResponse.message || 'Lỗi không xác định'));
             return;
@@ -558,10 +614,15 @@ const QuanLyDotThuPhi: React.FC = () => {
         // 2. Update DotThu_KhoanThu: send all khoảnThu for the current đợt thu, with the updated soTien for the edited one.
         const updatedKhoanThuList = activeBatchForFee.details.khoanThu.map((fee: any) => {
           if (fee.id === selectedFee.id) { // selectedFee.id should be the ID of the KhoanThu
-            // Calculate total amount from householdFees if provided, otherwise use updatedFee.soTien
-            const totalAmount = updatedFee.householdFees ? 
-              Object.values(updatedFee.householdFees).reduce((sum: number, h: any) => sum + (h.amount || 0), 0) :
-              (updatedFee.soTien ? parseFloat(updatedFee.soTien) : 0);
+            // Calculate total amount from householdFees if provided, or use soTienToiThieu for voluntary contributions
+            let totalAmount = 0;
+            if (updatedFee.householdFees) {
+              totalAmount = Object.values(updatedFee.householdFees).reduce((sum: number, h: any) => sum + (h.amount || 0), 0);
+            } else if (updatedFee.soTienToiThieu !== undefined && updatedFee.soTienToiThieu > 0) {
+              totalAmount = updatedFee.soTienToiThieu;
+            } else if (updatedFee.soTien) {
+              totalAmount = parseFloat(updatedFee.soTien);
+            }
             
             return {
               khoanThuId: String(fee.id), // Convert to string for API
@@ -778,25 +839,6 @@ const QuanLyDotThuPhi: React.FC = () => {
     }
   };
 
-  const handleMarkCompleted = async (batch: any, e: React.MouseEvent) => {
-    e.stopPropagation();
-    
-    if (window.confirm(`Bạn có chắc chắn muốn đánh dấu đợt thu "${batch.tenDot}" là hoàn thành không?`)) {
-      try {
-        const response = await api.dotThu.markCompleted(batch.maDot);
-        if (response.success) {
-          await loadDotThuData();
-          alert('Đã đánh dấu đợt thu hoàn thành!');
-        } else {
-          alert('Có lỗi xảy ra khi đánh dấu hoàn thành: ' + (response.message || 'Lỗi không xác định'));
-        }
-      } catch (error: any) {
-        console.error('Error marking completed:', error);
-        alert('Có lỗi xảy ra khi đánh dấu hoàn thành: ' + (error.message || 'Lỗi không xác định'));
-      }
-    }
-  };
-
   return (
     <>
       <Layout role="ketoan">
@@ -933,11 +975,11 @@ const QuanLyDotThuPhi: React.FC = () => {
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{batch.hanCuoi}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm">
                         <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                          batch.trangThai === 'Đang mở' ? 'bg-green-100 text-green-800' : 
-                          batch.trangThai === 'Hoàn thành' ? 'bg-blue-100 text-blue-800' :
+                          batch.trangThai === 'DANG_MO' ? 'bg-green-100 text-green-800' : 
+                          batch.trangThai === 'HOAN_THANH' ? 'bg-blue-100 text-blue-800' :
                           'bg-red-100 text-red-800'
                         }`}>
-                          {batch.trangThai}
+                          {getDisplayStatus(batch.trangThai)}
                         </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
@@ -952,8 +994,8 @@ const QuanLyDotThuPhi: React.FC = () => {
                             </svg>
                           </button>
                           
-                          {/* Closure controls based on status */}
-                          {batch.trangThai === 'Đang mở' ? (
+                          {/* Single toggle button for Open/Close status */}
+                          {batch.trangThai === 'DANG_MO' ? (
                             <button 
                               onClick={(e) => handleCloseDotThu(batch, e)}
                               className="text-orange-600 hover:text-orange-800"
@@ -963,7 +1005,7 @@ const QuanLyDotThuPhi: React.FC = () => {
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
                               </svg>
                             </button>
-                          ) : (
+                          ) : batch.trangThai === 'DA_DONG' ? (
                             <button 
                               onClick={(e) => handleReopenDotThu(batch, e)}
                               className="text-green-600 hover:text-green-800"
@@ -973,20 +1015,7 @@ const QuanLyDotThuPhi: React.FC = () => {
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 11V7a4 4 0 118 0m-4 8v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2z" />
                               </svg>
                             </button>
-                          )}
-                          
-                          {/* Mark as completed button - only show if open or closed */}
-                          {(batch.trangThai === 'Đang mở' || batch.trangThai === 'Đã đóng') && (
-                            <button 
-                              onClick={(e) => handleMarkCompleted(batch, e)}
-                              className="text-blue-600 hover:text-blue-800"
-                              title="Đánh dấu hoàn thành"
-                            >
-                              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                              </svg>
-                            </button>
-                          )}
+                          ) : null}
                           
                           <button 
                             onClick={(e) => openDeleteBatchConfirm(batch, e)}
@@ -1035,13 +1064,23 @@ const QuanLyDotThuPhi: React.FC = () => {
                                       const total = (fee.soTien !== undefined && fee.soTien !== null) ? 
                                                    parseFloat(fee.soTien) : 
                                                    (fee.householdFees ? Object.values(fee.householdFees).reduce((sum: number, h: any) => sum + (h.amount || 0), 0) : 0);
+                                      console.log('🎯 Rendering fee:', fee);
+                                      console.log('🎯 Fee type lookup:', fee.type, '->', feeType);
+                                      console.log('🎯 Fee total calculated:', total);
+                                      
                                       return (
                                         <tr key={fee.id} className="hover:bg-gray-50">
-                                          <td className="px-4 py-3 text-sm text-gray-900 font-medium">{feeType?.name || fee.tenKhoan || 'Không xác định'}</td>
-                                          <td className="px-4 py-3 text-sm text-gray-700">{fee.chiTiet}</td>
+                                          <td className="px-4 py-3 text-sm text-gray-900 font-medium">
+                                            {fee.tenKhoan && fee.tenKhoan !== 'Không xác định' ? fee.tenKhoan : 'Tên khoản thu không xác định'}
+                                          </td>
+                                          <td className="px-4 py-3 text-sm text-gray-700">
+                                            {fee.chiTiet && fee.chiTiet !== '' ? fee.chiTiet : 'Không có mô tả'}
+                                          </td>
                                           <td className="px-4 py-3 text-sm text-blue-700 font-semibold">{total.toLocaleString('vi-VN')} VND</td>
                                           <td className="px-4 py-3 text-sm">
-                                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${fee.batBuoc === 'Bắt buộc' ? 'bg-red-100 text-red-800' : 'bg-gray-100 text-gray-800'}`}>{fee.batBuoc}</span>
+                                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${fee.batBuoc === 'Bắt buộc' ? 'bg-red-100 text-red-800' : 'bg-gray-100 text-gray-800'}`}>
+                                              {fee.batBuoc && fee.batBuoc !== 'Không xác định' ? fee.batBuoc : 'Không xác định'}
+                                            </span>
                                           </td>
                                           <td className="px-4 py-3 text-sm text-gray-500">
                                             <div className="flex space-x-3">

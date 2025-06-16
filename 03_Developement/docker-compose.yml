@@ -1,55 +1,119 @@
+version: '3.8'
+
 services:
+  # PostgreSQL Database Service
   postgres:
-    image: postgres:15
+    image: postgres:15-alpine
+    container_name: it4082-postgres
+    restart: unless-stopped
     environment:
-      POSTGRES_DB: department_management
+      POSTGRES_DB: apartment_management
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: admin
+      POSTGRES_PASSWORD: postgres123
+      POSTGRES_INITDB_ARGS: "--encoding=UTF-8 --locale=C"
     ports:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      - ./database/init:/docker-entrypoint-initdb.d
     networks:
-      - app-network
+      - apartment-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
 
+  # Backend API Service
   backend:
     build:
       context: ./server
       dockerfile: Dockerfile
+      target: production
+    container_name: it4082-backend
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 8000
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: apartment_management
+      DB_USERNAME: postgres
+      DB_PASSWORD: postgres123
+      JWT_SECRET: your-super-secret-jwt-key-change-in-production
+      CORS_ORIGIN: http://localhost:5173
     ports:
       - "8000:8000"
-    environment:
-      - NODE_ENV=production
-      - DB_HOST=postgres
-      - DB_USER=postgres
-      - DB_PASSWORD=admin
-      - DB_NAME=department_management
-      - DB_PORT=5432
-      - JWT_SECRET=apartment_management_jwt_secret_key_2025
-      - JWT_EXPIRE=24h
-      - CORS_ORIGIN=http://localhost:3000
     depends_on:
-      - postgres
+      postgres:
+        condition: service_healthy
     networks:
-      - app-network
+      - apartment-network
     volumes:
-      - ./server:/app
-      - /app/node_modules
+      - ./server/uploads:/app/uploads
+      - ./server/logs:/app/logs
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
+  # Frontend Service
   frontend:
     build:
       context: ./fe
       dockerfile: Dockerfile
+      target: production
+    container_name: it4082-frontend
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      VITE_API_BASE_URL: http://localhost:8000/api
     ports:
-      - "3000:80"
+      - "5173:80"
     depends_on:
       - backend
     networks:
-      - app-network
+      - apartment-network
+    volumes:
+      - ./fe/nginx.conf:/etc/nginx/nginx.conf:ro
+
+  # Redis Cache Service (optional)
+  redis:
+    image: redis:7-alpine
+    container_name: it4082-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - apartment-network
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
 volumes:
   postgres_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ./database/data
+  redis_data:
+    driver: local
 
 networks:
-  app-network:
+  apartment-network:
     driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
+
+# Health Check URLs:
+# Backend: http://localhost:8000/api/health
+# Frontend: http://localhost:5173
+# Database: postgres://postgres:postgres123@localhost:5432/apartment_management

@@ -50,6 +50,12 @@ module.exports = (sequelize, DataTypes) => {
     ghichu: {
       type: DataTypes.TEXT,
       allowNull: true
+    },
+    soTienToiThieu: {
+      type: DataTypes.DECIMAL(15, 2),
+      allowNull: true,
+      defaultValue: 0,
+      comment: 'Số tiền tối thiểu cho khoản thu không bắt buộc (đóng góp)'
     }
   }, {
     sequelize,

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import Layout from '../components/Layout';
 import {
   Chart as ChartJS,
@@ -8,505 +8,306 @@ import {
   ArcElement,
   PointElement,
   LineElement,
-  Title,
   Tooltip,
   Legend,
 } from 'chart.js';
 import { Bar, Pie, Line } from 'react-chartjs-2';
 import ChartDataLabels from 'chartjs-plugin-datalabels';
-import api from '../services/api';
+import * as XLSX from 'xlsx';
 
-ChartJS.register(
-  CategoryScale,
-  LinearScale,
-  BarElement,
-  ArcElement,
-  PointElement,
-  LineElement,
-  Title,
-  Tooltip,
-  Legend,
-  ChartDataLabels // Register datalabels plugin
-);
+ChartJS.register(CategoryScale, LinearScale, BarElement, ArcElement, PointElement, LineElement, Tooltip, Legend, ChartDataLabels);
+
+const FILTERS = [
+  { label: 'Khoản thu', value: 'feeType' },
+  { label: 'Đợt thu', value: 'period' },
+  { label: 'Thời gian', value: 'time' },
+  { label: 'Trạng thái thanh toán', value: 'status' },
+];
+
+// Sample static data for demonstration
+const sampleFeeStats = {
+  feeType: [
+    { label: 'Phí quản lý', value: 550 },
+    { label: 'Phí gửi xe', value: 320 },
+    { label: 'Phí điện', value: 280 },
+    { label: 'Phí nước', value: 180 },
+  ],
+  period: [
+    { label: 'Đợt tháng 06/2025', value: 65 },
+    { label: 'Đợt tháng 07/2025', value: 35 },
+  ],
+  time: [430, 310, 200, 150, 290, 160, 380],
+  status: [
+    { label: 'Đã thanh toán', value: 780 },
+    { label: 'Chưa thanh toán', value: 120 },
+  ],
+};
+
+const sampleHouseholds = [
+  { tenHo: 'Nguyễn Văn A', soNha: 'A101', tongPhi: 1200000, daDong: 1200000, trangThai: 'Đã thanh toán' },
+  { tenHo: 'Trần Thị B', soNha: 'B202', tongPhi: 950000, daDong: 950000, trangThai: 'Đã thanh toán' },
+  { tenHo: 'Lê Văn C', soNha: 'C303', tongPhi: 1100000, daDong: 0, trangThai: 'Chưa thanh toán' },
+  { tenHo: 'Phạm Thị D', soNha: 'D404', tongPhi: 800000, daDong: 800000, trangThai: 'Đã thanh toán' },
+  { tenHo: 'Vũ Văn E', soNha: 'E505', tongPhi: 1000000, daDong: 0, trangThai: 'Chưa thanh toán' },
+];
 
 const ThongKeKhoanThu: React.FC = () => {
+  const [filterType, setFilterType] = useState('feeType');
   const [selectedTimeRange, setSelectedTimeRange] = useState('7days');
-  const [lineChartData, setLineChartData] = useState({
-    labels: [] as string[],
-    datasets: [] as any[],
-  });
-  const [barChartData, setBarChartData] = useState({
-    labels: [] as string[],
-    datasets: [] as any[],
-  });
-  const [pieChartData, setPieChartData] = useState({
-    labels: [] as string[],
-    datasets: [] as any[],
-  });
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
 
-  // Load real statistics data
-  useEffect(() => {
-    fetchStatistics();
-  }, []);
+  // Chart data and options
+  let chartData: any = {};
+  let chartOptions: any = {};
+  let chartComponent: React.ReactNode = null;
 
-  const fetchStatistics = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-
-      // Fetch data from multiple API endpoints
-      const [paymentStats, , khoanThuList, dotThuList] = await Promise.all([
-        api.payment.getStatistics(),
-        api.dotThu.getStatistics(),
-        api.khoanThu.getAll(),
-        api.dotThu.getAllWithKhoanThu({ page: 0, size: 10 })
-      ]);
-
-      // Update bar chart with fee types data
-      if (khoanThuList && Array.isArray(khoanThuList)) {
-        updateBarChart(khoanThuList, paymentStats);
-      }
-
-      // Update pie chart with collection periods data
-      if (dotThuList && dotThuList.dotThus) {
-        updatePieChart(dotThuList.dotThus);
-      }
-
-      // Update line chart based on selected time range
-      updateLineChart(selectedTimeRange, paymentStats);
-
-    } catch (err) {
-      console.error('Error fetching statistics:', err);
-      setError('Không thể tải dữ liệu thống kê. Sử dụng dữ liệu mẫu.');
-      // Fall back to mock data if API fails
-      generateMockData();
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const updateBarChart = (khoanThuList: any[], paymentStats: any) => {
-    // Extract fee type names and generate amounts based on real data or reasonable estimates
-    const labels = khoanThuList.slice(0, 6).map(khoan => khoan.tenKhoan || khoan.tenkhoanthu);
-    const colors = [
-      '#8BC34A', // Green
-      '#FFEB3B', // Yellow  
-      '#E91E63', // Pink
-      '#2196F3', // Blue
-      '#FF9800', // Orange
-      '#9C27B0', // Purple
-    ];
-
-    // Calculate amounts based on payment statistics or use estimated values
-    const data = labels.map((_, index) => {
-      if (paymentStats && paymentStats.paymentMethodBreakdown) {
-        // Use real payment data if available
-        const totalAmount = paymentStats.totalAmount || 0;
-        return Math.round((totalAmount / labels.length) / 1000000); // Convert to millions VND
-      }
-      // Use estimated values based on fee type
-      const baseAmounts = [500, 200, 150, 300, 100, 80]; // Base amounts in millions VND
-      return baseAmounts[index] || 100;
-    });
-
-    setBarChartData({
-      labels,
+  if (filterType === 'feeType') {
+    chartData = {
+      labels: sampleFeeStats.feeType.map(item => item.label),
       datasets: [{
-        label: 'Theo khoản (triệu VND)',
-        data,
-        backgroundColor: colors.slice(0, labels.length),
-        borderColor: Array(labels.length).fill('#ffffff'),
+        label: 'Tổng thu (triệu VND)',
+        data: sampleFeeStats.feeType.map(item => item.value),
+        backgroundColor: ['#8BC34A', '#FFEB3B', '#E91E63', '#2196F3'],
+        borderColor: '#fff',
         borderWidth: 1,
       }],
-    });
-  };
-
-  const updatePieChart = (dotThuList: any[]) => {
-    if (!dotThuList || dotThuList.length === 0) {
-      // Fallback to mock data
-      setPieChartData({
-        labels: ['Đợt tháng 06/2025', 'Đợt tháng 07/2025'],
-        datasets: [{
-          label: 'Tỷ lệ đợt thu',
-          data: [60, 40],
-          backgroundColor: ['#2196F3', '#E0E0E0'],
-          borderColor: ['#ffffff', '#ffffff'],
-          borderWidth: 2,
-        }],
-      });
-      return;
-    }
-
-    // Use real collection periods data
-    const labels = dotThuList.slice(0, 5).map(dotThu => dotThu.tenDotThu);
-    const data = dotThuList.slice(0, 5).map((dotThu, index) => {
-      // Calculate completion rate or use estimated values
-      if (dotThu.thongKe && dotThu.thongKe.tiLeHoanThanh) {
-        return Math.round(parseFloat(dotThu.thongKe.tiLeHoanThanh));
-      }
-      // Use estimated completion rates
-      const rates = [75, 60, 45, 30, 20];
-      return rates[index] || 25;
-    });
-
-    const colors = ['#2196F3', '#4CAF50', '#FF9800', '#E91E63', '#9C27B0'];
-
-    setPieChartData({
-      labels,
+    };
+    chartOptions = {
+      responsive: true,
+      plugins: {
+        legend: { display: false },
+        datalabels: {
+          color: '#222',
+          font: { weight: 'bold' as const, size: 16 },
+          formatter: (value: number) => value,
+        },
+      },
+      scales: {
+        y: {
+          beginAtZero: true,
+          title: { display: true, text: 'Triệu VND' },
+        },
+      },
+    };
+    chartComponent = <Bar data={chartData} options={chartOptions} plugins={[ChartDataLabels]} />;
+  } else if (filterType === 'period') {
+    chartData = {
+      labels: sampleFeeStats.period.map(item => item.label),
       datasets: [{
-        label: 'Tỷ lệ đợt thu (%)',
-        data,
-        backgroundColor: colors.slice(0, labels.length),
-        borderColor: Array(labels.length).fill('#ffffff'),
+        label: 'Tỷ lệ (%)',
+        data: sampleFeeStats.period.map(item => item.value),
+        backgroundColor: ['#2196F3', '#E0E0E0'],
+        borderColor: '#fff',
         borderWidth: 2,
       }],
-    });
-  };
-
-  const updateLineChart = (timeRange: string, paymentStats: any) => {
-    let labels: string[] = [];
-    let data: number[] = [];
-
-    // Generate time-based data
-    const today = new Date();
-    
-    switch (timeRange) {
-      case '7days':
-        labels = Array.from({ length: 7 }, (_, i) => {
-          const date = new Date(today);
-          date.setDate(date.getDate() - (6 - i));
-          return date.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' });
-        });
-        // Use real payment data or generate realistic patterns
-        if (paymentStats && paymentStats.totalAmount) {
-          const avgDaily = paymentStats.totalAmount / 30 / 1000000; // Estimate daily from monthly
-          data = labels.map(() => Math.round(avgDaily * (0.5 + Math.random() * 1.5)));
-        } else {
-          data = [430, 310, 200, 150, 290, 160, 380];
-        }
-        break;
-        
-      case '30days':
-        labels = Array.from({ length: 30 }, (_, i) => `Ngày ${i + 1}`);
-        if (paymentStats && paymentStats.totalAmount) {
-          const avgDaily = paymentStats.totalAmount / 30 / 1000000;
-          data = labels.map(() => Math.round(avgDaily * (0.3 + Math.random() * 1.4)));
-        } else {
-          data = Array.from({ length: 30 }, () => Math.floor(Math.random() * 500) + 50);
-        }
-        break;
-        
-      case '90days':
-        labels = Array.from({ length: 90 }, (_, i) => `Ngày ${i + 1}`);
-        if (paymentStats && paymentStats.totalAmount) {
-          const avgDaily = paymentStats.totalAmount / 90 / 1000000;
-          data = labels.map(() => Math.round(avgDaily * (0.2 + Math.random() * 1.6)));
-        } else {
-          data = Array.from({ length: 90 }, () => Math.floor(Math.random() * 400) + 30);
-        }
-        break;
-        
-      default:
-        labels = ['Hôm nay'];
-        data = [0];
-    }
-
-    setLineChartData({
+    };
+    chartOptions = {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        datalabels: {
+          color: '#222',
+          font: { weight: 'bold' as const, size: 16 },
+          formatter: (value: number, context: any) => {
+            const total = context.chart.data.datasets[0].data.reduce((sum: number, current: number) => sum + current, 0);
+            const percentage = ((value / total) * 100).toFixed(0) + '%';
+            return percentage;
+          },
+        },
+      },
+    };
+    chartComponent = <Pie data={chartData} options={chartOptions} plugins={[ChartDataLabels]} />;
+  } else if (filterType === 'status') {
+    chartData = {
+      labels: sampleFeeStats.status.map(item => item.label),
+      datasets: [{
+        label: 'Số hộ',
+        data: sampleFeeStats.status.map(item => item.value),
+        backgroundColor: ['#4CAF50', '#F44336'],
+        borderColor: '#fff',
+        borderWidth: 2,
+      }],
+    };
+    chartOptions = {
+      responsive: true,
+      plugins: {
+        legend: { display: false },
+        datalabels: {
+          color: '#222',
+          font: { weight: 'bold' as const, size: 16 },
+          formatter: (value: number, context: any) => {
+            const total = context.chart.data.datasets[0].data.reduce((sum: number, current: number) => sum + current, 0);
+            const percentage = ((value / total) * 100).toFixed(0) + '%';
+            return percentage;
+          },
+        },
+      },
+    };
+    chartComponent = <Pie data={chartData} options={chartOptions} plugins={[ChartDataLabels]} />;
+  } else if (filterType === 'time') {
+    const labels = ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'];
+    chartData = {
       labels,
       datasets: [{
         label: 'Doanh thu (triệu VND)',
-        data,
-        borderColor: '#9E9E9E',
-        backgroundColor: '#9E9E9E',
+        data: sampleFeeStats.time,
+        borderColor: '#1976D2',
+        backgroundColor: '#90CAF9',
         tension: 0.3,
-        pointRadius: timeRange === '90days' ? 2 : 5,
-        pointBackgroundColor: '#9E9E9E',
+        pointRadius: 5,
+        pointBackgroundColor: '#1976D2',
+        fill: true,
       }],
-    });
+    };
+    chartOptions = {
+      responsive: true,
+      plugins: {
+        legend: { display: false },
+        datalabels: {
+          color: '#222',
+          font: { weight: 'bold' as const, size: 14 },
+          align: 'end' as const,
+          anchor: 'end' as const,
+          offset: 4,
+          formatter: (value: number) => value,
+        },
+      },
+      scales: {
+        y: {
+          beginAtZero: true,
+          title: { display: true, text: 'Triệu VND' },
+        },
+      },
+    };
+    chartComponent = <Line data={chartData} options={chartOptions} plugins={[ChartDataLabels]} />;
+  }
+
+  // Table data
+  const processedHouseholds = sampleHouseholds.map((row, idx) => ({
+    ...row,
+    stt: idx + 1,
+    tongPhiTrieu: (row.tongPhi / 1000000).toFixed(2),
+    daDongTrieu: (row.daDong / 1000000).toFixed(2),
+  }));
+
+  const exportToExcel = () => {
+    const exportData = processedHouseholds.length > 0 ? processedHouseholds : [
+      { stt: '', tenHo: 'Không có dữ liệu', soNha: '', tongPhiTrieu: '', daDongTrieu: '', trangThai: '' }
+    ];
+    const ws = XLSX.utils.json_to_sheet(exportData.map(row => ({
+      'STT': row.stt,
+      'Chủ hộ': row.tenHo,
+      'Số nhà': row.soNha,
+      'Tổng phí (triệu VND)': row.tongPhiTrieu,
+      'Đã đóng (triệu VND)': row.daDongTrieu,
+      'Trạng thái': row.trangThai,
+    })));
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Khoản thu');
+    XLSX.writeFile(wb, 'thong_ke_khoan_thu.xlsx');
   };
-
-  const generateMockData = () => {
-    // Fallback mock data if API fails
-    setBarChartData({
-      labels: ['Phí quản lý', 'Phí gửi xe', 'Phí điện', 'Phí nước'],
-      datasets: [{
-        label: 'Theo khoản (triệu VND)',
-        data: [550, 320, 280, 180],
-        backgroundColor: ['#8BC34A', '#FFEB3B', '#E91E63', '#2196F3'],
-        borderColor: ['#ffffff', '#ffffff', '#ffffff', '#ffffff'],
-        borderWidth: 1,
-      }],
-    });
-
-    setPieChartData({
-      labels: ['Thu phí tháng 06/2025', 'Thu phí tháng 07/2025'],
-      datasets: [{
-        label: 'Tỷ lệ đợt thu',
-        data: [65, 35],
-        backgroundColor: ['#2196F3', '#E0E0E0'],
-        borderColor: ['#ffffff', '#ffffff'],
-        borderWidth: 2,
-      }],
-    });
-
-    updateLineChart(selectedTimeRange, null);
-  };
-
-  // Update line chart when time range changes
-  useEffect(() => {
-    if (!loading) {
-      updateLineChart(selectedTimeRange, null);
-    }
-  }, [selectedTimeRange, loading]);
-
-  // Chart options
-  const barChartOptions = {
-    responsive: true,
-    plugins: {
-      legend: {
-        display: false, // Hide legend for bar chart
-      },
-      title: {
-        display: true,
-        text: 'Doanh thu theo khoản',
-        font: {
-          size: 16,
-        }
-      },
-    },
-    scales: {
-      y: {
-        beginAtZero: true,
-        title: {
-          display: true,
-          text: 'Triệu VND',
-        },
-      },
-    },
-  };
-
-  const pieChartOptions = {
-    responsive: true,
-    maintainAspectRatio: false,
-    plugins: {
-      legend: {
-        display: true,
-        position: 'right' as const, // Đặt legend sang phải
-        align: 'center' as const, // Căn giữa legend theo chiều dọc
-      },
-      datalabels: {
-        color: '#ffffff', // Màu chữ cho nhãn dữ liệu
-        formatter: (value: number, context: any) => {
-          const total = context.chart.data.datasets[0].data.reduce((sum: number, current: number) => sum + current, 0);
-          const percentage = ((value / total) * 100).toFixed(1) + '%';
-          return percentage; // Hiển thị phần trăm
-        },
-        font: {
-          weight: 'bold' as 'bold', // Corrected type
-        },
-      },
-    },
-    layout: {
-      padding: { // Thêm padding để biểu đồ và legend không dính vào nhau
-        left: 0,
-        right: 16, // Padding bên phải để cách legend
-        top: 0,
-        bottom: 0
-      }
-    }
-  };
-
-  // Data and options for Line Chart (Theo thời gian)
-  const lineChartOptions = {
-    responsive: true,
-    aspectRatio: 5,
-    plugins: {
-      legend: {
-        display: false,
-      },
-      tooltip: {
-        callbacks: {
-          label: function(context: any) {
-            let label = context.dataset.label || '';
-            if (label) {
-              label += ': ';
-            }
-            if (context.parsed.y !== null) {
-              label += context.parsed.y + ' triệu VND'; // Add unit
-            }
-            return label;
-          }
-        }
-      },
-      datalabels: {
-        display: selectedTimeRange !== '90days', // Hide datalabels when 90days is selected
-        color: '#000000',
-        align: 'end' as 'end',
-        anchor: 'end' as 'end',
-        offset: 4,
-        formatter: (value: number) => {
-          return value; // Hiển thị giá trị số
-        },
-        font: {
-          weight: 'bold' as 'bold',
-          size: 12,
-        },
-      },
-    },
-    scales: {
-      y: {
-        beginAtZero: true,
-        title: {
-          display: true,
-          text: 'Triệu VND',
-        },
-      },
-      x: {
-        title: {
-          display: true,
-          text: 'Ngày',
-        },
-      }
-    },
-    layout: {
-      padding: { // Thêm padding để nhãn dữ liệu không bị cắt
-        top: 40, // Thêm padding 20px ở phía trên
-        left: 0,
-        right: 0,
-        bottom: 0,
-      }
-    }
-  };
-
 
   return (
     <Layout role="ketoan">
       <div className="p-4 flex flex-col gap-6">
+        {/* Page Title and Welcome Text */}
         <div>
-          <h1 className="text-2xl font-bold text-gray-800">THỐNG KÊ THU PHÍ</h1>
-          <p className="text-gray-600 text-sm mt-1">Chào mừng đến với Hệ thống Quản lý Thu phí Chung cư</p>
+          <h1 className="text-2xl font-bold text-gray-800">THỐNG KÊ KHOẢN THU</h1>
+          <p className="text-gray-600 text-sm mt-1">Thống kê dữ liệu thu phí thực tế từ hệ thống</p>
         </div>
 
-        {/* Loading State */}
-        {loading && (
-          <div className="flex items-center justify-center py-12">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
-            <span className="ml-3 text-gray-600">Đang tải dữ liệu thống kê...</span>
-          </div>
-        )}
-
-        {/* Error State */}
-        {error && (
-          <div className="bg-yellow-50 border border-yellow-200 rounded-md p-4">
-            <div className="flex">
-              <div className="flex-shrink-0">
-                <svg className="h-5 w-5 text-yellow-400" viewBox="0 0 20 20" fill="currentColor">
-                  <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-                </svg>
-              </div>
-              <div className="ml-3">
-                <p className="text-sm text-yellow-700">{error}</p>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Charts Section - only show when not loading */}
-        {!loading && (
-          <>
-            <div className="flex items-center gap-4">
-              <div className="flex items-center border border-gray-300 rounded-md shadow-sm overflow-hidden">
-                <input
-                  type="text"
-                  placeholder="Chọn kiểu"
-                  className="flex-1 p-2 outline-none text-sm"
-                />
-                <button className="p-2 border-l border-gray-300 bg-gray-50 text-gray-600 hover:bg-gray-100">
-                  ...
-                </button>
-              </div>
-              <div className="flex items-center border border-gray-300 rounded-md shadow-sm overflow-hidden flex-1">
-                <div className="p-2 text-gray-400">
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                  </svg>
-                </div>
-                <input
-                  type="text"
-                  placeholder="Search"
-                  className="flex-1 p-2 border-l border-gray-300 outline-none text-sm"
-                />
-              </div>
-
-              <button 
-                className="bg-blue-500 text-white px-4 py-2 rounded-md shadow-sm hover:bg-blue-600"
-                onClick={fetchStatistics}
+        {/* Filter Area */}
+        <div className="flex flex-wrap items-center gap-4">
+          <label className="font-semibold text-gray-700">Thống kê theo:</label>
+          <select
+            className="border border-gray-300 rounded-md px-3 py-2 text-sm"
+            value={filterType}
+            onChange={e => setFilterType(e.target.value)}
+          >
+            {FILTERS.map(f => <option key={f.value} value={f.value}>{f.label}</option>)}
+          </select>
+          {filterType === 'time' && (
+            <div className="flex gap-2 items-center">
+              <button
+                className={`px-4 py-1 text-sm rounded-full ${selectedTimeRange === '7days' ? 'bg-blue-500 text-white' : 'border border-gray-300 text-gray-700'}`}
+                onClick={() => setSelectedTimeRange('7days')}
               >
-                Làm mới
+                7 ngày
+              </button>
+              <button
+                className={`px-4 py-1 text-sm rounded-full ${selectedTimeRange === '30days' ? 'bg-blue-500 text-white' : 'border border-gray-300 text-gray-700'}`}
+                onClick={() => setSelectedTimeRange('30days')}
+              >
+                30 ngày
+              </button>
+              <button
+                className={`px-4 py-1 text-sm rounded-full ${selectedTimeRange === '90days' ? 'bg-blue-500 text-white' : 'border border-gray-300 text-gray-700'}`}
+                onClick={() => setSelectedTimeRange('90days')}
+              >
+                90 ngày
               </button>
             </div>
+          )}
+        </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {/* Theo khoản Chart */}
-              <div className="bg-white rounded-md shadow-md overflow-hidden border border-gray-200 p-4 flex flex-col gap-4">
-                <h2 className="text-lg font-semibold text-gray-800">Theo khoản (triệu VND)</h2>
-                <div className="h-48 flex items-center justify-center">
-                  {barChartData.labels.length > 0 ? (
-                    <Bar data={barChartData} options={barChartOptions} />
-                  ) : (
-                    <div className="text-gray-500">Không có dữ liệu</div>
-                  )}
-                </div>
-              </div>
+        {/* Chart Section */}
+        <div className="bg-white rounded-md shadow-md border border-gray-200 p-6 flex flex-col items-center">
+          <div className="w-full h-80 flex items-center justify-center">
+            {chartComponent}
+          </div>
+        </div>
 
-              {/* Theo đợt thu Chart */}
-              <div className="bg-white rounded-md shadow-md overflow-hidden border border-gray-200 p-4 flex flex-col gap-4">
-                <h2 className="text-lg font-semibold text-gray-800">Theo đợt thu</h2>
-                <div className="h-48 flex items-center justify-center">
-                  {pieChartData.labels.length > 0 ? (
-                    <Pie data={pieChartData} options={pieChartOptions} />
-                  ) : (
-                    <div className="text-gray-500">Không có dữ liệu</div>
-                  )}
-                </div>
-              </div>
+        {/* Household Fee Table */}
+        <div className="mt-6 bg-white rounded-md shadow-md overflow-hidden border border-gray-200">
+          <div className="p-4 bg-gray-100 border-b border-gray-200 flex items-center justify-between">
+            <h2 className="text-lg font-semibold text-gray-800">
+              Danh sách hộ gia đình ({processedHouseholds.length} hộ)
+            </h2>
+            <button 
+              className="bg-blue-500 text-white px-4 py-2 rounded-md font-semibold hover:bg-blue-600 transition" 
+              onClick={exportToExcel}
+            >
+              Xuất báo cáo
+            </button>
+          </div>
+          <table className="min-w-full divide-y divide-gray-200">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="px-6 py-3 text-left text-xs font-bold text-gray-800 uppercase tracking-wider">STT</th>
+                <th className="px-6 py-3 text-left text-xs font-bold text-gray-800 uppercase tracking-wider">Chủ hộ</th>
+                <th className="px-6 py-3 text-left text-xs font-bold text-gray-800 uppercase tracking-wider">Số nhà</th>
+                <th className="px-6 py-3 text-left text-xs font-bold text-gray-800 uppercase tracking-wider">Tổng phí (triệu VND)</th>
+                <th className="px-6 py-3 text-left text-xs font-bold text-gray-800 uppercase tracking-wider">Đã đóng (triệu VND)</th>
+                <th className="px-6 py-3 text-left text-xs font-bold text-gray-800 uppercase tracking-wider">Trạng thái</th>
+              </tr>
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-200">
+              {processedHouseholds.length > 0 ? (
+                processedHouseholds.slice(0, 10).map((row, idx) => (
+                  <tr key={idx}>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-gray-900">{row.stt}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{row.tenHo}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{row.soNha}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{row.tongPhiTrieu}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{row.daDongTrieu}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{row.trangThai}</td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan={6} className="px-6 py-4 text-center text-gray-500">
+                    Chưa có dữ liệu hộ gia đình
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+          {processedHouseholds.length > 10 && (
+            <div className="px-6 py-3 bg-gray-50 text-sm text-gray-500 text-center">
+              Hiển thị 10/{processedHouseholds.length} kết quả đầu tiên
             </div>
-
-            {/* Theo thời gian Chart */}
-            <div className="bg-white rounded-md shadow-md overflow-hidden border border-gray-200 p-4 flex flex-col gap-4">
-              <h2 className="text-lg font-semibold text-gray-800">Theo thời gian</h2>
-              <div className="flex gap-2">
-                <button
-                  className={`px-4 py-1 text-sm rounded-full ${selectedTimeRange === '7days' ? 'bg-blue-500 text-white' : 'border border-gray-300 text-gray-700'}`}
-                  onClick={() => setSelectedTimeRange('7days')}
-                >
-                  7 ngày
-                </button>
-                <button
-                  className={`px-4 py-1 text-sm rounded-full ${selectedTimeRange === '30days' ? 'bg-blue-500 text-white' : 'border border-gray-300 text-gray-700'}`}
-                  onClick={() => setSelectedTimeRange('30days')}
-                >
-                  30 ngày
-                </button>
-                <button
-                  className={`px-4 py-1 text-sm rounded-full ${selectedTimeRange === '90days' ? 'bg-blue-500 text-white' : 'border border-gray-300 text-gray-700'}`}
-                  onClick={() => setSelectedTimeRange('90days')}
-                >
-                  90 ngày
-                </button>
-              </div>
-              <div className="h-64 flex items-center justify-center p-4">
-                {lineChartData.labels.length > 0 ? (
-                  <Line data={lineChartData} options={lineChartOptions} />
-                ) : (
-                  <div className="text-gray-500">Không có dữ liệu</div>
-                )}
-              </div>
-            </div>
-          </>
-        )}
+          )}
+        </div>
       </div>
     </Layout>
   );

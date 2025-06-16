@@ -104,28 +104,10 @@ const QuanLyHoKhau: React.FC = () => {
     closeAssignChuHoPopup();
   };
 
-  const handleDelete = async () => {
+  const handleDelete = () => {
     if (!confirmDelete.hoKhau) return;
-    
-    setLoading(true);
-    setError(null);
-    
-    try {
-      const response = await householdAPI.delete(confirmDelete.hoKhau.soHoKhau);
-      
-      if (response.success) {
-        // Refresh danh sách hộ khẩu sau khi xóa thành công
-        await loadHouseholds();
-        setConfirmDelete({ isOpen: false, hoKhau: null });
-      } else {
-        setError(response.message || 'Có lỗi xảy ra khi xóa hộ khẩu');
-      }
-    } catch (err: any) {
-      console.error('Error deleting household:', err);
-      setError(err.response?.data?.message || err.message || 'Có lỗi xảy ra khi xóa hộ khẩu');
-    } finally {
-      setLoading(false);
-    }
+    console.log("Đã xóa hộ khẩu:", confirmDelete.hoKhau.soHoKhau);
+    setConfirmDelete({ isOpen: false, hoKhau: null });
   };
 
   // Filter and sort households
@@ -360,29 +342,12 @@ const QuanLyHoKhau: React.FC = () => {
             <p className="text-sm text-gray-700">
               Bạn có chắc chắn muốn xoá hộ khẩu <strong>HK{confirmDelete.hoKhau?.soHoKhau.toString().padStart(3, '0')}</strong> không?
             </p>
-            
-            {error && (
-              <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-md">
-                <p className="text-sm text-red-600">{error}</p>
-              </div>
-            )}
             <div className="mt-6 flex justify-end gap-3">
-              <button 
-                onClick={() => {
-                  setConfirmDelete({ isOpen: false, hoKhau: null });
-                  setError(null);
-                }} 
-                className="px-4 py-2 bg-gray-200 text-gray-800 rounded hover:bg-gray-300"
-                disabled={loading}
-              >
+              <button onClick={() => setConfirmDelete({ isOpen: false, hoKhau: null })} className="px-4 py-2 bg-gray-200 text-gray-800 rounded hover:bg-gray-300">
                 Huỷ
               </button>
-              <button 
-                onClick={handleDelete} 
-                className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600 disabled:opacity-50 disabled:cursor-not-allowed"
-                disabled={loading}
-              >
-                {loading ? 'Đang xóa...' : 'Xoá'}
+              <button onClick={handleDelete} className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600">
+                Xoá
               </button>
             </div>
           </div>

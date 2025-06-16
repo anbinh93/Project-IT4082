@@ -41,11 +41,11 @@ const getAllDotThuWithKhoanThu = async (req, res) => {
     const formattedDotThus = await Promise.all(dotThus.map(async (dotThu) => {
       const khoanThuList = dotThu.khoanThu.map(khoan => ({
         id: khoan.id,
-        tenKhoan: khoan.tenKhoan,
-        loaiKhoan: khoan.loaiKhoan,
+        tenkhoanthu: khoan.tenkhoanthu,  // Use correct database field name
         soTienMacDinh: khoan.DotThu_KhoanThu?.soTien || 0,
-        batBuoc: khoan.batBuoc,
-        ghiChu: khoan.ghiChu,
+        soTienToiThieu: khoan.soTienToiThieu || 0, // Add minimum amount field
+        batbuoc: khoan.batbuoc,  // Use correct database field name
+        ghichu: khoan.ghichu,    // Use correct database field name
         trangThai: 'Đang thu' // TODO: Calculate actual status
       }));
 
@@ -148,6 +148,8 @@ const getAllDotThu = async (req, res) => {
       tenDotThu: dotThu.tenDotThu,
       ngayTao: dotThu.ngayTao,
       thoiHan: dotThu.thoiHan,
+      trangThai: dotThu.trangThai || 'DANG_MO', // Include status field
+      dongTuDong: dotThu.dongTuDong,
       createdAt: dotThu.createdAt,
       updatedAt: dotThu.updatedAt,
       khoanThu: dotThu.khoanThu
@@ -226,11 +228,13 @@ const createDotThu = async (req, res) => {
       });
     }
 
-    // Create the fee collection period
+    // Create the fee collection period with default status "DANG_MO"
     const newDotThu = await db.DotThu.create({
       tenDotThu,
       ngayTao: new Date(ngayTao),
-      thoiHan: new Date(thoiHan)
+      thoiHan: new Date(thoiHan),
+      trangThai: 'DANG_MO', // Explicitly set default status as "Đang mở"
+      dongTuDong: true // Enable auto-closure by default
     });
 
     // Add fee types to the collection period if provided
@@ -317,6 +321,11 @@ const updateDotThu = async (req, res) => {
         where: { dotThuId: id }
       });
 
+      // Remove existing household fees
+      await db.HouseholdFee.destroy({
+        where: { dotThuId: id }
+      });
+
       // Add new associations
       if (khoanThu.length > 0) {
         const dotThuKhoanThuData = khoanThu.map(kt => ({
@@ -326,6 +335,16 @@ const updateDotThu = async (req, res) => {
         }));
 
         await db.DotThu_KhoanThu.bulkCreate(dotThuKhoanThuData);
+
+        // Get the fee types for calculation
+        const selectedKhoanThu = await db.KhoanThu.findAll({
+          where: {
+            id: khoanThu.map(kt => kt.khoanThuId)
+          }
+        });
+
+        // Create household fees automatically for the updated period
+        await feeCalculationService.createHouseholdFeesForDotThu(id, selectedKhoanThu);
       }
     }
 

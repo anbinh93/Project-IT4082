@@ -1,76 +1,63 @@
 import React, { useState, useEffect } from 'react';
 import Layout from '../components/Layout';
-import AddEditRoomPopup from '../components/AddEditRoomPopup';
-import AddEditTenantPopup from '../components/AddEditTenantPopup';
+import AddApartmentPopup from '../components/AddApartmentPopup';
 import { Home, Users, Plus, Loader2, AlertTriangle } from 'lucide-react';
 import { roomService } from '../services/roomService';
-import type { Room, RoomStatistics } from '../services/roomService';
+import type { Room } from '../services/roomService';
 import { householdAPI } from '../services/api';
 
-// Extended room interface for UI display
-interface ExtendedRoom extends Room {
-  hoThue?: string; // Name of the tenant head
-  nguoiThue?: string; // Current tenant name
-}
-
-// Definition for household data structure
-interface Household {
-  soHoKhau: number;
-  chuHoInfo?: {
-    hoTen: string;
-    soDienThoai?: string;
-  };
-  roomInfo?: {
-    soPhong: string;
-    ngayBatDau?: string;
-  };
-}
-
-// Tenant interface for managing room assignments
-interface Tenant {
-  id: string;
-  tenChuHo: string;
-  nguoiThue: string; // Người thuê thực tế (có thể khác chủ hộ)
-  soHoKhau: string;
-  soPhong: string;
-  ngayBatDau: string;
-  sdt: string;
+// Extended room interface for apartment management
+interface ApartmentRoom extends Room {
+  chuCanHo?: string; // Name of apartment owner (head of household)
+  maHoKhau?: string; // Household code (formatted)
+  soThanhVien?: number; // Number of household members
+  ngayVaoO?: string; // Move-in date
+  soDienThoai?: string; // Phone number of household head
+  diaChiDayDu?: string; // Full address
 }
 
 const QuanLyPhong: React.FC = () => {
   // State management
-  const [rooms, setRooms] = useState<ExtendedRoom[]>([]);
-  const [tenants, setTenants] = useState<Tenant[]>([]);
-  const [isRoomPopupOpen, setRoomPopupOpen] = useState(false);
-  const [isTenantPopupOpen, setTenantPopupOpen] = useState(false);
-  const [editingRoom, setEditingRoom] = useState<ExtendedRoom | null>(null);
-  const [roomToDelete, setRoomToDelete] = useState<ExtendedRoom | null>(null);
+  const [rooms, setRooms] = useState<ApartmentRoom[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterTang, setFilterTang] = useState("");
+  const [filterTrangThai, setFilterTrangThai] = useState(""); // all, occupied, vacant
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [statistics, setStatistics] = useState<RoomStatistics | null>(null);
-  const [households, setHouseholds] = useState<Household[]>([]);
+  const [isAddApartmentPopupOpen, setIsAddApartmentPopupOpen] = useState(false);
 
-  // Load room data from API
+  // Load room data from API and merge with household data
   const loadRooms = async () => {
     try {
       setIsLoading(true);
-      const response = await roomService.getRooms();
       
-      // Transform API data to include hoThue and nguoiThue properties for UI
-      const extendedRooms: ExtendedRoom[] = response.rooms.map(room => ({
-        ...room,
-        hoThue: room.hoKhau?.chuHoInfo?.hoTen || undefined,
-        nguoiThue: room.nguoiThue || undefined
-      }));
+      // Load rooms and households data in parallel
+      const [roomsResponse, householdsResponse] = await Promise.all([
+        roomService.getRooms(),
+        householdAPI.getAll()
+      ]);
+      
+      const households = householdsResponse.data?.households || [];
+      
+      // Transform API data to include household information
+      const extendedRooms: ApartmentRoom[] = roomsResponse.rooms.map(room => {
+        // Find matching household by room number (soPhong should match soNha)
+        const matchingHousehold = households.find((h: any) => h.soNha === room.soPhong);
+        
+        return {
+          ...room,
+          chuCanHo: matchingHousehold?.chuHoInfo?.hoTen || undefined,
+          maHoKhau: matchingHousehold ? `HK${matchingHousehold.soHoKhau.toString().padStart(3, '0')}` : undefined,
+          soThanhVien: matchingHousehold?.soThanhVien || 0, // Sử dụng soThanhVien từ API
+          ngayVaoO: matchingHousehold?.ngayLamHoKhau || undefined,
+          soDienThoai: matchingHousehold?.chuHoInfo?.soDienThoai || undefined, // Số điện thoại chủ hộ
+          diaChiDayDu: matchingHousehold ? 
+            `${matchingHousehold.soNha}, ${matchingHousehold.duong}, ${matchingHousehold.phuong}, ${matchingHousehold.quan}, ${matchingHousehold.thanhPho}` : 
+            undefined
+        };
+      });
       
       setRooms(extendedRooms);
-      
-      // Get statistics
-      const statsResponse = await roomService.getRoomStatistics();
-      setStatistics(statsResponse);
-      
       setError(null);
     } catch (err) {
       console.error('Error fetching room data:', err);
@@ -80,154 +67,33 @@ const QuanLyPhong: React.FC = () => {
     }
   };
 
-  const loadHouseholds = async () => {
-    try {
-      const response = await householdAPI.getAll();
-      if (response.data) {
-        setHouseholds(response.data.households || []);
-        
-        // Create tenant records from households that have rooms assigned
-        const newTenants: Tenant[] = [];
-        response.data.households.forEach((household: Household) => {
-          if (household.roomInfo) {
-            newTenants.push({
-              id: household.soHoKhau.toString(),
-              tenChuHo: household.chuHoInfo?.hoTen || 'Unknown',
-              nguoiThue: household.chuHoInfo?.hoTen || 'Unknown', // Mặc định giống chủ hộ
-              soHoKhau: household.soHoKhau.toString(),
-              soPhong: household.roomInfo.soPhong,
-              ngayBatDau: household.roomInfo.ngayBatDau || '',
-              sdt: household.chuHoInfo?.soDienThoai || ''
-            });
-          }
-        });
-        setTenants(newTenants);
-      }
-    } catch (err) {
-      console.error('Error fetching households:', err);
-    }
-  };
-
   useEffect(() => {
     loadRooms();
-    loadHouseholds();
   }, []);
 
-  const openRoomPopup = (room: ExtendedRoom | null = null) => {
-    setEditingRoom(room);
-    setRoomPopupOpen(true);
-  };
-
-  const closeRoomPopup = () => {
-    setEditingRoom(null);
-    setRoomPopupOpen(false);
-  };
-
-  const saveRoom = async (roomData: Omit<ExtendedRoom, 'id'> & { id?: number }) => {
-    try {
-      setIsLoading(true);
-      
-      if (editingRoom && editingRoom.id) {
-        // Update existing room
-        await roomService.updateRoom(editingRoom.id, roomData);
-      } else {
-        // Create new room
-        await roomService.createRoom(roomData);
-      }
-      
-      // Refresh room list
-      await loadRooms();
-      closeRoomPopup();
-    } catch (err) {
-      console.error('Error saving room:', err);
-      setError('Có lỗi xảy ra khi lưu thông tin phòng. Vui lòng thử lại sau.');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const openTenantPopup = () => {
-    setTenantPopupOpen(true);
-  };
-
-  const closeTenantPopup = () => {
-    setTenantPopupOpen(false);
-  };
-
-  const saveTenant = async (tenant: Tenant) => {
-    try {
-      setIsLoading(true);
-      
-      // Find the room by soPhong
-      const room = rooms.find(r => r.soPhong === tenant.soPhong);
-      
-      if (!room) {
-        throw new Error('Không tìm thấy phòng');
-      }
-      
-      // Assign room to household
-      await roomService.assignRoom(room.id, Number(tenant.soHoKhau), tenant.ngayBatDau);
-      
-      // Update tenant information if provided
-      if (tenant.nguoiThue) {
-        await roomService.updateTenant(room.id, tenant.nguoiThue);
-      }
-      
-      // Refresh data
-      await loadRooms();
-      await loadHouseholds();
-      
-      closeTenantPopup();
-    } catch (err) {
-      console.error('Error assigning room to tenant:', err);
-      setError('Có lỗi xảy ra khi cập nhật thông tin người thuê. Vui lòng thử lại sau.');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const confirmDeleteRoom = async () => {
-    if (roomToDelete) {
-      try {
-        setIsLoading(true);
-        await roomService.deleteRoom(roomToDelete.id);
-        
-        // Refresh room list
-        await loadRooms();
-        setRoomToDelete(null);
-      } catch (err) {
-        console.error('Error deleting room:', err);
-        setError('Có lỗi xảy ra khi xóa phòng. Vui lòng thử lại sau.');
-      } finally {
-        setIsLoading(false);
-      }
-    }
-  };
-
-  const cancelDeleteRoom = () => {
-    setRoomToDelete(null);
-  };
-
-  const phongDaThue = statistics?.rentedRooms || rooms.filter(r => r.hoKhauId).length;
-  const phongTrong = statistics?.availableRooms || rooms.filter(r => r.trangThai === 'trong').length;
-  const phongBaoTri = statistics?.maintenanceRooms || rooms.filter(r => r.trangThai === 'bao_tri').length;
-  const totalRooms = statistics?.totalRooms || rooms.length;
+  // Calculate statistics
+  const phongCoNguoi = rooms.filter(r => r.chuCanHo).length;
+  const phongTrong = rooms.filter(r => !r.chuCanHo).length;
+  const totalRooms = rooms.length;
 
   // Get list of unique floors for filter
   const uniqueTangs = [...new Set(rooms.map(r => r.tang))].sort();
   
-  // Filter rooms based on search term and floor
+  // Filter rooms based on search term, floor, and status
   const filteredRooms = rooms.filter(room => {
     const matchesSearch = 
       room.soPhong.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (room.hoThue || "").toLowerCase().includes(searchTerm.toLowerCase());
+      (room.chuCanHo || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (room.maHoKhau || "").toLowerCase().includes(searchTerm.toLowerCase());
     
     const matchesFloor = !filterTang || room.tang === filterTang;
     
-    return matchesSearch && matchesFloor;
-  });
-
-  return (
+    const matchesStatus = !filterTrangThai || 
+      (filterTrangThai === 'occupied' && room.chuCanHo) ||
+      (filterTrangThai === 'vacant' && !room.chuCanHo);
+    
+    return matchesSearch && matchesFloor && matchesStatus;
+  });  return (
     <Layout role="totruong">
       <div className="p-4 flex flex-col gap-6">
         {/* Header */}
@@ -236,9 +102,9 @@ const QuanLyPhong: React.FC = () => {
             <div className="p-2 bg-blue-100 rounded-lg">
               <Home className="h-6 w-6 text-blue-600" />
             </div>
-            <h1 className="text-2xl font-bold text-gray-800">QUẢN LÝ PHÒNG</h1>
+            <h1 className="text-2xl font-bold text-gray-800">QUẢN LÝ CĂN HỘ</h1>
           </div>
-          <p className="text-gray-600 text-sm">Quản lý thông tin phòng và người thuê trong chung cư</p>
+          <p className="text-gray-600 text-sm">Quản lý thông tin căn hộ và chủ hộ trong chung cư</p>
         </div>
         
         {/* Loading indicator */}
@@ -258,8 +124,56 @@ const QuanLyPhong: React.FC = () => {
 
         {!isLoading && !error && (
           <>
+            {/* Statistics cards */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
+                <div className="flex justify-between items-center">
+                  <div>
+                    <div className="text-gray-500 text-sm">Tổng số căn hộ</div>
+                    <div className="text-2xl font-semibold">{totalRooms}</div>
+                  </div>
+                  <div className="p-3 bg-blue-100 rounded-full">
+                    <Home className="h-6 w-6 text-blue-600" />
+                  </div>
+                </div>
+              </div>
+              <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
+                <div className="flex justify-between items-center">
+                  <div>
+                    <div className="text-gray-500 text-sm">Căn hộ có người ở</div>
+                    <div className="text-2xl font-semibold">{phongCoNguoi}</div>
+                  </div>
+                  <div className="p-3 bg-green-100 rounded-full">
+                    <Users className="h-6 w-6 text-green-600" />
+                  </div>
+                </div>
+              </div>
+              <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
+                <div className="flex justify-between items-center">
+                  <div>
+                    <div className="text-gray-500 text-sm">Căn hộ trống</div>
+                    <div className="text-2xl font-semibold">{phongTrong}</div>
+                  </div>
+                  <div className="p-3 bg-orange-100 rounded-full">
+                    <Home className="h-6 w-6 text-orange-600" />
+                  </div>
+                </div>
+              </div>
+              <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
+                <div className="flex justify-between items-center">
+                  <div>
+                    <div className="text-gray-500 text-sm">Tỷ lệ lấp đầy</div>
+                    <div className="text-2xl font-semibold">{totalRooms > 0 ? Math.round((phongCoNguoi / totalRooms) * 100) : 0}%</div>
+                  </div>
+                  <div className="p-3 bg-purple-100 rounded-full">
+                    <AlertTriangle className="h-6 w-6 text-purple-600" />
+                  </div>
+                </div>
+              </div>
+            </div>
+
             {/* Search and filter */}
-            <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200 mb-2">
+            <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
               <div className="flex flex-col lg:flex-row gap-4 items-end">
                 <div className="flex-1">
                   <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -267,7 +181,7 @@ const QuanLyPhong: React.FC = () => {
                   </label>
                   <input
                     type="text"
-                    placeholder="Tìm theo số phòng hoặc tên người thuê..."
+                    placeholder="Tìm theo số căn hộ, tên chủ hộ hoặc mã hộ khẩu..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                     className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -282,76 +196,34 @@ const QuanLyPhong: React.FC = () => {
                     onChange={(e) => setFilterTang(e.target.value)}
                     className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
                   >
-                    <option value="">Tất cả các tầng</option>
+                    <option value="">Tất cả</option>
                     {uniqueTangs.map(tang => (
                       <option key={tang} value={tang}>Tầng {tang}</option>
                     ))}
                   </select>
                 </div>
-                <div className="flex gap-3">
+                <div className="w-full lg:w-48">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Trạng thái
+                  </label>
+                  <select
+                    value={filterTrangThai}
+                    onChange={(e) => setFilterTrangThai(e.target.value)}
+                    className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="">Tất cả</option>
+                    <option value="occupied">Có người ở</option>
+                    <option value="vacant">Trống</option>
+                  </select>
+                </div>
+                <div>
                   <button 
-                    onClick={() => openRoomPopup()} 
+                    onClick={() => setIsAddApartmentPopupOpen(true)}
                     className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors"
                   >
                     <Plus className="h-5 w-5" />
-                    Thêm phòng mới
+                    Thêm căn hộ mới
                   </button>
-                  <button 
-                    onClick={() => openTenantPopup()} 
-                    className="flex items-center gap-2 bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 transition-colors"
-                    disabled={phongTrong === 0}
-                  >
-                    <Users className="h-5 w-5" />
-                    Thêm hộ thuê
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            {/* Statistics cards */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
-                <div className="flex justify-between items-center">
-                  <div>
-                    <div className="text-gray-500 text-sm">Tổng số phòng</div>
-                    <div className="text-2xl font-semibold">{totalRooms}</div>
-                  </div>
-                  <div className="p-3 bg-blue-100 rounded-full">
-                    <Home className="h-6 w-6 text-blue-600" />
-                  </div>
-                </div>
-              </div>
-              <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
-                <div className="flex justify-between items-center">
-                  <div>
-                    <div className="text-gray-500 text-sm">Phòng đã thuê</div>
-                    <div className="text-2xl font-semibold">{phongDaThue}</div>
-                  </div>
-                  <div className="p-3 bg-green-100 rounded-full">
-                    <Users className="h-6 w-6 text-green-600" />
-                  </div>
-                </div>
-              </div>
-              <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
-                <div className="flex justify-between items-center">
-                  <div>
-                    <div className="text-gray-500 text-sm">Phòng trống</div>
-                    <div className="text-2xl font-semibold">{phongTrong}</div>
-                  </div>
-                  <div className="p-3 bg-orange-100 rounded-full">
-                    <Home className="h-6 w-6 text-orange-600" />
-                  </div>
-                </div>
-              </div>
-              <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
-                <div className="flex justify-between items-center">
-                  <div>
-                    <div className="text-gray-500 text-sm">Phòng bảo trì</div>
-                    <div className="text-2xl font-semibold">{phongBaoTri}</div>
-                  </div>
-                  <div className="p-3 bg-red-100 rounded-full">
-                    <AlertTriangle className="h-6 w-6 text-red-600" />
-                  </div>
                 </div>
               </div>
             </div>
@@ -360,7 +232,7 @@ const QuanLyPhong: React.FC = () => {
             <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
               <div className="px-6 py-4 border-b border-gray-200">
                 <h3 className="text-lg font-semibold text-gray-900">
-                  Danh sách phòng ({filteredRooms.length})
+                  Danh sách căn hộ ({filteredRooms.length})
                 </h3>
               </div>
               <div className="overflow-x-auto">
@@ -368,7 +240,7 @@ const QuanLyPhong: React.FC = () => {
                   <thead className="bg-gray-50">
                     <tr>
                       <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Số phòng
+                        Số căn hộ
                       </th>
                       <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Tầng
@@ -376,100 +248,90 @@ const QuanLyPhong: React.FC = () => {
                       <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Diện tích (m²)
                       </th>
-                      {/* Temporarily hidden: Chủ hộ and Người thuê columns */}
-                      {/*
                       <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Chủ hộ
+                        Chủ căn hộ
                       </th>
                       <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Người thuê
+                        Mã hộ khẩu
                       </th>
-                      */}
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Số thành viên
+                      </th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Liên hệ
+                      </th>
                       <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Trạng thái
-                      </th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Ghi chú
-                      </th>
-                      <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Thao tác
                       </th>
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
                     {filteredRooms.length === 0 ? (
                       <tr>
-                        <td colSpan={7} className="px-4 py-4 text-center text-gray-500">
-                          Không tìm thấy phòng nào
+                        <td colSpan={8} className="px-4 py-8 text-center text-gray-500">
+                          {searchTerm || filterTang || filterTrangThai ? 
+                            'Không tìm thấy căn hộ nào phù hợp với điều kiện lọc' : 
+                            'Chưa có căn hộ nào'}
                         </td>
                       </tr>
                     ) : (
                       filteredRooms.map(room => (
                         <tr key={room.id} className="hover:bg-gray-50">
-                          <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">
+                          <td className="px-4 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                             {room.soPhong}
                           </td>
-                          <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-700">
-                            {room.tang}
+                          <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-700">
+                            Tầng {room.tang}
                           </td>
-                          <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-700">
+                          <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-700">
                             {room.dienTich}
                           </td>
-                          {/* Temporarily hidden: Chủ hộ and Người thuê data columns */}
-                          {/*
-                          <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-700">
-                            {room.hoKhau?.chuHoInfo?.hoTen || (
+                          <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-700">
+                            {room.chuCanHo ? (
+                              <div className="flex flex-col">
+                                <span className="font-medium text-gray-900">{room.chuCanHo}</span>
+                                {room.ngayVaoO && (
+                                  <span className="text-xs text-gray-500">
+                                    Từ {new Date(room.ngayVaoO).toLocaleDateString('vi-VN')}
+                                  </span>
+                                )}
+                              </div>
+                            ) : (
                               <span className="text-gray-400 italic">Chưa có chủ hộ</span>
                             )}
                           </td>
-                          <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-700">
-                            {room.nguoiThue || (
-                              <span className="text-gray-400 italic">Chưa có người thuê</span>
+                          <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-700">
+                            {room.maHoKhau ? (
+                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                                {room.maHoKhau}
+                              </span>
+                            ) : (
+                              <span className="text-gray-400">-</span>
                             )}
                           </td>
-                          */}
-                          <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-700">
-                            {room.trangThai === 'da_thue' && (
-                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                                Đã thuê
+                          <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-700">
+                            {room.soThanhVien ? (
+                              <span className="flex items-center">
+                                <Users className="h-4 w-4 mr-1 text-gray-400" />
+                                {room.soThanhVien} người
                               </span>
+                            ) : (
+                              <span className="text-gray-400">-</span>
                             )}
-                            {room.trangThai === 'trong' && (
+                          </td>
+                          <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-700">
+                            {room.soDienThoai || '-'}
+                          </td>
+                          <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-700">
+                            {room.chuCanHo ? (
+                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                Có người ở
+                              </span>
+                            ) : (
                               <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
                                 Trống
                               </span>
                             )}
-                            {room.trangThai === 'bao_tri' && (
-                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
-                                Bảo trì
-                              </span>
-                            )}
-                          </td>
-                          <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-700">
-                            {room.ghiChu || '-'}
-                          </td>
-                          <td className="px-4 py-3 whitespace-nowrap text-center">
-                            <div className="flex justify-center gap-3">
-                              <button
-                                onClick={() => openRoomPopup(room)}
-                                className="text-blue-600 hover:text-blue-800 p-1 rounded hover:bg-blue-50 transition-colors"
-                                title="Sửa"
-                              >
-                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                                </svg>
-                              </button>
-                              <button
-                                onClick={() => setRoomToDelete(room)}
-                                className="text-red-600 hover:text-red-800 p-1 rounded hover:bg-red-50 transition-colors"
-                                disabled={Boolean(room.hoKhauId)}
-                                title="Xóa"
-                              >
-                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                </svg>
-                              </button>
-                            </div>
                           </td>
                         </tr>
                       ))
@@ -478,56 +340,35 @@ const QuanLyPhong: React.FC = () => {
                 </table>
               </div>
             </div>
+
+            {/* Note */}
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+              <h3 className="text-sm font-semibold text-blue-800 mb-2">Lưu ý:</h3>
+              <div className="text-sm text-blue-700 space-y-1">
+                <div className="flex items-start">
+                  <span className="inline-block w-2 h-2 bg-blue-500 rounded-full mt-2 mr-2 flex-shrink-0"></span>
+                  <span><strong>Chủ căn hộ:</strong> Là chủ hộ của hộ khẩu đăng ký tại căn hộ đó.</span>
+                </div>
+                <div className="flex items-start">
+                  <span className="inline-block w-2 h-2 bg-blue-500 rounded-full mt-2 mr-2 flex-shrink-0"></span>
+                  <span><strong>Số thành viên:</strong> Tổng số người trong hộ khẩu đăng ký tại căn hộ.</span>
+                </div>
+                <div className="flex items-start">
+                  <span className="inline-block w-2 h-2 bg-blue-500 rounded-full mt-2 mr-2 flex-shrink-0"></span>
+                  <span><strong>Mã hộ khẩu:</strong> Mã định danh của hộ khẩu đăng ký tại căn hộ.</span>
+                </div>
+              </div>
+            </div>
           </>
         )}
       </div>
 
-      {/* Popups */}
-      <AddEditRoomPopup
-        isOpen={isRoomPopupOpen}
-        onClose={closeRoomPopup}
-        onSave={saveRoom}
-        editData={editingRoom}
-        tenants={tenants}
+      {/* Add Apartment Popup */}
+      <AddApartmentPopup
+        isOpen={isAddApartmentPopupOpen}
+        onClose={() => setIsAddApartmentPopupOpen(false)}
+        onSuccess={loadRooms}
       />
-
-      <AddEditTenantPopup
-        isOpen={isTenantPopupOpen}
-        onClose={closeTenantPopup}
-        onSave={saveTenant}
-        availableRooms={rooms.filter(r => !r.hoKhauId)}
-        households={households}
-      />
-
-      {/* Modal xác nhận xóa */}
-      {roomToDelete && (
-        <div className="fixed inset-0 z-50">
-          <div className="fixed inset-0 bg-black bg-opacity-25" onClick={cancelDeleteRoom}></div>
-          <div className="fixed left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-white rounded-lg shadow-lg max-w-md w-full">
-            <div className="p-6">
-              <h2 className="text-lg font-semibold text-gray-900 mb-4">Xác nhận xóa phòng</h2>
-              <p className="text-sm text-gray-600 mb-6">
-                Bạn có chắc chắn muốn xóa phòng <strong>{roomToDelete.soPhong}</strong>?<br />
-                {roomToDelete.hoKhauId && 'Hộ thuê sẽ bị gỡ liên kết khỏi phòng này.'}
-              </p>
-              <div className="flex justify-end gap-3">
-                <button
-                  onClick={cancelDeleteRoom}
-                  className="px-4 py-2 text-sm font-medium text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50"
-                >
-                  Hủy
-                </button>
-                <button
-                  onClick={confirmDeleteRoom}
-                  className="px-4 py-2 text-sm font-medium text-white bg-red-600 border border-transparent rounded-md hover:bg-red-700"
-                >
-                  Xóa
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
     </Layout>
   );
 };

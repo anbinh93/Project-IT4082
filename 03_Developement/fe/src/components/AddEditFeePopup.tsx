@@ -33,6 +33,7 @@ interface ImportableFee extends BaseFeeType {
 
 interface VoluntaryFee extends BaseFeeType {
   voluntary: true;
+  minimumAmount?: number; // Số tiền tối thiểu cho khoản đóng góp
   calculateByArea?: never;
   calculateByVehicle?: never;
   importable?: never;
@@ -141,12 +142,13 @@ const AddEditFeePopup: React.FC<AddEditFeePopupProps> = ({
 }) => {
   const [feeType, setFeeType] = useState('');
   const [chiTiet, setChiTiet] = useState('');
+  const [soTienToiThieu, setSoTienToiThieu] = useState(0); // Số tiền tối thiểu
   const [householdFees, setHouseholdFees] = useState<{
     [key: string]: { amount: number; auto: boolean; owner?: string }
   }>({});
   const [file, setFile] = useState<File | null>(null);
   const [fileError, setFileError] = useState('');
-  const [errors, setErrors] = useState<{ feeType?: string; chiTiet?: string; householdFees?: string }>({});
+  const [errors, setErrors] = useState<{ feeType?: string; chiTiet?: string; householdFees?: string; soTienToiThieu?: string }>({});
   const [showConfirmClose, setShowConfirmClose] = useState(false);
   const [showConfirmSave, setShowConfirmSave] = useState(false);
   const [pendingAction, setPendingAction] = useState<'close' | 'save' | null>(null);
@@ -288,6 +290,7 @@ const AddEditFeePopup: React.FC<AddEditFeePopupProps> = ({
     if (initialData) {
       setFeeType(initialData.type || '');
       setChiTiet(initialData.chiTiet || '');
+      setSoTienToiThieu(initialData.soTienToiThieu || 0);
       
       // If we have household fees in initial data, use them
       if (initialData.householdFees) {
@@ -301,6 +304,7 @@ const AddEditFeePopup: React.FC<AddEditFeePopupProps> = ({
       // Reset form for new fee
       setFeeType('');
       setChiTiet('');
+      setSoTienToiThieu(0);
       setHouseholdFees({});
       setFile(null);
       setFileError('');
@@ -309,7 +313,7 @@ const AddEditFeePopup: React.FC<AddEditFeePopupProps> = ({
   }, [initialData, isOpen]);
 
   // Check if form is dirty
-  const isDirty = feeType !== '' || chiTiet !== '' || Object.keys(householdFees).length > 0 || file !== null;
+  const isDirty = feeType !== '' || chiTiet !== '' || soTienToiThieu > 0 || Object.keys(householdFees).length > 0 || file !== null;
 
   // Xác thực form
   const validate = () => {
@@ -336,6 +340,7 @@ const AddEditFeePopup: React.FC<AddEditFeePopupProps> = ({
     setErrors({});
     setFeeType('');
     setChiTiet('');
+    setSoTienToiThieu(0);
     setHouseholdFees({});
     setFile(null);
     setFileError('');
@@ -362,6 +367,7 @@ const AddEditFeePopup: React.FC<AddEditFeePopupProps> = ({
         tenKhoan: feeTypeObj?.name || '',
         chiTiet: chiTiet,
         batBuoc: feeTypeObj?.mandatory ? 'Bắt buộc' : 'Không bắt buộc',
+        soTienToiThieu: (selectedFeeType && 'voluntary' in selectedFeeType && selectedFeeType.voluntary) ? soTienToiThieu : undefined,
         householdFees,
         importedFileName: importedFileName || undefined
       };
@@ -408,6 +414,28 @@ const AddEditFeePopup: React.FC<AddEditFeePopupProps> = ({
               <textarea className={`mt-1 block w-full px-3 py-2 border ${errors.chiTiet ? 'border-red-500' : 'border-gray-300'} rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm`} placeholder={selectedFeeType && 'voluntary' in selectedFeeType && selectedFeeType.voluntary ? "Nhập mô tả chi tiết về mục đích đóng góp..." : "Mô tả chi tiết về khoản thu..."} rows={3} value={chiTiet} onChange={e => setChiTiet(e.target.value)} />
               {errors.chiTiet && <p className="text-xs text-red-500 mt-1">{errors.chiTiet}</p>}
             </div>
+            {/* Trường số tiền tối thiểu chỉ hiện với khoản thu tự nguyện */}
+            {selectedFeeType && 'voluntary' in selectedFeeType && selectedFeeType.voluntary && (
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Số tiền tối thiểu (VND)
+                  <span className="text-xs text-gray-500 ml-1">(tùy chọn)</span>
+                </label>
+                <input 
+                  type="number"
+                  className={`mt-1 block w-full px-3 py-2 border ${errors.soTienToiThieu ? 'border-red-500' : 'border-gray-300'} rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm`}
+                  placeholder="0"
+                  min="0"
+                  step="1000"
+                  value={soTienToiThieu || ''}
+                  onChange={e => setSoTienToiThieu(parseInt(e.target.value) || 0)}
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  Số tiền tối thiểu mà mỗi hộ gia đình cần đóng góp. Để trống hoặc 0 nếu không có yêu cầu tối thiểu.
+                </p>
+                {errors.soTienToiThieu && <p className="text-xs text-red-500 mt-1">{errors.soTienToiThieu}</p>}
+              </div>
+            )}
             {/* Loại phí import file: chỉ hiển thị hướng dẫn và nút chọn file nếu chưa có householdFees */}
             {isImportFeeType && !Object.keys(householdFees).length && (
               <div className="mb-6 p-4 border border-dashed border-gray-300 rounded-lg">

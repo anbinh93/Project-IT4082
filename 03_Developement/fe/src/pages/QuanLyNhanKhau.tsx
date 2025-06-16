@@ -69,6 +69,15 @@ const QuanLyNhanKhau: React.FC = () => {
   };
 
   const handleDeleteResident = async (residentId: number, residentName: string) => {
+    // Find resident data to check status
+    const resident = residents.find(r => r.id === residentId);
+    
+    // Check if resident belongs to household
+    if (resident && resident.householdStatus === 'in_household') {
+      alert('Không thể xóa nhân khẩu này vì đang thuộc về một hộ khẩu. Vui lòng loại bỏ khỏi hộ khẩu trước khi xóa.');
+      return;
+    }
+
     if (!window.confirm(`Bạn có chắc chắn muốn xóa nhân khẩu "${residentName}" không? Thao tác này không thể hoàn tác.`)) {
       return;
     }
@@ -83,7 +92,7 @@ const QuanLyNhanKhau: React.FC = () => {
       }
     } catch (error: any) {
       console.error('Error deleting resident:', error);
-      alert(error.message || 'Có lỗi xảy ra khi xóa nhân khẩu');
+      alert(error.response?.data?.message || error.message || 'Có lỗi xảy ra khi xóa nhân khẩu');
     }
   };
 
@@ -97,6 +106,18 @@ const QuanLyNhanKhau: React.FC = () => {
   };
 
   const handleTachHo = (rowData: Resident) => {
+    // Check if resident is head of household
+    if (rowData.laChuHo) {
+      alert('Chủ hộ không thể tách hộ. Vui lòng chuyển chức chủ hộ cho thành viên khác trước khi tách hộ.');
+      return;
+    }
+    
+    // Check if resident belongs to any household
+    if (rowData.householdStatus !== 'in_household') {
+      alert('Nhân khẩu này hiện không thuộc hộ khẩu nào nên không thể tách hộ.');
+      return;
+    }
+    
     openTachHoPopup(rowData);
   };
 
@@ -289,7 +310,7 @@ const QuanLyNhanKhau: React.FC = () => {
                           key={col.key}
                           className="px-6 py-3 text-left text-xs font-bold text-gray-800 uppercase tracking-wider cursor-pointer select-none"
                           onClick={() => {
-                            if (col.key !== 'household') { // Không sort theo hộ khẩu
+                            if (col.key !== 'household' && col.key !== 'status') { // Không sort theo hộ khẩu và trạng thái
                               if (sortBy === col.key) setSortAsc(!sortAsc);
                               else { setSortBy(col.key as any); setSortAsc(true); }
                             }
@@ -359,6 +380,7 @@ const QuanLyNhanKhau: React.FC = () => {
                               <span className="text-gray-400 text-xs">Đang tải...</span>
                             )}
                           </td>
+                          
                           <td className="px-6 py-4 whitespace-nowrap text-sm">
                             <div className="flex flex-wrap gap-2">
                               {/* Edit Button */}
@@ -376,8 +398,17 @@ const QuanLyNhanKhau: React.FC = () => {
                               {/* Delete Button */}
                               <button
                                 onClick={() => handleDeleteResident(rowData.id, rowData.hoTen)}
-                                className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-red-100 text-red-800 hover:bg-red-200 transition-colors"
-                                title="Xóa nhân khẩu"
+                                disabled={rowData.householdStatus === 'in_household'}
+                                className={`inline-flex items-center px-2 py-1 rounded-md text-xs font-medium transition-colors ${
+                                  rowData.householdStatus === 'in_household'
+                                    ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                                    : 'bg-red-100 text-red-800 hover:bg-red-200'
+                                }`}
+                                title={
+                                  rowData.householdStatus === 'in_household'
+                                    ? 'Không thể xóa nhân khẩu đang thuộc hộ khẩu'
+                                    : 'Xóa nhân khẩu'
+                                }
                               >
                                 <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
@@ -388,8 +419,19 @@ const QuanLyNhanKhau: React.FC = () => {
                               {/* Household Separation Button */}
                               <button
                                 onClick={() => handleTachHo(rowData)}
-                                className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-yellow-100 text-yellow-800 hover:bg-yellow-200 transition-colors"
-                                title="Tách hộ"
+                                disabled={rowData.householdStatus !== 'in_household' || rowData.laChuHo}
+                                className={`inline-flex items-center px-2 py-1 rounded-md text-xs font-medium transition-colors ${
+                                  rowData.householdStatus !== 'in_household' || rowData.laChuHo
+                                    ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                                    : 'bg-yellow-100 text-yellow-800 hover:bg-yellow-200'
+                                }`}
+                                title={
+                                  rowData.householdStatus !== 'in_household'
+                                    ? 'Nhân khẩu không thuộc hộ khẩu nào'
+                                    : rowData.laChuHo
+                                    ? 'Chủ hộ không thể tách hộ. Vui lòng chuyển chức chủ hộ trước.'
+                                    : 'Tách hộ'
+                                }
                               >
                                 <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
@@ -475,6 +517,21 @@ const QuanLyNhanKhau: React.FC = () => {
                 )}
               </>
             )}
+          </div>
+          
+          {/* Legend and Notes */}
+          <div className="mt-6 bg-blue-50 border border-blue-200 rounded-lg p-4">
+            <h3 className="text-sm font-semibold text-blue-800 mb-2">Lưu ý về quy tắc xóa và tách hộ:</h3>
+            <div className="text-sm text-blue-700 space-y-1">
+              <div className="flex items-start">
+                <span className="inline-block w-2 h-2 bg-blue-500 rounded-full mt-2 mr-2 flex-shrink-0"></span>
+                <span><strong>Xóa nhân khẩu:</strong> Chỉ có thể xóa những nhân khẩu không thuộc hộ khẩu nào. Cần loại bỏ khỏi hộ khẩu trước khi xóa.</span>
+              </div>
+              <div className="flex items-start">
+                <span className="inline-block w-2 h-2 bg-blue-500 rounded-full mt-2 mr-2 flex-shrink-0"></span>
+                <span><strong>Tách hộ:</strong> Chủ hộ không thể tách hộ. Cần chuyển chức chủ hộ cho thành viên khác trước khi tách hộ.</span>
+              </div>
+            </div>
           </div>
         </div>
       </Layout>

@@ -98,7 +98,7 @@ const AddEditNhanKhauPopup: React.FC<AddEditNhanKhauPopupProps> = ({ isOpen, onC
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Validation
+    // Validation and normalize data
     if (!formData.hoTen.trim()) {
       setError('Vui lòng nhập họ tên');
       return;
@@ -124,10 +124,22 @@ const AddEditNhanKhauPopup: React.FC<AddEditNhanKhauPopupProps> = ({ isOpen, onC
       setSubmitting(true);
       setError('');
 
-      console.log('Creating new resident:', formData);
+      // Normalize form data
+      const normalizedFormData = {
+        ...formData,
+        hoTen: formData.hoTen.trim(),
+        cccd: formData.cccd.trim(),
+        ngheNghiep: formData.ngheNghiep?.trim() || '',
+        soDienThoai: formData.soDienThoai?.trim() || '',
+        danToc: formData.danToc?.trim() || 'Kinh',
+        tonGiao: formData.tonGiao?.trim() || 'Không',
+        noiCap: formData.noiCap?.trim() || ''
+      };
+
+      console.log('Creating new resident:', normalizedFormData);
       
       // Call API to create new resident
-      const response = await residentAPI.create(formData);
+      const response = await residentAPI.create(normalizedFormData);
       
       if (response.success) {
         console.log('Resident created successfully:', response.data);

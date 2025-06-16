@@ -88,6 +88,12 @@ const TachHoPopup: React.FC<TachHoPopupProps> = ({ isOpen, onClose, selectedResi
     e.preventDefault();
     if (!selectedResident) return;
 
+    // Check if resident is head of household and prevent separation
+    if (householdInfo && householdInfo.isHeadOfHousehold) {
+      setError('Chủ hộ không thể tách hộ. Vui lòng chuyển chức chủ hộ cho thành viên khác trước khi tách hộ.');
+      return;
+    }
+
     // Validate form
     if (!isCreatingNewHousehold && !selectedHousehold) {
       setError('Vui lòng chọn hộ gia đình đích');

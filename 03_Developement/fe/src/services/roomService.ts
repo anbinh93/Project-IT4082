@@ -73,6 +73,12 @@ export const roomService = {
       method: 'POST',
       body: JSON.stringify(data),
     });
+    
+    // Handle business logic errors (like duplicate room number)
+    if (response.message && !response.room) {
+      throw new Error(response.message);
+    }
+    
     return response.room;
   },
 
@@ -94,14 +100,41 @@ export const roomService = {
 
   // Assign a room to a household
   async assignRoom(id: string | number, hoKhauId: number, ngayBatDau?: string): Promise<Room> {
-    const response = await apiRequest(`/rooms/${id}/assign`, {
-      method: 'POST',
-      body: JSON.stringify({
-        hoKhauId,
-        ngayBatDau
-      }),
-    });
-    return response.room;
+    try {
+      const response = await apiRequest(`/rooms/${id}/assign`, {
+        method: 'POST',
+        body: JSON.stringify({
+          hoKhauId,
+          ngayBatDau
+        }),
+      });
+      
+      console.log('AssignRoom response:', response);
+      
+      // Check if response has error message
+      if (response.message && response.message.includes('lỗi')) {
+        throw new Error(response.message);
+      }
+      
+      // Check if response has room data
+      if (!response.room) {
+        throw new Error('Không nhận được dữ liệu phòng sau khi gán');
+      }
+      
+      // Return the room object from response
+      return response.room;
+    } catch (error: any) {
+      console.error('Error in assignRoom:', error);
+      
+      // Enhance error message
+      if (error.response?.data?.message) {
+        throw new Error(error.response.data.message);
+      } else if (error.message) {
+        throw new Error(error.message);
+      } else {
+        throw new Error('Có lỗi xảy ra khi gán phòng cho hộ khẩu');
+      }
+    }
   },
 
   // Release a room from a household

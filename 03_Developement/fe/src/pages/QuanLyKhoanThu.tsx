@@ -109,7 +109,7 @@ const QuanLyKhoanThuNew: React.FC = () => {
   const loadDotThuList = async () => {
     try {
       setLoading(true);
-      const response = await api.dotThu.getAll({
+      const response = await api.dotThu.getAllWithKhoanThu({
         page: 0,
         size: 20,
         sortBy: 'createdAt',
@@ -623,7 +623,7 @@ const QuanLyKhoanThuNew: React.FC = () => {
                       </button>
                       <button
                         type="button"
-                        onClick={(e) => {
+                        onClick={(e) => {``
                           const input = (e.target as HTMLElement).closest('form')?.querySelector('input[name="soTienNop"]') as HTMLInputElement;
                           if (input) input.value = selectedHousehold.soTien.toString();
                         }}

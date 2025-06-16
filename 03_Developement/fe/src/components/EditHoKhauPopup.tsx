@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { householdAPI } from '../services/api';
+import { householdAPI, residentAPI } from '../services/api';
 import AddMemberPopup from './AddMemberPopup';
 
 interface HouseholdMember {
@@ -118,6 +118,43 @@ const EditHoKhauPopup: React.FC<EditHoKhauPopupProps> = ({ isOpen, onClose, hous
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('vi-VN');
+  };
+
+  const handleRemoveMember = async (residentId: number, residentName: string) => {
+    if (!householdId) return; // householdId is from the popup props, ensuring context
+
+    const confirmRemove = window.confirm(`Bạn có chắc chắn muốn xóa nhân khẩu ${residentName} (ID: ${residentId}) khỏi hộ khẩu này không?`);
+    if (!confirmRemove) return;
+
+    const reason = window.prompt("Nhập lý do xóa nhân khẩu khỏi hộ:");
+    if (reason === null) return; // User cancelled prompt or entered nothing and hit cancel
+
+    setLoading(true);
+    setError(null);
+    try {
+      // Correctly call residentAPI.separateHousehold
+      const response = await residentAPI.separateHousehold({
+        residentId: residentId,
+        targetType: 'remove', // Indicate removal from current household
+        reason: reason || 'Xóa khỏi hộ khẩu theo yêu cầu' // Default reason if user provides empty string
+        // No targetHouseholdId, newHouseholdAddress, or quanHeVoiChuHoMoi needed for simple removal
+      });
+
+      if (response.success) {
+        fetchHouseholdData(); // Refresh household data to reflect the change
+        alert(`Đã xóa nhân khẩu ${residentName} khỏi hộ khẩu.`);
+      } else {
+        setError(response.message || 'Lỗi khi xóa thành viên khỏi hộ khẩu');
+        alert(`Lỗi: ${response.message || 'Không thể xóa thành viên.'}`);
+      }
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Lỗi không xác định khi xóa thành viên.';
+      setError(errorMessage);
+      alert(`Lỗi: ${errorMessage}`);
+      console.error('Error removing member from household:', err);
+    } finally {
+      setLoading(false);
+    }
   };
 
   if (!isOpen) return null;
@@ -280,6 +317,7 @@ const EditHoKhauPopup: React.FC<EditHoKhauPopupProps> = ({ isOpen, onClose, hous
                         <th className="px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">Giới tính</th>
                         <th className="px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">Ngày vào hộ</th>
                         <th className="px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">Trạng thái</th>
+                        <th className="px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">Hành động</th>
                       </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200">
@@ -300,7 +338,7 @@ const EditHoKhauPopup: React.FC<EditHoKhauPopupProps> = ({ isOpen, onClose, hous
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
                             {formatDate(member.ngayVaoHo)}
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-center">
                             <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
                               member.ngayRoiHo 
                                 ? 'bg-red-100 text-red-800' 
@@ -308,6 +346,19 @@ const EditHoKhauPopup: React.FC<EditHoKhauPopupProps> = ({ isOpen, onClose, hous
                             }`}>
                               {member.ngayRoiHo ? 'Đã rời hộ' : 'Đang sinh sống'}
                             </span>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-right">
+                            {householdData.chuHoId !== member.nhanKhau.id && !member.ngayRoiHo && ( // Don't allow removing head of household or already removed member
+                              <button
+                                onClick={() => handleRemoveMember(member.nhanKhau.id, member.nhanKhau.hoTen)}
+                                className="text-red-600 hover:text-red-800 font-medium text-xs p-1 rounded-md hover:bg-red-50 transition-colors"
+                                title="Xóa khỏi hộ khẩu"
+                              >
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                </svg>
+                              </button>
+                            )}
                           </td>
                         </tr>
                       ))}
